@@ -3494,7 +3494,7 @@ do
     fi
 
     if [[ ! -f "${NAME}.tpr" ]]; then
-        gmx grompp \
+        "${GMX_COMMAND}" grompp \
             -f step7_production.mdp \
             -c "${PREVIOUS}.gro" \
             -t "${PREVIOUS}.cpt" \
