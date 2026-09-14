@@ -1717,103 +1717,598 @@ Este RMSD describe el cambio del backbone del conjunto de cadenas respecto de la
 gmx distance     -s md.tpr     -f md_fit.xtc     -n index.ndx     -select 'com of group "Chain_A" plus com of group "Chain_B"'     -oall chain_A_chain_B_distance.xvg
 ~~~
 
-Dinámica de una proteína en agua
+## Dinámica de una proteína en agua
 
-Caso: proteína monómero
+### Caso: proteína monomérica
 
-Este caso es el más sencillo. Esta estrategia se suele emplear cuando se necesita mejorar el modelado de una proteína mediante MD.
+Este sistema contiene una proteína formada por aminoácidos estándar, agua e iones. Es útil para estudiar estabilidad conformacional, flexibilidad, compactación, estructura secundaria, exposición al solvente y movimientos colectivos. También sirve para relajar una estructura modelada, pero una dinámica molecular breve no corrige automáticamente errores de secuencia, plegamiento, protonación o ensamblaje.
 
-Topología
+El flujo general es:
 
-| gmx pdb2gmx -f protein.pdb -o protein\_proc.pdb -water spce |
-| ----------------------------------------------------------- |
+~~~text
+estructura inicial
+    ↓
+revisión y preparación
+    ↓
+topología con pdb2gmx
+    ↓
+caja periódica
+    ↓
+solvatación e iones
+    ↓
+minimización de energía
+    ↓
+equilibración NVT
+    ↓
+equilibración NPT
+    ↓
+dinámica de producción
+    ↓
+corrección de PBC y análisis
+~~~
 
-Select the Force Field:
+### 1. Definir qué estructura se simulará
 
-From '/usr/local/gromacs/share/gromacs/top':
+Antes de ejecutar GROMACS, determine si la estructura representa realmente un monómero biológico. Una cadena aislada de un PDB puede ser:
 
-` `1: AMBER03 protein, nucleic AMBER94 (Duan et al., J. Comp. Chem. 24, 1999-2012, 2003)
+- una proteína monomérica funcional;
+- una subunidad extraída de un oligómero;
+- una construcción truncada;
+- una estructura con mutaciones o etiquetas;
+- un modelo incompleto;
+- una cadena estabilizada por contactos cristalográficos.
 
-` `2: AMBER94 force field (Cornell et al., JACS 117, 5179-5197, 1995)
+Simular una única cadena de una proteína oligomérica puede producir exposición artificial de superficies hidrofóbicas, pérdida de estructura o movimientos que no ocurren en la unidad biológica.
 
-...
+Revise como mínimo:
 
-...
+- residuos y segmentos faltantes;
+- átomos con ocupación alternativa;
+- residuos no estándar;
+- terminales reales de la construcción;
+- enlaces disulfuro;
+- histidinas y otros grupos titulables;
+- metales, cofactores, ligandos y aguas estructurales;
+- mutaciones y modificaciones postraduccionales;
+- orientación y entorno experimental de la proteína.
 
-14: GROMOS96 54a7 force field (Eur. Biophys. J. (2011), 40,, 843-856, DOI: 10.1007/s00249-011-0700-9)
+Conserve el archivo original y trabaje sobre una copia:
 
-15: OPLS-AA/L all-atom force field (2001 aminoacid dihedrals)
+~~~bash
+mkdir -p 00_entrada 01_preparacion 02_em 03_nvt 04_npt 05_md 06_analisis
+cp protein.pdb 00_entrada/protein_original.pdb
+~~~
 
-Elegir 15, para simulaciones de proteínas (solas) está recomendado el OPLS-AA. A menos que deba comparar la misma proteína unida a otros ligandos, para ello debemos seleccionar el mismo campo de fuerza que empleamos en el caso de complejos no covalentes. También, deberán respetarse las mismas condiciones que se emplearon en el caso de la simulación con proteína-ligando.
+### 2. Campo de fuerza y modelo de agua
 
-En topol.top
+No existe un campo de fuerza universalmente superior para todas las proteínas y propiedades. La elección debe justificarse por:
 
-#include "oplsaa.ff/forcefield.itp"
+- tipo de proteína y entorno;
+- propiedad que se medirá;
+- calidad de la parametrización disponible;
+- compatibilidad con cofactores o ligandos;
+- antecedentes metodológicos comparables;
+- modelo de agua utilizado durante el desarrollo o la validación del campo de fuerza.
 
-; Name       nrexcl
+No seleccione OPLS-AA, CHARMM, AMBER o GROMOS solo por el número que ocupa en el menú de **pdb2gmx**. Los números y campos instalados pueden cambiar entre equipos.
 
-Protein\_A    3
+Liste las opciones disponibles:
 
-[ atoms ]
+~~~bash
+gmx pdb2gmx -h
+~~~
 
-;   nr       type  resnr residue  atom   cgnr     charge       mass  typeB    chargeB      massB
+También puede iniciar **pdb2gmx** sin **-ff** para seleccionar el campo de fuerza interactivamente.
 
-; residue   1 LYS rtp LYSH q +2.0
+### 3. Limpieza de la estructura
 
-`     `1   opls\_287      1   LYS       N      1       -0.3    14.0067   ; qtot -0.3
+Elimine únicamente componentes cuya ausencia esté justificada. Las aguas cristalográficas alejadas suelen descartarse, pero una molécula de agua conservada en un sitio catalítico o en una red de puentes de hidrógeno puede ser relevante.
 
-...
+Las conformaciones alternativas deben resolverse antes de **pdb2gmx**. No deben quedar dos posiciones incompatibles para el mismo átomo.
 
-...
+Verificación inicial:
 
-...
+~~~bash
+grep '^ATOM\|^HETATM\|^TER\|^SSBOND' 00_entrada/protein_original.pdb     > 01_preparacion/structure_records.txt
+~~~
 
-; Include Position restraint file
+Este comando solo extrae registros para inspección; no genera por sí mismo un PDB listo para simular.
 
-#ifdef POSRES
+### 4. Generación de la topología
 
-#include "posre.itp"
+Ejemplo interactivo:
 
-#endif
+~~~bash
+cd 01_preparacion
 
-; Include water topology
+gmx pdb2gmx     -f ../00_entrada/protein_original.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp
+~~~
 
-#include "oplsaa.ff/spce.itp"
+Ejemplo con campo de fuerza y agua indicados explícitamente:
 
-#ifdef POSRES\_WATER
+~~~bash
+gmx pdb2gmx     -f ../00_entrada/protein_original.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -ff charmm36-jul2022     -water tip3p
+~~~
 
-; Position restraint for each water oxygen
+El identificador **charmm36-jul2022** es un ejemplo. Debe coincidir con un campo instalado y con el protocolo elegido.
 
-[ position\_restraints ]
+Opciones útiles:
 
-;  i funct       fcx        fcy        fcz
+| Opción | Uso |
+|---|---|
+| **-ff** | Selecciona el campo de fuerza. |
+| **-water** | Selecciona el modelo de agua. |
+| **-ter** | Permite elegir estados de los terminales. |
+| **-his** | Permite seleccionar estados de protonación de histidinas. |
+| **-ss** | Permite elegir interactivamente enlaces disulfuro. |
+| **-ignh** | Ignora hidrógenos de entrada y los reconstruye. Debe usarse deliberadamente. |
+| **-chainsep** | Controla cuándo separar cadenas en tipos moleculares. |
+| **-merge** | Controla la fusión de cadenas en un único tipo molecular. |
 
-`   `1    1       1000       1000       1000
+Consulte las opciones exactas de la instalación:
 
-#endif
+~~~bash
+gmx pdb2gmx -h
+~~~
 
-; Include generic topology for ions
+**pdb2gmx** no asigna estados de protonación mediante una simulación de pH constante. Aplica plantillas y decisiones del usuario. Para histidina deben evaluarse las formas protonadas en Nδ, Nε o en ambos nitrógenos según su entorno.
 
-#include "oplsaa.ff/ions.itp"
+Revise cuidadosamente la salida. Debe comprobar:
+
+- residuos reconocidos;
+- terminales asignados;
+- carga total;
+- enlaces disulfuro;
+- átomos añadidos o eliminados;
+- advertencias;
+- nombre del tipo molecular generado.
+
+Compruebe el archivo:
+
+~~~bash
+gmx check -f protein_processed.gro
+~~~
+
+### 5. Contenido esperado de la topología
+
+Un **topol.top** típico incluye:
+
+~~~ini
+; Campo de fuerza
+#include "charmm36-jul2022.ff/forcefield.itp"
+
+; Topología de la proteína
+#include "topol_Protein.itp"
+
+; Agua
+#include "charmm36-jul2022.ff/tip3p.itp"
+
+; Iones
+#include "charmm36-jul2022.ff/ions.itp"
 
 [ system ]
-
-; Name
-
-Proteina
+Proteína monomérica en agua
 
 [ molecules ]
+Protein    1
+~~~
 
-; Compound        #mols
+La estructura exacta depende de la salida de **pdb2gmx**. No reescriba manualmente nombres sin cambiar también la definición **[ moleculetype ]** correspondiente.
 
-Protein\_A           1
+El archivo de restricciones suele estar incluido dentro del ITP de la proteína:
 
-| #Creación de la caja (en este caso, puse un cubo)<br><br>gmx editconf -f protein\_proc.pdb -o protein\_newbox.pdb -c -d 1.0 -bt cubic<br><br>#Solvatar<br><br>gmx solvate -cp protein\_newbox.pdb -cs spc216.gro -o protein\_solv.pdb -p topol.top<br><br>#Neutralización<br><br>gmx grompp -f em.mdp -c protein\_solv.pdb -p topol.top -o ions.tpr<br><br>gmx genion -s ions.tpr -o protein\_neutral.pdb -p topol.top -pname NA -nname CL -neutral |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+~~~ini
+#ifdef POSRES
+#include "posre_protein.itp"
+#endif
+~~~
 
-![ref3]Proceder en la forma usual.
+La inclusión debe permanecer dentro del ámbito del tipo molecular al que pertenecen sus índices.
 
-En teoría, para una proteína compuesta sólo de aminoácidos, no debería necesitar nada más que EM, NVT, NPT y MD, pero si tiene cofactores entonces se deberán tratar como ligandos. También se puede forzar la estabilidad de una estructura polimérica para evitar inestabilidad durante la simulación. Se pueden usar varias estrategias, el uso de grupos y el cambio de la identidad de la cadena son algunos. También se pueden aplicar restraints a partes de los grupos creados.
+### 6. Caja periódica
+
+Para una proteína soluble aproximadamente globular:
+
+~~~bash
+gmx editconf     -f protein_processed.gro     -o protein_box.gro     -c     -d 1.0     -bt dodecahedron
+~~~
+
+**-d 1.0** establece una distancia mínima de 1.0 nm, equivalente a 10 Å, entre el soluto y la caja. Debe ser compatible con los radios de corte y con el tamaño y movimiento esperados de la proteína.
+
+Una caja dodecaédrica suele contener menos agua que una cúbica. Una caja cúbica puede ser más simple de visualizar, pero normalmente aumenta el número de átomos:
+
+~~~bash
+gmx editconf     -f protein_processed.gro     -o protein_box_cubic.gro     -c     -d 1.0     -bt cubic
+~~~
+
+No use este protocolo de caja acuosa para una proteína transmembrana: necesita una bicapa, orientación y composición lipídica apropiadas.
+
+### 7. Solvatación
+
+~~~bash
+gmx solvate     -cp protein_box.gro     -cs spc216.gro     -o protein_solv.gro     -p topol.top
+~~~
+
+**gmx solvate** actualiza la cantidad de solvente en **[ molecules ]**. Revise el final de **topol.top** y confirme que el agua utilizada es compatible con la topología elegida.
+
+Compruebe que la proteína no cruza de forma problemática la caja y que no existen cavidades o solapamientos extraños mediante una inspección visual.
+
+### 8. Neutralización y fuerza iónica
+
+Archivo mínimo **ions.mdp**:
+
+~~~ini
+integrator      = steep
+nsteps          = 0
+emtol           = 1000.0
+
+cutoff-scheme   = Verlet
+coulombtype     = PME
+rcoulomb        = 1.0
+rvdw            = 1.0
+pbc             = xyz
+~~~
+
+Genere el TPR:
+
+~~~bash
+gmx grompp     -f ions.mdp     -c protein_solv.gro     -p topol.top     -o ions.tpr
+~~~
+
+Neutralización con NaCl y concentración nominal de 0.15 mol L⁻¹:
+
+~~~bash
+gmx genion     -s ions.tpr     -o protein_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
+~~~
+
+Seleccione el grupo de agua, normalmente **SOL**. No memorice su número: depende del sistema.
+
+La opción **-neutral** incorpora los contraiones necesarios para que la carga total sea cero. **-conc 0.15** agrega sal hasta aproximar la concentración solicitada. Debido al volumen finito de la caja, la concentración efectiva puede diferir ligeramente.
+
+Si el experimento requiere otra sal, deben existir parámetros compatibles para cada especie. Un ion metálico coordinado en un sitio activo no debe tratarse como un contraion difusible común.
+
+### 9. Validación antes de minimizar
+
+Genere una topología expandida:
+
+~~~bash
+gmx grompp     -f em.mdp     -c protein_solv_ions.gro     -p topol.top     -o em_test.tpr     -pp processed.top
+~~~
+
+**processed.top** permite revisar las inclusiones y macros después del preprocesamiento.
+
+No continúe si existen:
+
+- diferencias entre el número de átomos y coordenadas;
+- carga total inesperada;
+- residuos sin parametrizar;
+- parámetros faltantes;
+- nombres moleculares inconsistentes;
+- advertencias no comprendidas.
+
+No use **-maxwarn** para forzar la creación del TPR.
+
+### 10. Minimización de energía
+
+Archivo **em.mdp**:
+
+~~~ini
+title            = Minimización de proteína en agua
+integrator       = steep
+nsteps           = 50000
+emtol            = 1000.0
+emstep           = 0.01
+
+cutoff-scheme    = Verlet
+nstlist          = 20
+rlist            = 1.0
+coulombtype      = PME
+rcoulomb         = 1.0
+vdwtype          = Cut-off
+rvdw             = 1.0
+pbc              = xyz
+~~~
+
+Ejecución:
+
+~~~bash
+mkdir -p ../02_em
+cd ../02_em
+
+gmx grompp     -f ../01_preparacion/em.mdp     -c ../01_preparacion/protein_solv_ions.gro     -p ../01_preparacion/topol.top     -o em.tpr
+
+gmx mdrun -deffnm em -v
+~~~
+
+Extraiga la energía potencial:
+
+~~~bash
+(echo Potential; echo 0) |
+gmx energy     -f em.edr     -o ../06_analisis/em_potential.xvg
+~~~
+
+La minimización elimina contactos desfavorables; no equilibra temperatura, presión ni distribución conformacional. Revise energía potencial, fuerza máxima, átomo asociado a esa fuerza y posibles valores NaN.
+
+### 11. Equilibración NVT
+
+NVT estabiliza la temperatura con volumen fijo. Use restricciones posicionales inicialmente si necesita evitar una relajación brusca del soluto mientras se reorganizan agua e iones.
+
+Parámetros principales:
+
+~~~ini
+title         = Equilibración NVT
+define        = -DPOSRES
+
+integrator    = md
+dt            = 0.002
+nsteps        = 50000
+continuation  = no
+
+gen-vel       = yes
+gen-temp      = 300
+gen-seed      = -1
+
+constraints   = h-bonds
+
+tcoupl        = V-rescale
+tc-grps       = Protein Water_and_ions
+tau-t         = 1.0 1.0
+ref-t         = 300 300
+
+pcoupl        = no
+pbc           = xyz
+~~~
+
+Con **dt = 0.002 ps** y **nsteps = 50000**, la duración es 100 ps. El paso de 0.002 ps equivale a 2 fs.
+
+~~~bash
+mkdir -p ../03_nvt
+cd ../03_nvt
+
+gmx grompp     -f ../01_preparacion/nvt.mdp     -c ../02_em/em.gro     -r ../02_em/em.gro     -p ../01_preparacion/topol.top     -o nvt.tpr
+
+gmx mdrun -deffnm nvt -v
+~~~
+
+Analice la temperatura:
+
+~~~bash
+(echo Temperature; echo 0) |
+gmx energy     -f nvt.edr     -o ../06_analisis/nvt_temperature.xvg
+~~~
+
+### 12. Equilibración NPT
+
+NPT ajusta presión, densidad y volumen. Continúe desde el checkpoint de NVT y no regenere velocidades:
+
+~~~ini
+title            = Equilibración NPT
+define           = -DPOSRES
+
+integrator       = md
+dt               = 0.002
+nsteps           = 250000
+continuation     = yes
+gen-vel          = no
+
+constraints      = h-bonds
+
+tcoupl           = V-rescale
+tc-grps          = Protein Water_and_ions
+tau-t            = 1.0 1.0
+ref-t            = 300 300
+
+pcoupl           = C-rescale
+pcoupltype       = isotropic
+tau-p            = 5.0
+ref-p            = 1.0
+compressibility  = 4.5e-5
+
+pbc              = xyz
+~~~
+
+Aquí se simulan 500 ps. **ref-p** se expresa en bar y la compresibilidad en bar⁻¹. El valor 4.5 × 10⁻⁵ bar⁻¹ es habitual para agua líquida cerca de condiciones ambientales.
+
+~~~bash
+mkdir -p ../04_npt
+cd ../04_npt
+
+gmx grompp     -f ../01_preparacion/npt.mdp     -c ../03_nvt/nvt.gro     -r ../03_nvt/nvt.gro     -t ../03_nvt/nvt.cpt     -p ../01_preparacion/topol.top     -o npt.tpr
+
+gmx mdrun -deffnm npt -v
+~~~
+
+Analice temperatura, presión, densidad y volumen:
+
+~~~bash
+(echo Temperature; echo Pressure; echo Density; echo Volume; echo 0) |
+gmx energy     -f npt.edr     -o ../06_analisis/npt_thermodynamics.xvg
+~~~
+
+La presión instantánea fluctúa intensamente. Evalúe promedios por bloques, densidad y deriva temporal.
+
+### 13. Dinámica de producción
+
+Retire **define = -DPOSRES** salvo que mantener restricciones forme parte explícita del experimento.
+
+Parámetros principales:
+
+~~~ini
+title            = Producción de proteína en agua
+
+integrator       = md
+dt               = 0.002
+nsteps           = 50000000
+continuation     = yes
+gen-vel          = no
+
+constraints      = h-bonds
+
+tcoupl           = V-rescale
+tc-grps          = Protein Water_and_ions
+tau-t            = 1.0 1.0
+ref-t            = 300 300
+
+pcoupl           = Parrinello-Rahman
+pcoupltype       = isotropic
+tau-p            = 5.0
+ref-p            = 1.0
+compressibility  = 4.5e-5
+
+pbc              = xyz
+~~~
+
+Con 50000000 pasos de 0.002 ps se simulan 100 ns. Agregue los parámetros de PME, Verlet y control de salida validados en el tutorial principal; no mezcle MDP de campos de fuerza diferentes sin revisar cortes y modificadores.
+
+~~~bash
+mkdir -p ../05_md
+cd ../05_md
+
+gmx grompp     -f ../01_preparacion/md.mdp     -c ../04_npt/npt.gro     -t ../04_npt/npt.cpt     -p ../01_preparacion/topol.top     -o md.tpr
+
+gmx mdrun -deffnm md -v
+~~~
+
+Compruebe en el registro:
+
+- ausencia de errores LINCS;
+- temperatura, presión y densidad estables;
+- rendimiento y uso esperado de CPU/GPU;
+- frecuencia y tamaño de los archivos de salida;
+- escritura periódica del checkpoint.
+
+### 14. Controles estructurales mínimos
+
+Corrija PBC antes de analizar:
+
+~~~bash
+echo Protein |
+gmx trjconv     -s md.tpr     -f md.xtc     -o md_protein_center.gro     -center     -pbc mol     -ur compact
+~~~
+
+Para conservar una trayectoria XTC:
+
+~~~bash
+(echo Protein; echo Protein) |
+gmx trjconv     -s md.tpr     -f md.xtc     -o md_protein_center.xtc     -center     -pbc mol     -ur compact
+~~~
+
+Ajuste rotación y traslación:
+
+~~~bash
+(echo Backbone; echo Protein) |
+gmx trjconv     -s md.tpr     -f md_protein_center.xtc     -o md_protein_fit.xtc     -fit rot+trans
+~~~
+
+RMSD del backbone:
+
+~~~bash
+(echo Backbone; echo Backbone) |
+gmx rms     -s md.tpr     -f md_protein_fit.xtc     -o ../06_analisis/rmsd_backbone.xvg     -tu ns
+~~~
+
+RMSF por residuo:
+
+~~~bash
+echo C-alpha |
+gmx rmsf     -s md.tpr     -f md_protein_fit.xtc     -o ../06_analisis/rmsf_calpha.xvg     -res
+~~~
+
+Radio de giro:
+
+~~~bash
+gmx gyrate     -s md.tpr     -f md_protein_fit.xtc     -sel 'group "Protein"'     -o ../06_analisis/gyrate_protein.xvg
+~~~
+
+Estructura secundaria:
+
+~~~bash
+gmx dssp     -s md.tpr     -f md_protein_fit.xtc     -sel 'group "Protein"'     -o ../06_analisis/secondary_structure.dat
+~~~
+
+La disponibilidad y las opciones de **gmx dssp** deben comprobarse con:
+
+~~~bash
+gmx dssp -h
+~~~
+
+Una meseta de RMSD no demuestra convergencia. Compare bloques temporales, réplicas independientes y observables complementarios.
+
+### 15. Proteínas modeladas o inicialmente inestables
+
+Si la estructura proviene de homología, predicción o modelado de bucles:
+
+- revise regiones de baja confianza;
+- minimice contactos locales antes de interpretar movimientos;
+- use calentamiento gradual si el sistema presenta inestabilidad inicial;
+- considere un paso de integración menor, por ejemplo 1 fs, durante las primeras etapas;
+- reduzca las restricciones por etapas en vez de retirarlas abruptamente;
+- no interprete la relajación del modelo como un cambio biológico.
+
+Ejemplo de liberación gradual:
+
+~~~ini
+; Etapa inicial
+define = -DPOSRES
+~~~
+
+Puede generar archivos de restricciones con constantes decrecientes, por ejemplo 1000, 500, 100 y 0 kJ mol⁻¹ nm⁻², manteniendo la duración y los criterios documentados. Cada etapa debe continuar desde las coordenadas y velocidades de la anterior.
+
+### 16. Cofactores, metales y residuos no estándar
+
+Una proteína que contiene solo residuos reconocidos por el campo de fuerza puede procesarse directamente mediante **pdb2gmx**. Un cofactor orgánico, grupo prostético o residuo modificado requiere parámetros compatibles.
+
+No todos los cofactores deben tratarse como ligandos independientes. Existen varios casos:
+
+- **cofactor no covalente:** puede definirse como otro **[ moleculetype ]**;
+- **grupo covalente:** requiere enlaces y parámetros entre proteína y cofactor;
+- **residuo modificado:** puede necesitar una entrada RTP y reglas de enlace;
+- **metal estructural o catalítico:** exige un modelo específico de coordinación;
+- **ion difusible:** puede usar la topología iónica del campo de fuerza.
+
+Un metal coordinado no debe reemplazarse por un ion genérico sin evaluar geometría, estado de oxidación, coordinación y transferencia de carga.
+
+Valide siempre que el orden de las coordenadas coincida con **[ molecules ]** y que la carga total sea la esperada.
+
+### 17. Monómeros, oligómeros y estabilidad artificial
+
+Cambiar el identificador de cadena o agrupar átomos en **index.ndx** no crea enlaces ni estabiliza físicamente un oligómero. Los grupos sirven para selecciones, acoplamiento, salida o análisis.
+
+Si una estructura polimérica se desarma durante la simulación, investigue primero:
+
+- si se simuló la unidad biológica correcta;
+- si faltan cadenas, lípidos, ligandos o cofactores;
+- si las interfaces dependen del pH o fuerza iónica;
+- si se perdieron enlaces covalentes o disulfuro;
+- si la orientación inicial es correcta;
+- si existen errores de PBC o visualización;
+- si la escala temporal observada es compatible con el fenómeno.
+
+Las restricciones de posición pueden mantener una geometría, pero también impedir la dinámica que se pretende estudiar. Para conservar contactos específicos pueden emplearse restricciones de distancia, siempre que exista una justificación física o experimental. Congelar grupos completos altera más drásticamente la dinámica y debe evitarse salvo casos técnicos muy controlados.
+
+Las restricciones aplicadas durante producción deben informarse porque modifican el ensamble y limitan la interpretación de fluctuaciones, RMSD, RMSF y transiciones conformacionales.
+
+### 18. Criterio para continuar
+
+Proceda a EM, NVT, NPT y producción únicamente cuando:
+
+- la estructura inicial represente la especie biológica correcta;
+- todos los componentes estén parametrizados;
+- la topología y las coordenadas tengan el mismo número de átomos;
+- la carga total sea razonable;
+- las advertencias de **grompp** estén resueltas;
+- caja, solvente e iones sean apropiados;
+- se haya definido de antemano qué propiedades se analizarán.
+
+Para una proteína monomérica formada exclusivamente por aminoácidos estándar, el flujo EM → NVT → NPT → MD suele ser suficiente. La presencia de cofactores, modificaciones, metales, membranas o interfaces oligoméricas requiere un protocolo específico; no debe resolverse mediante restricciones genéricas sin modelar antes la química faltante.
+
+### Fuentes
+
+1. [Preparación de sistemas en GROMACS 2026.3](https://manual.gromacs.org/current/user-guide/system-preparation.html)
+2. [Referencia de gmx pdb2gmx](https://manual.gromacs.org/current/onlinehelp/gmx-pdb2gmx.html)
+3. [Campos de fuerza en GROMACS](https://manual.gromacs.org/current/user-guide/force-fields.html)
+4. [Referencia de gmx solvate](https://manual.gromacs.org/current/onlinehelp/gmx-solvate.html)
+5. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
 
 Sistema bifásico
 
