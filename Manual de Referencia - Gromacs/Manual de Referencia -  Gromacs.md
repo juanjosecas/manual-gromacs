@@ -5952,410 +5952,288 @@ Informe:
 9. [Artículo original de gmx_MMPBSA](https://pubs.acs.org/doi/10.1021/acs.jctc.1c00645)
 
 
-Interacción energética lineal (Linear Interaction Energy)
+# Interacción energética lineal (Linear Interaction Energy, LIE)
 
-Otra forma de aproximar la energía de unión, es aprovechando la información de los archivos EDR, los mismos que usamos para estudiar la variación de energía en el tiempo. LIE utiliza la información de la MD del complejo y del ligando por separado.
+La **energía de interacción lineal** (LIE) es un método de estado final para estimar afinidades de unión. Requiere muestrear explícitamente dos estados mediante dinámica molecular:
 
-La energía libre de unión según el método LIE es la diferencia de las energías libres de solvatación del ligando libre, ΔGsol(libre), y el ligando unido a la proteína, ΔGsol(proteína). Los cálculos de estas dos energías libres de solvatación para una pose dada, i , se pueden calcular de acuerdo con,
+1. el ligando unido al receptor y rodeado por solvente e iones;
+2. el mismo ligando libre en solvente, con el mismo estado de protonación y un protocolo compatible.
 
+LIE es más económico que una transformación alquímica completa porque no introduce estados intermedios de \(\lambda\). A cambio, es un modelo semiempírico: no debe interpretarse como una energía libre rigurosa ni utilizarse con coeficientes tomados arbitrariamente de otros sistemas. Su utilidad principal es comparar ligandos relacionados para un mismo receptor y dentro del dominio químico e interaccional empleado para calibrar el modelo.
 
-Según el manual de  Gromacs,
+## Fundamento teórico
 
-gmx lie [-f [<.edr>]] [-o [<.xvg>]] [-b <time>] [-e <time>] [-dt <time>]
+En la forma más habitual,
 
-`                  `[-[no]w] [-xvg <enum>] [-Elj <real>] [-Eqq <real>]
+\[
+\Delta G_{\mathrm{bind}}^{\mathrm{LIE}}
+=
+\alpha\left(
+\left\langle V_{\mathrm{vdW}}^{L-E}\right\rangle_{\mathrm{bound}}
+-
+\left\langle V_{\mathrm{vdW}}^{L-E}\right\rangle_{\mathrm{free}}
+\right)
++
+\beta\left(
+\left\langle V_{\mathrm{elec}}^{L-E}\right\rangle_{\mathrm{bound}}
+-
+\left\langle V_{\mathrm{elec}}^{L-E}\right\rangle_{\mathrm{free}}
+\right)
++
+\gamma .
+\]
 
-`                  `[-Clj <real>] [-Cqq <real>] [-ligand <string>]
+Aquí:
 
-gmx  lie  computes  a  free  energy  estimate  based  on an energy analysis from nonbonded energies. One needs an energy file with the following components: Coul-(A-B)  LJ-SR  (A-B) etc.
+- \(L\) es el ligando y \(E\) es su entorno;
+- en el estado unido, el entorno incluye receptor, agua, iones y cualquier cofactor que no forme parte del ligando;
+- en el estado libre, el entorno incluye agua e iones;
+- los corchetes \(\langle\cdots\rangle\) representan promedios de conjunto, aproximados mediante promedios temporales sobre trayectorias equilibradas;
+- \(\alpha\) y \(\beta\) son coeficientes adimensionales para las contribuciones de Lennard-Jones y electrostática;
+- \(\gamma\) es un intercepto opcional, expresado en kJ mol\(^{-1}\).
 
-Para utilizar gmx lie correctamente, se requieren dos simulaciones: una con la molécula de interés unida a su receptor y otra con la molécula en agua. Ambos necesitan utilizar energygrps de manera que los términos Coul-SR (A-B), LJ-SR (A-B), etc. se escriban en el archivo .edr. Los valores de la simulación de molécula en agua son necesarios para proporcionar valores adecuados para -Elj y -Eqq.
+La contribución electrostática procede de una aproximación de respuesta lineal. El valor histórico \(\beta=0{,}5\) corresponde al caso ideal de respuesta lineal, pero no es universal. La documentación de GROMACS 2026.3 conserva como valores predeterminados \(\alpha=0{,}181\) y \(\beta=0{,}5\); deben considerarse valores iniciales o de referencia, no una validación del modelo para cualquier ligando.
 
-` `Options to specify input files:
+LIE no calcula de manera explícita todos los términos entrópicos, reorganizaciones internas, cambios conformacionales o contribuciones de estado estándar. Se presupone que una parte de esos efectos queda representada de forma efectiva por los coeficientes y el intercepto. Por eso un resultado aislado obtenido con los valores predeterminados debe describirse como **estimación LIE no calibrada**.
 
-`       `-f [<.edr>] (ener.edr)
+## Unidades y comparación con datos experimentales
 
-`              `Energy file
+GROMACS informa las energías de interacción en **kJ mol\(^{-1}\)**. Como \(\alpha\) y \(\beta\) son adimensionales, \(\Delta G_{\mathrm{bind}}^{\mathrm{LIE}}\) y \(\gamma\) conservan esas unidades.
 
-`       `Options to specify output files:
+\[
+1\ \mathrm{kcal\ mol^{-1}}=4{,}184\ \mathrm{kJ\ mol^{-1}}.
+\]
 
-`       `-o [<.xvg>] (lie.xvg)
+Para transformar una constante experimental de disociación en una energía libre estándar,
 
-`              `xvgr/xmgr file
+\[
+\Delta G^\circ_{mathrm{bind}}
+=
+RT\ln\left(\frac{K_d}{C^\circ}\right)
+=
+-RT\ln\left(K_a C^\circ\right),
+\]
 
-`       `Other options:
+donde \(C^\circ=1\ \mathrm{mol\ L^{-1}}\). La razón dentro del logaritmo debe ser adimensional. Deben registrarse la temperatura, la fuerza iónica, el pH y el estado de protonación del ligando; comparar directamente valores obtenidos bajo condiciones experimentales distintas puede introducir un error mayor que el que se intenta modelar.
 
-`       `-b <time> (0)
+## Diseño de las simulaciones
 
-`              `Time of first frame to read from trajectory (default unit ps)
+Los estados unido y libre deben usar, en lo posible:
 
-`       `-e <time> (0)
+- el mismo campo de fuerzas para el ligando;
+- el mismo modelo de agua, concentración salina y temperatura;
+- idéntico tratamiento de interacciones no enlazantes;
+- el mismo estado de protonación, tautomería y carga;
+- longitudes de producción y criterios de descarte comparables;
+- varias réplicas independientes cuando el coste lo permita.
 
-`              `Time of last frame to read from trajectory (default unit ps)
+No debe extraerse el ligando de la caja del complejo y analizarse sin una simulación libre propia: la relajación y la reorganización del solvente son parte esencial del estado libre. Para sistemas flexibles o con poses alternativas conviene iniciar réplicas desde conformaciones distintas. Si el ligando abandona el sitio, cambia de pose de forma irreversible o el receptor experimenta una transición grande, esa trayectoria no debe promediarse ciegamente con las demás.
 
-`       `-dt <time> (0)
+## Preparación de grupos de energía
 
-`              `Only use frame when t MOD dt = first time (default unit ps)
+La orden **gmx lie** necesita términos de interacción no enlazante entre el ligando y el resto del sistema en el archivo EDR. La separación más clara es usar dos grupos no superpuestos que cubran todo el sistema: **LIG** y **Environment**.
 
-`       `-[no]w (no)
+Para crear un índice estático a partir del TPR del complejo:
 
-`              `View output .xvg, .xpm, .eps and .pdb files
+~~~bash
+gmx select -s md_bound.tpr -on lie_bound.ndx \
+  -select '"LIG" resname LIG; "Environment" not resname LIG'
+~~~
 
-`       `-xvg <enum> (xmgrace)
+Para el ligando libre:
 
-`              `xvg plot formatting: xmgrace, xmgr, none
+~~~bash
+gmx select -s md_free.tpr -on lie_free.ndx \
+  -select '"LIG" resname LIG; "Environment" not resname LIG'
+~~~
 
-`       `-Elj <real> (0)
+Se debe reemplazar **LIG** por el nombre real del residuo o por una selección inequívoca. Si existen varias moléculas con ese mismo nombre, hay que decidir si constituyen un único ligando termodinámico o si deben analizarse por separado. Verifique siempre los grupos:
 
-`              `Lennard-Jones interaction between ligand and solvent
+~~~bash
+gmx check -f md_bound.xtc
+gmx make_ndx -f md_bound.tpr -n lie_bound.ndx
+~~~
 
-`       `-Eqq <real> (0)
+Dentro de una copia del MDP de producción, agregue:
 
-`              `Coulomb interaction between ligand and solvent
+~~~ini
+; Grupos no superpuestos que cubren el sistema
+energygrps = LIG Environment
+~~~
 
-`       `-Clj <real> (0.181)
+El resto del MDP usado para recalcular energías debe conservar el campo de fuerzas, los cortes, las reglas de dispersión, el modificador de potencial y el tratamiento electrostático de la simulación de producción. Cambiar esos parámetros durante el análisis define otro descriptor y rompe la comparabilidad con un modelo calibrado previamente.
 
-`              `Factor in the LIE equation for Lennard-Jones component of energy
+### Limitación importante de PME
 
-`       `-Cqq <real> (0.5)
+Los términos que utiliza **gmx lie** son, entre otros, **Coul-SR** y **LJ-SR**. La parte recíproca de PME no se descompone en pares de grupos como una energía ligando–entorno independiente. Por tanto, una LIE basada en esos términos es dependiente del protocolo y no contiene una asignación completa de la electrostática de largo alcance al ligando.
 
-`              `Factor in the LIE equation for Coulomb component of energy
+Esto no significa que deba eliminarse PME de una simulación moderna. Significa que todos los ligandos, los dos estados y el conjunto de calibración deben tratarse de manera idéntica, y que la limitación debe documentarse. Recalcular con reacción de campo u otro modelo electrostático sólo es defendible si todo el modelo LIE fue calibrado y validado con ese mismo protocolo.
 
-`       `-ligand <string> (none)
+## Obtención de los archivos EDR para LIE
 
-`              `Name of the ligand in the energy file
+Incluir grupos de energía durante una producción puede limitar la aceleración por GPU. Una alternativa práctica es recalcular las energías sobre las trayectorias ya producidas. Genere TPR de análisis separados para el complejo y el ligando libre:
 
-El cálculo de una energía de interacción se realiza mediante la palabra clave energygrps en el archivo .mdp. A pesar de ser una palabra clave .mdp, los cálculos de energía de interacción no deben considerarse parte de una simulación normal.
+~~~bash
+gmx grompp -f lie_bound.mdp -c md_bound.gro -t md_bound.cpt \
+  -p topol_bound.top -n lie_bound.ndx -o lie_bound.tpr
 
-La descomposición de las energías de corto alcance es incompatible con la ejecución en una GPU y también ralentiza el cálculo innecesariamente.
+gmx grompp -f lie_free.mdp -c md_free.gro -t md_free.cpt \
+  -p topol_free.top -n lie_free.ndx -o lie_free.tpr
+~~~
 
-El módulo mdrun no necesita realizar este trabajo adicional para realizar una simulación válida. Como tal, solo calcule las energías de interacción como parte de su análisis, no su dinámica.
+Luego efectúe el recálculo en CPU:
 
-Cree un nuevo archivo .tpr a partir de un archivo .mdp que tenga energygrps = Protein LIG definido, como este:
+~~~bash
+gmx mdrun -s lie_bound.tpr -rerun md_bound.xtc \
+  -deffnm lie_bound -nb cpu -pme cpu
 
-| gmx grompp -f ie.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx -o ie.tpr |
-| ------------------------------------------------------------------------------ |
+gmx mdrun -s lie_free.tpr -rerun md_free.xtc \
+  -deffnm lie_free -nb cpu -pme cpu
+~~~
 
-Luego, invoque mdrun con la opción -rerun para recalcular energías de la trayectoria de simulación existente:
+**mdrun -rerun** evalúa la energía de cada marco de la trayectoria suministrada; no genera un nuevo muestreo. Los archivos TPR deben conservar la misma topología, orden de átomos y parámetros no enlazantes usados para producir cada trayectoria. Los valores cinéticos y de temperatura obtenidos en un recálculo de este tipo no son relevantes para LIE.
 
-| gmx mdrun -deffnm ie -rerun md\_0\_10.xtc -nb cpu |
-| ------------------------------------------------- |
+Antes de continuar, compruebe que existen los términos esperados:
 
-Note el uso de -deffnm para leer ie.tpr y escribir todo archivos de salida a ie. \* como sus nombres de archivo. La opción -rerun toma el nombre de la trayectoria para la que desea volver a calcular las energías, y -nb cpu le dice a mdrun que solo intente ejecutarse en el hardware de la CPU e ignore cualquier GPU que pueda estar disponible. Como se indicó anteriormente, este tipo de cálculo no se puede realizar en una GPU. La repetición debe ser muy rápida, y se completará en solo unos minutos. Extraiga los términos de energía de interés a través del módulo de energía.
+~~~bash
+gmx energy -f lie_free.edr -o /dev/null
+gmx energy -f lie_bound.edr -o /dev/null
+~~~
 
-Los términos que nos interesan son Coul-SR: Protein-LIG y LJ-SR: Protein-LIG.
+Deben aparecer nombres equivalentes a:
 
-| gmx energy -f ie.edr -o integration\_energy.xvg |
-| ----------------------------------------------- |
+~~~text
+Coul-SR:LIG-Environment
+LJ-SR:LIG-Environment
+~~~
 
-Tomemos la siguiente molécula ya estudiada,
+Si no aparecen, el TPR no contenía una definición válida de **energygrps** o el cálculo se ejecutó con una ruta que no produjo la descomposición solicitada.
 
+## Cálculo con gmx lie en GROMACS 2026
 
-Al haber sido estudiada como ligando, se tiene preparado el ITP y el PDB ya formateado con la estructura necesaria. Asi, se creará un sistema nuevo a través del protocolo empleado en el caso de la simulación de una molécula en agua. La secuencia de cálculos para la molécula del ligando es:
+Primero obtenga los promedios del ligando libre en solvente. El inicio del intervalo productivo se expresa en picosegundos:
 
-| #Caja y solvatación<br><br>gmx insert-molecules -ci ligand.pdb -nmol 1 -box 1 1 1 -o ligand\_box.pdb<br><br>gmx editconf -f ligand\_box.pdb -o ligand\_box\_pre.pdb -c -d 1 -bt dodecahedron<br><br>gmx solvate -cp ligand\_box\_pre.pdb -p ligand.top -o ligand\_solv.pdb<br><br>#Minimización<br><br>gmx grompp -f ligand\_em.mdp -c ligand\_solv.pdb -p ligand.top -o ligand\_em.tpr<br><br>gmx mdrun -v -deffnm ligand\_em<br><br>#Equilibrado isotérmico  NVT<br><br>gmx grompp -f ligand\_nvt.mdp -c ligand\_em.gro -p ligand.top -o ligand\_nvt.tpr<br><br>gmx mdrun -v -deffnm ligand\_nvt<br><br>#Equilibrado isobárico NPT<br><br>gmx grompp -f ligand\_npt.mdp -c ligand\_nvt.gro -t ligand\_nvt.cpt -p ligand.top -o ligand\_npt.tpr<br><br>gmx mdrun -v -deffnm ligand\_npt<br><br>#Corrida MD<br><br>gmx grompp -f ligand\_md.mdp -c ligand\_npt.gro -t ligand\_npt.cpt -p ligand.top -o ligand\_md.tpr<br><br>gmx mdrun -v -deffnm ligand\_md |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+~~~bash
+printf "Coul-SR:LIG-Environment\nLJ-SR:LIG-Environment\n0\n" | \
+  gmx energy -f lie_free.edr -o free_interactions.xvg -b 20000
+~~~
 
-Cálculo LIE propiamente dicho
+Tome de la salida los promedios **Average** y asígnelos, sin cambiar signos ni unidades:
 
-Extracción de las energías de interacción entre ligando y agua
+~~~bash
+FREE_COUL=-104.226
+FREE_LJ=-183.449
+~~~
 
-| gmx energy -s ligand\_md.tpr -f ligand\_md.edr |
-| ---------------------------------------------- |
+Los números anteriores son únicamente ejemplos. No deben copiarse para otro ligando.
 
-End your selection with an empty line or a zero.
+Calcule después la estimación sobre el estado unido:
 
-\-------------------------------------------------------------------
+~~~bash
+gmx lie -f lie_bound.edr -o lie.xvg -b 20000 \
+  -Elj "$FREE_LJ" -Eqq "$FREE_COUL" \
+  -Clj 0.181 -Cqq 0.5 -ligand LIG
+~~~
 
-1  Angle            2  Proper-Dih.      3  Improper-Dih.    4  LJ-14
+Significado de las opciones principales:
 
-5  Coulomb-14       6  LJ-(SR)          7  Disper.-corr.    8  Coulomb-(SR)
+| Opción | Significado | Unidad |
+| --- | --- | --- |
+| **-Elj** | Promedio LJ ligando–solvente del estado libre | kJ mol\(^{-1}\) |
+| **-Eqq** | Promedio Coulomb ligando–solvente del estado libre | kJ mol\(^{-1}\) |
+| **-Clj** | Coeficiente \(\alpha\) | adimensional |
+| **-Cqq** | Coeficiente \(\beta\) | adimensional |
+| **-ligand** | Nombre del grupo de energía del ligando | — |
+| **-b**, **-e** | Inicio y final del intervalo analizado | ps, de forma predeterminada |
+| **-dt** | Separación temporal entre marcos utilizados | ps |
 
-9  Coul.-recip.    10  Potential       11  Kinetic-En.     12  Total-Energy
+El archivo **lie.xvg** contiene la evolución de la estimación. No se debe elegir el comienzo del promedio sólo porque la curva “parece estable” a partir de un punto conveniente. El descarte debe establecerse antes de comparar ligandos o justificarse mediante diagnósticos de equilibrio y convergencia aplicados de manera uniforme.
 
-13  Conserved-En.   14  Temperature     15  Pres.-DC        16  Pressure
+También es recomendable extraer los cuatro promedios por separado y verificar manualmente la ecuación. Esto detecta con facilidad grupos invertidos, signos erróneos o valores libres copiados de otro sistema.
 
-17  Constr.-rmsd    18  Box-X           19  Box-Y           20  Box-Z
+## Calibración de los coeficientes
 
-21  Volume          22  Density         23  pV              24  Enthalpy
+Para predicción cuantitativa, construya una tabla con un conjunto de ligandos de afinidad experimental conocida:
 
-25  Vir-XX          26  Vir-XY          27  Vir-XZ          28  Vir-YX
+| Ligando | \(\Delta V_{\mathrm{vdW}}\) | \(\Delta V_{\mathrm{elec}}\) | \(\Delta G^\circ_{\mathrm{exp}}\) |
+| --- | ---: | ---: | ---: |
+| compuesto 1 | unido − libre | unido − libre | kJ mol\(^{-1}\) |
+| compuesto 2 | unido − libre | unido − libre | kJ mol\(^{-1}\) |
 
-29  Vir-YY          30  Vir-YZ          31  Vir-ZX          32  Vir-ZY
+Ajuste entonces
 
-33  Vir-ZZ          34  Pres-XX         35  Pres-XY         36  Pres-XZ
+\[
+\Delta G^\circ_{\mathrm{exp}}
+=
+\alpha\Delta V_{\mathrm{vdW}}
++
+\beta\Delta V_{\mathrm{elec}}
++
+\gamma .
+\]
 
-37  Pres-YX         38  Pres-YY         39  Pres-YZ         40  Pres-ZX
+No es correcto promediar valores de \(\alpha\) o \(\beta\) publicados para proteínas, campos de fuerzas o familias químicas diferentes. Con pocos compuestos, ajustar simultáneamente tres parámetros produce sobreajuste; en ese caso conviene fijar uno de los coeficientes con una justificación previa o ampliar el conjunto. Deben informarse, como mínimo, validación cruzada o conjunto externo, MAE, RMSE, correlación y dominio de aplicabilidad.
 
-41  Pres-ZY         42  Pres-ZZ         43  #Surf\*SurfTen   44  Box-Vel-XX
+Una predicción nueva es más confiable cuando el ligando se parece al conjunto de calibración no sólo en estructura, sino también en sus patrones de interacción con el receptor. Un compuesto con carga, pose o química diferente puede estar fuera del dominio aunque su esqueleto molecular parezca similar.
 
-45  Box-Vel-YY                          46  Box-Vel-ZZ
+## Convergencia e incertidumbre
 
-47  Coul-SR:LIG-LIG                     48  LJ-SR:LIG-LIG
+Use series temporales y promedios por bloques para cada uno de los cuatro términos energéticos. Para réplicas independientes, informe la media entre réplicas y su incertidumbre; una trayectoria larga no sustituye necesariamente varias inicializaciones cuando existen poses o estados conformacionales separados.
 
-49  Coul-14:LIG-LIG                     50  LJ-14:LIG-LIG
+Una aproximación útil para la propagación de la incertidumbre es
 
-51  Coul-SR:LIG-rest                    52  LJ-SR:LIG-res
+\[
+\sigma^2_{\Delta G}
+\approx
+\alpha^2\sigma^2_{\Delta V_{\mathrm{vdW}}}
++
+\beta^2\sigma^2_{\Delta V_{\mathrm{elec}}}
++
+2\alpha\beta\operatorname{Cov}
+\left(\Delta V_{\mathrm{vdW}},\Delta V_{\mathrm{elec}}\right).
+\]
 
-53  Coul-14:LIG-rest                    54  LJ-14:LIG-res
+Esta expresión debe emplear errores de los promedios que tengan en cuenta la autocorrelación, no la desviación estándar de los marcos como si fueran observaciones independientes. Si \(\alpha\), \(\beta\) y \(\gamma\) fueron ajustados, su incertidumbre también contribuye al error predictivo.
 
-55  Coul-SR:rest-rest                   56  LJ-SR:rest-rest
-` `57  Coul-14:rest-rest                   58  LJ-14:rest-rest
-` `59  T-LIG           60  T-SOL           61  Lamb-LIG        62  Lamb-SOL
+Como diagnóstico mínimo:
 
--Elj: Lennard-Jones interaction between ligand and solvent (51)
--Eqq: Coulomb interaction between ligand and solvent (52)
+- grafique promedios acumulativos y por bloques;
+- compare mitades de la región productiva;
+- examine por separado los estados libre y unido;
+- compruebe la estabilidad de la pose, contactos, hidratación y estado conformacional;
+- repita el cálculo con varias réplicas y documente cualquier exclusión.
 
-Salida,
+## Múltiples poses y métodos híbridos
 
-Last energy frame read 1 time   60.000
+Cuando varias poses o conformaciones del receptor sean plausibles, no deben concatenarse y promediarse sin criterio. Los esquemas LIE iterativos pueden combinar estados mediante pesos de tipo Boltzmann, pero esos pesos dependen de los parámetros del modelo y exigen calibración iterativa.
 
-Statistics over 30001 steps [ 0.0000 through 60.0000 ps ], 2 data sets
+También se han propuesto métodos híbridos que combinan LIE con energías de solvatación alquímicas. Pueden mejorar la representación del estado libre o permitir estrategias de anclaje, pero no convierten automáticamente un cálculo LIE convencional en una energía libre rigurosa. Cada término adicional, coeficiente y protocolo debe calibrarse como parte del mismo modelo y validarse fuera del conjunto de entrenamiento.
 
-All statistics are over 301 points
+## Errores frecuentes
 
-Energy                      Average   Err.Est.       RMSD  Tot-Drift
+- Usar una sola simulación del complejo y omitir el ligando libre.
+- Copiar **-Elj** y **-Eqq** de otro ligando.
+- Promediar coeficientes tomados de artículos incompatibles.
+- Mezclar estados de protonación o parámetros no enlazantes entre los dos estados.
+- Confundir **Coul-SR** con la energía electrostática total bajo PME.
+- Usar grupos superpuestos o dejar átomos fuera de **LIG + Environment**.
+- Interpretar cada marco de una trayectoria como una muestra independiente.
+- Seleccionar retrospectivamente el intervalo que produce el resultado esperado.
+- Reportar demasiadas cifras significativas sin incertidumbre.
+- Presentar una estimación con coeficientes predeterminados como afinidad absoluta validada.
 
-\-------------------------------------------------------------------------------
+## Qué debe informarse
 
-Coul-SR:LIG-rest           -104.226         --    17.7147   -35.7738  (kJ/mol)
+Un resultado LIE reproducible debe incluir: versión de GROMACS, campo de fuerzas, modelo de agua, estados de protonación, parámetros electrostáticos y de dispersión, composición de los grupos, duración descartada y analizada, número de réplicas, promedios libre y unido, coeficientes e intercepto, procedimiento de calibración, métricas de validación, incertidumbre y dominio de aplicabilidad.
 
-LJ-SR:LIG-rest             -183.449         --    13.2216     12.912  (kJ/mol)
+### Fuentes
 
-Con esta información,
+1. [gmx lie — documentación de GROMACS 2026.3](https://manual.gromacs.org/current/onlinehelp/gmx-lie.html)
+2. [Interacciones de energía libre — manual de referencia de GROMACS](https://manual.gromacs.org/current/reference-manual/functions/free-energy-interactions.html)
+3. [Recent Developments in Linear Interaction Energy Based Binding Free Energy Calculations](https://www.frontiersin.org/journals/molecular-biosciences/articles/10.3389/fmolb.2020.00114/full)
+4. [Combined Linear Interaction Energy and Alchemical Solvation Free-Energy Approach](https://pubs.acs.org/jctcce/article/16/2/1300/606208/Combined-Linear-Interaction-Energy-and-Alchemical)
+5. [A Comparative Linear Interaction Energy and MM/PBSA Study](https://pubs.acs.org/jcisd8/article/59/9/4018/987937/A-Comparative-Linear-Interaction-Energy-and-MM)
 
-| gmx lie -f md.edr -o lie.xvg -b 20000 -Elj -183.449 -Eqq -104.226 -ligand LIG |
-| ----------------------------------------------------------------------------- |
-
-Salida,
-
-Opened md.edr as single precision energy file
-
-Using the following energy terms:
-
-LJ:    LJ-SR:Protein-LIG  LJ-14:Protein-LIG  LJ-SR:LIG-rest  LJ-14:LIG-rest
-
-Coul:  Coul-SR:Protein-LIG  Coul-14:Protein-LIG  Coul-SR:LIG-rest  Coul-14:LIG-rest
-
-Last energy frame read 300 time 60000.000
-
-DGbind = -10.330 (9.163)
-
-La energía será de -10.330 kJ/mol. El gráfico obtenido,
-
-
-Vemos que la energía se estabiliza a partir de los 45 ns, entonces podríamos recalcular,
-
-| gmx lie -f md.edr -o lie.xvg -b 45000 -Elj -183.449 -Eqq -104.226 -ligand LIG |
-| ----------------------------------------------------------------------------- |
-
-Salida,
-
-Last energy frame read 300 time 60000.000
-
-DGbind = -13.148 (7.997)
-
-Se hizo un cálculo de la energía de unión a través del método MM-PBSA y arrojó un resultado final de -130.541 (4.617) kJ/mol, así que se deberá tomar en cuenta estos factores de corrección así como el empleo de EXACTAMENTE las mismas condiciones de cálculo de la MD para Protein-LIG-SOL como para LIG-SOL. Por ejemplo, no debería emplearse PME en los métodos de cálculo (acá se usó por cuestiones de practicidad, pero fundamentalmente por ignorancia[^48]). Otros factores que pueden ser cambiados para acercarse a valores coincidentes con la evidencia experimental con los parámetros
-
--Clj (default 0.181) Factor in the LIE equation for Lennard-Jones component of energy
-
--Cqq (default 0.5) Factor in the LIE equation for Coulomb component of energy
-
-Los valores de bibliografía que encontré fueron:
-
-Cytochrome P450s (CYPs):
-
-Cqq: 0.442
-
-Clj: 0.087[^49]
-
-Clj: 0.18
-
-| Cqq   | Tipo de estructura                                                                                                                                                                                                                       |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0\.5  | Charged compounds                                                                                                                                                                                                                        |
-| 0\.43 | Neutral compounds                                                                                                                                                                                                                        |
-| 0\.37 | Neutral compounds bearing a single hydroxyl group                                                                                                                                                                                        |
-| 0\.33 | <p>Hansson, T., Marelius, J., and Åqvist, J. (1998) Ligand binding affinity prediction by linear interaction energy methods. J Comput Aided Mol Des 12, 27-35.-27-35.</p><p>Neutral compounds bearing 2 or more hydroxyl groups[^50]</p> |
-
-Cqq: 0.45
-
-Clj: 0.21[^51]
-
-Hice un promedio para estudiar variantes, hay que ver si funciona. Es más o menos así.
-
-|     | Promedio | Desvio estandar | +2 SD   | -2 SD   |         |
-| --- | -------- | --------------- | ------- | ------- |:------- |
-|     | Cqq      | 0\.420          | 0\.0608 | 0\.5416 | 0\.2984 |
-|     | Clj      | 0\.159          | 0\.0641 | 0\.2872 | 0\.0308 |
-
-EM.MDP
-
-| title        = Minimization    ; Title of run<br><br>; Parameters describing what to do, when to stop and what to save<br>integrator    = steep        ; Algorithm (steep = steepest descent minimization)<br>emtol        = 1000.0      ; Stop minimization when the maximum<br>; force < (10.0) [kJ mol-1 nm-1]<br>emstep      = 0.01      ; Energy step size en nanometros<br>nsteps        = 50000          ; Maximum number of (minimization) steps to perform<br>energygrps    = system    ; que grupos se escribiran, "system" es todo el sistema<br><br>; Parameters describing how to find the neighbors of each atom and how to calculate the interactions<br>nstlist            = 20            ; Frequency to update the neighbor<br>; list and long range forces, With parallel simulations and/or<br>; non-bonded force calculation on the GPU, a value of 20 or 40 often gives the best performance<br><br>cutoff-scheme   = Verlet<br><br>; The buffer size is automatically set based on verlet-buffer-tolerance,<br>; unless this is set to -1, in which case rlist will be used. This option has an explicit,<br>; exact cut-off at rvdw=rcoulomb. Currently only cut-off, reaction-field,<br>; PME electrostatics and plain LJ are supported.<br><br>ns-type            = grid        ; Method to determine neighbor list (simple, grid)<br><br>; grid = Make a grid in the box and only check atoms in neighboring grid cells<br>; when constructing a new neighbor list every nstlist<br>; steps. In large systems grid search is much faster than simple search.<br><br>; simple = Check every atom in the box when constructing a new neighbor<br>; list every nstlist steps (only with cutoff-scheme=group).<br><br>rlist            = 1.0        ; Cut-off for making neighbor list<br>; (short range forces) en nm<br><br>; Cut-off distance for the short-range neighbor list.<br>; With cutoff-scheme=Verlet, this is by default set by the<br>; verlet-buffer-tolerance option and the value of rlist is ignored.<br><br>coulombtype        = PME        ; Treatment of long range electrostatic interactions<br><br>; Fast smooth Particle-Mesh Ewald (SPME) electrostatics.<br>; Direct space is similar to the Ewald sum, while the<br>; reciprocal part is performed with FFTs. Grid dimensions are controlled<br>; with fourierspacing and the interpolation order with pme-order<br><br>rcoulomb        = 1.0        ; long range electrostatic cut-off distance for the Coulomb cut-off en nm<br>rvdw            = 1.0        ; long range Van der Waals cut-off distance<br>; for the LJ or Buckingham cut-off en nm<br>pbc             = xyz         ; Periodic Boundary Conditions |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-NVT.MDP
-
-| title       = Protein-ligand complex NVT equilibration<br>define      = -DPOSRES  ; position restrain the protein and ligand,<br>; depende que incluye POSRES<br><br>; Run parameters<br>integrator  = md        ; leap-frog integrator<br>nsteps      = 50000     ; dt\*nsteps = tiempo --> Ejemplo si 0.002 ps \* 50000 stp = 100ps<br>dt          = 0.002     ; en ps, cuidado con ser >0.002 ps. fs<br><br>; Output control<br>nstxout     = 5000       ; save coordinates every (dt\*nsteps)<br>nstvout     = 5000      ; save velocities<br>nstenergy   = 5000       ; save energies<br>nstlog      = 5000       ; update log file<br>; energygrps  = Protein LIG ; recorder que acá los nombres deben ser correctos SOLO USAR SI ES NECESARIO Y NUNCA PARA CORRER LA DINAMICA<br><br>; Bond parameters<br>continuation    = no            ; first dynamics run<br>constraint-algorithm = lincs    ; holonomic constraints<br>constraints     = all-bonds     ; all bonds (even heavy atom-H bonds) constrained<br>lincs-iter      = 1             ; accuracy of LINCS<br>lincs-order     = 1             ; also related to accuracy<br><br>; Neighborsearching<br>cutoff-scheme   = Verlet<br>ns-type         = grid      ; search neighboring grid cells<br>nstlist         = 10        ; 20 fs, largely irrelevant with Verlet<br>rcoulomb        = 1.0       ; short-range electrostatic cutoff (in nm) para GROMOS<br>; es 1.4 y para CHARMM27 es 1.0<br>rvdw            = 1.0       ; short-range van der Waals cutoff (in nm) debe ser = rcoulomb<br><br>; Electrostatics<br>coulombtype     = PME       ; Particle Mesh Ewald for long-range electrostatics<br>pme-order       = 4         ; cubic interpolation<br>fourierspacing  = 0.12      ; grid spacing for FFT<br><br>; Temperature coupling<br>tcoupl      = V-rescale                     ; modified Berendsen thermostat<br>tc-grps     = Protein Non-Protein     ; two coupling groups - more accurate<br>tau-t       = 0.1   0.1                     ; time constant, in ps time constant<br>; for coupling (one for each group in tc-grps), -1 means no temperature coupling<br><br>ref-t       = 310   310                     ; reference temperature, one for each<br>; group, in K = T(C)+273<br><br>; Pressure coupling<br>pcoupl      = no        ; no pressure coupling in NVT<br><br>; Periodic boundary conditions<br>pbc         = xyz       ; 3-D PBC<br><br>; Dispersion correction<br>DispCorr    = EnerPres  ; account for cut-off vdW scheme<br><br>; no = don't apply any correction<br>; EnerPres = apply long range dispersion corrections for Energy and Pressure<br>; Ener = apply long range dispersion corrections for Energy only<br><br>; Velocity generation<br>gen-vel     = yes       ; assign velocities from Maxwell distribution<br>; no = Do not generate velocities. The velocities are set to zero when there are<br>; no velocities in the input structure file.<br>; yes = Generate velocities in grompp according to a Maxwell distribution at<br>; temperature gen-temp [K], with random seed gen-seed. This is only meaningful with integrator md.<br><br>gen-temp    = 310       ; temperature for Maxwell distribution<br>gen-seed    = -1        ; generate a random seed para comparar métodos<br>;  fijar con un valor diferente a (-1) |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-NPT.MDP
-
-| title       = Protein-ligand complex NPT equilibration<br>define      = -DPOSRES  ; position restrain the protein and ligand<br>; Run parameters<br>integrator  = md        ; leap-frog integrator<br>nsteps      = 15000     ; numero de pasos<br>dt          = 0.002     ; en ps, 1 fs = 0.001 ps<br><br>; Output control<br>nstxout     = 500       ; save coordinates every 1.0 ps<br>nstvout     = 500       ; save velocities every 1.0 ps<br>nstenergy   = 500       ; save energies every 1.0 ps<br>nstlog      = 500       ; update log file every 1.0 ps<br>; energygrps  = Protein LIG ; recorder que acá los nombres deben ser correctos SOLO USAR SI ES NECESARIO Y NUNCA PARA CORRER LA DINAMICA<br><br><br>; Bond parameters<br>continuation    = yes           ; first dynamics run<br>constraint\_algorithm = lincs    ; holonomic constraints<br>constraints     = all-bonds     ; all bonds (even heavy atom-H bonds) constrained<br>lincs-iter      = 1             ; accuracy of LINCS<br>lincs-order     = 2             ; also related to accuracy<br><br>; Neighborsearching<br>cutoff-scheme   = Verlet<br>ns-type         = grid      ; search neighboring grid cells<br>nstlist         = 20        ; fs, largely irrelevant with Verlet<br>rcoulomb        = 1.0       ; short-range electrostatic cutoff (in nm)<br>rvdw            = 1.0       ; short-range van der Waals cutoff (in nm)<br><br>; Electrostatics<br>coulombtype     = PME       ; Particle Mesh Ewald for long-range electrostatics<br>pme-order       = 4         ; cubic interpolation<br>; Interpolation order for PME. 4 equals cubic interpolation.<br>; You might try 6/8/10 when running in parallel and simultaneously decrease grid dimension.<br><br>fourierspacing  = 0.12      ; grid spacing for FFT<br><br>; Temperature coupling<br>tcoupl      = V-rescale                     ; modified Berendsen thermostat<br>tc-grps     = Protein Non-Protein    ; two coupling groups - more accurate<br>tau-t       = 0.1   0.1                     ; time constant, in ps<br>ref-t       = 310   310                     ; reference temperature, one for each group, in K<br><br>; Pressure coupling<br>pcoupl      = Parrinello-Rahman             ; pressure coupling is on for NPT<br>pcoupltype  = isotropic                     ; uniform scaling of box vectors<br>tau-p       = 2.0                           ; time constant, in ps<br>ref-p       = 1.0                           ; reference pressure, in bar<br>compressibility = 4.5e-5                    ; isothermal compressibility of water,<br>; bar^-1 For water at 1 atm and 300 K constant a las temperaturas usuales<br>refcoord-scaling    = com<br><br>; Periodic boundary conditions<br>pbc         = xyz       ; 3-D PBC<br><br>; Dispersion correction<br>DispCorr    = EnerPres  ; account for cut-off vdW scheme<br><br>; Velocity generation<br>gen-vel     = no        ; velocity generation off after NVT |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-MD.MDP
-
-| title       = Protein-ligand complex MD simulation<br>; Run parameters<br>integrator  = md        ; leap-frog integrator<br>nsteps      = 20000000   ; pasos<br>dt          = 0.002     ; ps / paso<br><br>; Output control<br>nstxout             = 0         ; suppress .trr output<br>nstvout             = 0         ; suppress .trr output<br>nstenergy           = 10000      ; save energies every 10.0 ps<br>nstlog              = 10000      ; update log file every 10.0 ps<br>nstxout-compressed  = 50000      ; write .xtc trajectory every 10.0 ps<br>compressed-x-grps   = System<br>; energygrps  = Protein LIG ; recorder que acá los nombres deben ser correctos SOLO USAR SI ES NECESARIO Y NUNCA PARA CORRER LA DINAMICA<br><br><br>; Bond parameters<br>continuation    = yes           ; first dynamics run<br>constraint\_algorithm = lincs    ; holonomic constraints<br>constraints     = all-bonds     ; all bonds (even heavy atom-H bonds) constrained<br>lincs-iter      = 1             ; accuracy of LINCS<br>lincs-order     = 2             ; also related to accuracy<br><br>; Neighborsearching<br>cutoff-scheme   = Verlet<br>ns-type         = grid      ; search neighboring grid cells<br>nstlist         = 25        ; 20 fs, largely irrelevant with Verlet<br>rcoulomb        = 1.0       ; short-range electrostatic cutoff (in nm)<br>rvdw            = 1.0       ; short-range van der Waals cutoff (in nm)<br><br>; Electrostatics<br>coulombtype     = PME       ; Particle Mesh Ewald for long-range electrostatics<br>pme-order       = 4         ; cubic interpolation<br>fourierspacing  = 0.12      ; grid spacing for FFT<br><br>; Temperature coupling<br>tcoupl      = V-rescale                     ; modified Berendsen thermostat<br>tc-grps     = Protein Non-Protein    ; two coupling groups - more accurate<br>tau-t       = 0.1   0.1                     ; time constant, in ps<br>ref-t       = 310   310                     ; reference temperature, one for each group, in K<br><br>; Pressure coupling<br>pcoupl      = Parrinello-Rahman             ; pressure coupling is on for NPT<br>pcoupltype  = isotropic                     ; uniform scaling of box vectors<br>tau-p       = 2.0                           ; time constant, in ps<br>ref-p       = 1.0                           ; reference pressure, in bar<br>compressibility = 4.5e-5                    ; isothermal compressibility of water, bar^-1<br><br>; Periodic boundary conditions<br>pbc         = xyz       ; 3-D PBC<br><br>; Dispersion correction<br>DispCorr    = EnerPres  ; account for cut-off vdW scheme<br><br>; Velocity generation<br>gen-vel     = no        ; assign velocities from Maxwell distribution |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-TOPOL.TOP
-
-;
-
-;    Example topology file
-
-;
-
-[ defaults ]
-
-; nbfunc        comb-rule       gen-pairs       fudgeLJ fudgeQQ
-
-`  `1             1               no              1.0     1.0
-
-; The force field files to be included
-
-#include "rt41c5.itp"
-
-[ moleculetype ]
-
-; name  nrexcl
-
-Urea         3
-
-[ atoms ]
-
-;   nr    type   resnr  residu    atom    cgnr  charge
-
-`     `1       C       1    UREA      C1       1     0.683
-
-`     `2       O       1    UREA      O2       1    -0.683
-
-`     `3      NT       1    UREA      N3       2    -0.622
-
-`     `4       H       1    UREA      H4       2     0.346
-
-`     `5       H       1    UREA      H5       2     0.276
-
-`     `6      NT       1    UREA      N6       3    -0.622
-
-`     `7       H       1    UREA      H7       3   0.346
-
-`     `8       H       1    UREA      H8       3     0.276
-
-[ bonds ]
-
-;  ai    aj funct           c0           c1
-
-`    `3     4     1 1.000000e-01 3.744680e+05
-
-`    `3     5     1 1.000000e-01 3.744680e+05
-
-`    `6     7     1 1.000000e-01 3.744680e+05
-
-`    `6     8     1 1.000000e-01 3.744680e+05
-
-`    `1     2     1 1.230000e-01 5.020800e+05
-
-`    `1     3     1 1.330000e-01 3.765600e+05
-
-`    `1     6     1 1.330000e-01 3.765600e+05
-
-[ pairs ]
-
-;  ai    aj funct           c0           c1
-
-`    `2     4     1 0.000000e+00 0.000000e+00
-
-`    `2     5     1 0.000000e+00 0.000000e+00
-
-`    `2     7     1 0.000000e+00 0.000000e+00
-
-`    `2     8     1 0.000000e+00 0.000000e+00
-
-`    `3     7     1 0.000000e+00 0.000000e+00
-
-`    `3     8     1 0.000000e+00 0.000000e+00
-
-`    `4     6     1 0.000000e+00 0.000000e+00
-
-`    `5     6     1 0.000000e+00 0.000000e+00
-
-[ angles ]
-
-;  ai    aj    ak funct           c0           c1
-
-`    `1     3     4     1 1.200000e+02 2.928800e+02
-
-`    `1     3     5     1 1.200000e+02 2.928800e+02
-
-`    `4     3     5     1 1.200000e+02 3.347200e+02
-
-`    `1     6     7     1 1.200000e+02 2.928800e+02
-
-`    `1     6     8     1 1.200000e+02 2.928800e+02
-
-`    `7     6     8     1 1.200000e+02 3.347200e+02
-
-`    `2     1     3     1 1.215000e+02 5.020800e+02
-
-`    `2     1     6     1 1.215000e+02 5.020800e+02
-
-`    `3     1     6     1 1.170000e+02 5.020800e+02
-
-[ dihedrals ]
-
-;  ai    aj    ak    al funct           c0           c1           c2
-
-`    `2     1     3     4     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-`    `6     1     3     4     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-`    `2     1     3     5     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-`    `6     1     3     5     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-`    `2     1     6     7     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-`    `3     1     6     7     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-`    `2     1     6     8     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-`    `3     1     6     8     1 1.800000e+02 3.347200e+01 2.000000e+00
-
-[ dihedrals ]
-
-;  ai    aj    ak    al funct           c0           c1
-
-`    `3     4     5     1     2 0.000000e+00 1.673600e+02
-
-`    `6     7     8     1     2 0.000000e+00 1.673600e+02
-
-`    `1     3     6     2     2 0.000000e+00 1.673600e+02
-
-; Include SPC water topology
-
-#include "spc.itp"
-
-[ system ]
-
-Urea in Water
-
-[ molecules ]
-
-Urea    1
-
-SOL    1000
 
 Manual de trabajo con el cluster TUPAC
 
