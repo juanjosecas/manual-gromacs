@@ -1219,649 +1219,503 @@ Use réplicas independientes cuando la conclusión dependa del muestreo. RMSD, R
 
 Vamos a simular un sistema compuesto por agua. Puede ser que nos sirva para simular sistemas sencillos y así testear la instalación de GROMACS o estudiar variables.
 
-Múltiples moléculas de ligandos y de proteínas
+## Múltiples moléculas de ligandos y de proteínas
 
-Caso: 1OKE y BOG
+Los sistemas con varias cadenas proteicas y varios ligandos requieren distinguir tres conceptos:
 
-Es necesario, en ocasiones, calcular la dinámica de múltiples ligandos o tomar en cuenta cofactores que no son metales. El problema escala en dificultad y en tener más cuidado con qué se hace cada paso.
+1. **Copia molecular:** instancia concreta con coordenadas propias.
+2. **Tipo molecular:** definición de la molécula en una sección **[ moleculetype ]**.
+3. **Nombre de residuo:** etiqueta empleada en las coordenadas y en las selecciones.
 
-NOTA: un caso más complejo se explica más adelante. Tal vez convenga leer las notas de este y luego usar el otro como ejercicio real.
+Dos ligandos químicamente idénticos, con los mismos átomos, orden atómico, enlaces, cargas y parámetros, pueden ser dos copias del mismo tipo molecular. Sus posiciones y conformaciones iniciales pueden ser diferentes. En cambio, ligandos distintos o copias que deban recibir topologías diferentes necesitan tipos moleculares separados.
 
-Consideremos a la proteína 1OKE que consiste en dos cadenas, A y B, que están acompañadas por ocho moléculas, de las cuales dos son BOG unidas al sitio correspondiente a cada cadena. Ambas moléculas son idénticas, esto es, los BOG poseen los mismos tipos de átomos pero diferente conformación y posición.
+### Caso 1: varias copias de un ligando idéntico
 
+La estructura PDB 1OKE contiene dos cadenas proteicas y varias moléculas no proteicas, entre ellas dos moléculas BOG. Si ambas copias de BOG tienen la misma composición y parametrización, se necesita una sola topología molecular para BOG.
 
-Esto nos plante la pregunta: ¿las moléculas son idénticas? Sí. Son las mismas clases de átomos en ambas, sólo varían dónde están. Para generar la topología de ambas moléculas, puedo usar el MOL2 de cualquiera de ellas y emplear SwissParam para obtener el ITP y el PDB. Sin embargo, el ITP va a contener los mismos parámetros. Esto es clave[^39].
+Antes de parametrizar:
 
-Si extraigo ambos BOG, uno llamado BOGA.mol2 y otro BOGB.mol2, obtendré BOGA.pdb y BOGB.pdb con los correspondientes ITP con el SwissParam. Edito cada PDB
+- extraiga una copia completa del ligando;
+- revise protonación, carga formal, estereoquímica y orden de enlaces;
+- confirme que ambas copias tienen los mismos átomos;
+- conserve las coordenadas originales de cada copia;
+- use el mismo orden atómico en las coordenadas y en la topología.
 
-BOGA.pdb:
+Puede asignarse **BOG** como nombre de residuo y como nombre del tipo molecular. Las dos copias se distinguen mediante su número de residuo y, si el formato lo permite, su cadena.
 
-ATOM      1  C1  LIG     1     -14.258  79.953  45.302  1.00  0.00      LIG
+Ejemplo simplificado de coordenadas:
 
-ATOM      2  O1  LIG     1     -13.074  79.344  45.814  1.00  0.00      LIG
+~~~text
+HETATM    1  C1  BOG C   1     -14.258  79.953  45.302  1.00  0.00           C
+HETATM    2  O1  BOG C   1     -13.074  79.344  45.814  1.00  0.00           O
+...
+TER
+HETATM   49  C1  BOG D   2     -17.418  58.852   3.720  1.00  0.00           C
+HETATM   50  O1  BOG D   2     -16.140  59.295   3.262  1.00  0.00           O
+...
+~~~
 
-ATOM      3  C2  LIG     1     -15.153  78.753  44.866  1.00  0.00      LIG
+Los números de átomo deben ser únicos dentro del PDB. Los números de residuo o identificadores de cadena diferentes facilitan el análisis, aunque GROMACS asigna la topología principalmente según el orden de las moléculas.
 
-Cambiar LIG a BOA
+Topología molecular:
 
-BOGA.itp:
-
+~~~ini
 [ moleculetype ]
-
-; Name nrexcl
-
-BOGA 3
+; nombre   nrexcl
+BOG        3
 
 [ atoms ]
+; nr  tipo  resnr  residuo  átomo  cgnr  carga  masa
+1     ...   1      BOG      C1     1     ...    12.011
+2     ...   1      BOG      O1     2     ...    15.999
+; ...
+~~~
 
-; nr type resnr resid atom cgnr charge mass
+En **topol.top** se incluye una sola vez:
 
-`   `1 CR   1  LIG C1      1  0.5600  12.0110
+~~~ini
+; Parámetros generales
+#include "charmm36-jul2022.ff/forcefield.itp"
 
-Cambiar LIG a BOA y BOGA a BOA
+; Parámetros adicionales del ligando, si corresponden
+#include "bog_atomtypes.itp"
 
-BOGB.pdb
+; Definición del tipo molecular BOG
+#include "bog.itp"
 
-ATOM      1  C1  LIG     1     -17.418  58.852   3.720  1.00  0.00      LIG
+; Cadenas proteicas generadas por pdb2gmx
+#include "topol_Protein_chain_A.itp"
+#include "topol_Protein_chain_B.itp"
+~~~
 
-ATOM      2  O1  LIG     1     -16.140  59.295   3.262  1.00  0.00      LIG
+Al final del archivo:
 
-ATOM      3  C2  LIG     1     -18.015  60.210   4.211  1.00  0.00      LIG
-
-ATOM      4  O2  LIG     1     -17.189  60.761   5.241  1.00  0.00      LIG
-
-Cambiar LIG a BOB
-
-El BOGB.itp no lo usaremos.¿Por qué?
-
-Generamos la topología de la proteína sin residuos protein.pdb y obtenemos protein-complex.pdb. En topol.top haré los siguientes cambios
-
-; Include forcefield parameters
-
-#include "charmm27.ff/forcefield.itp"
-
-; topologia del ligando
-
-#include "BOGA.itp"
-
-; Include chain topologies
-
-#include "topol\_Protein\_chain\_A.itp"
-
-#include "topol\_Protein\_chain\_B.itp”
-
-Sólo necesito indicar el ITP de un BOG, ya que ambos son idénticos. En la sección de las moléculas edito
+~~~ini
+[ system ]
+Proteína 1OKE con dos moléculas BOG
 
 [ molecules ]
+; tipo molecular       cantidad
+Protein_chain_A         1
+Protein_chain_B         1
+BOG                     2
+~~~
 
-; Compound        #mols
+La sección **[ molecules ]** indica que existen dos instancias de BOG. No deben incluirse dos copias idénticas de **bog.itp** porque se redefinirían los mismos tipos o el mismo **[ moleculetype ]**.
 
-Protein\_chain\_A     1
+El orden de las coordenadas debe ser:
 
-Protein\_chain\_B     1
+~~~text
+Protein_chain_A
+Protein_chain_B
+BOG, copia 1
+BOG, copia 2
+~~~
 
-BOA                 2
+Este orden debe coincidir exactamente con **[ molecules ]**.
 
-Si bien tengo BOA y BOB, ambas tienen la misma topología. Entonces tengo DOS moléculas, aunque estén en lugares distintos. Ahora debemos editar el archivo protein-complex.pdb. Pondremos, luego del aminoácido TER de la cadena B, las coordenadas ATOM de los PDB de BOGA.pdb y BOGB.pdb que ya editamos.
+### Cuándo son necesarias topologías separadas
 
-TER
+Use tipos moleculares diferentes, por ejemplo **LIGA** y **LIGB**, cuando:
 
-ATOM      1  C1  BOA     1     -14.258  79.953  45.302  1.00  0.00      BOA
+- los ligandos son químicamente distintos;
+- tienen diferente protonación o carga;
+- una copia contiene átomos o enlaces diferentes;
+- se parametrizaron con términos diferentes;
+- se aplicarán restricciones posicionales distintas;
+- se realizarán transformaciones alquí­micas o cálculos de energía libre diferentes por copia.
 
-ATOM      2  O1  BOA     1     -13.074  79.344  45.814  1.00  0.00      BOA
+En ese caso:
 
-ATOM      3  C2  BOA     1     -15.153  78.753  44.866  1.00  0.00      BOA
-
-...
-
-...
-
-...
-
-ATOM     47 H8'3 BOA     1      -4.590  80.022  47.691  1.00  0.00      BOA
-
-ATOM     48  HO2 BOA     1     -15.053  77.315  43.523  1.00  0.00      BOA
-
-TER      49      BOA      1
-
-ATOM      1  C1  BOB     1     -17.418  58.852   3.720  1.00  0.00      BOB
-
-ATOM      2  O1  BOB     1     -16.140  59.295   3.262  1.00  0.00      BOB
-
-ATOM      3  C2  BOB     1     -18.015  60.210   4.211  1.00  0.00      BOB
-
-...
-
-...
-
-...
-
-ATOM     46 H8'2 BOB     1      -7.367  57.375   2.492  1.00  0.00      BOB
-
-ATOM     47 H8'3 BOB     1      -8.123  56.758   1.004  1.00  0.00      BOB
-
-ATOM     48  HO2 BOB     1     -17.524  61.625   5.492  1.00  0.00      BOB
-
-TER      49      BOB      1
-
-ENDMDL
-
-Solvatación y neutralización se hacen como en los casos normales. Lo mismo para la minimización energética. Una vez hecha la EM, debemos generar las restraints para los dos ligandos y la proteína. Antes era automático en el sentido que había sólo dos moléculas, pero ahora hay que ser explícito, porque hay DOS cadenas y DOS ligandos.
-
-Para BOGB.pdb:
-
-| gmx genrestr -f BOGB.pdb -o posre\_BOGB.itp -fc 1000 1000 1000 |
-| -------------------------------------------------------------- |
-
-Reading structure file
-
-Select group to position restrain
-
-Group     0 (         System) has    48 elements
-
-Group     1 (          Other) has    48 elements
-
-Group     2 (            BOB) has    48 elements
-
-Select a group: 2
-
-Selected 2: 'BOB'
-
-y
-
-para BOGA.pdb
-
-| gmx genrestr -f BOGA.pdb -o posre\_BOGA.itp -fc 1000 1000 1000 |
-| -------------------------------------------------------------- |
-
-Reading structure file
-
-Select group to position restrain
-
-Group     0 (         System) has    48 elements
-
-Group     1 (          Other) has    48 elements
-
-Group     2 (            BOA) has    48 elements
-
-Select a group: 2
-
-Selected 2: 'BOA'
-
-Editamos topol.top
-
-; Include chain topologies
-
-#include "topol\_Protein\_chain\_A.itp"
-
-#include "topol\_Protein\_chain\_B.itp"
-
-; Include Position restraint file proteina
-
-#ifdef POSRES
-
-#include "posre\_Protein\_chain\_A.itp"
-
-#endif
-
-; Include Position restraint file proteina
-
-#ifdef POSRES
-
-#include "posre\_Protein\_chain\_B.itp"
-
-#endif
-
-; Ligand position restraints BOGA
-
-#ifdef POSRES
-
-#include "posre\_BOGA.itp"
-
-#endif
-
-; Ligand position restraints BOGA
-
-#ifdef POSRES
-
-#include "posre\_BOGB.itp"
-
-#endif
-
-; Include water topology
-
-#include "charmm27.ff/tip3p.itp
-
-Edito el nvt.mdp
-
-define      = -DPOSRES
-
-…
-
-energygrps  = Protein BOA
-
-Proceder en forma usual.
-
-Deberá tenerse en cuenta si trabajaremos con grupos o no y si usaremos las restraints. En el caso anterior, ya tomé en cuenta las restraints ya que forcé a tomarlas en cuenta al definir el POSRES. El trabajo con múltiples moléculas refuerza la necesidad de usar el archivo de definición de grupos index.ndx.
-
-A continuación, un ejemplo con múltiples cadenas y dos moléculas del ligando
-
-Influenza A M2 transmembrane domain bound to amantadine
-
-6BKK.
-
-DOI: 10.2210/pdb6BKK/pdb
-
-Classification: MEMBRANE PROTEIN
-
-Organism(s): Influenza A virus (strain A/Udorn/1972 H3N2)
-
-
-La molécula cristalizada posee un catión y dos moléculas idénticas de amadantina.
-
-
-La estructura en 3D de cada cadena y ligando es,
-
-
-Extraigo ambas moléculas, las salvo en formato PDB desde Chimera. Separo las moléculas con un editor de texto y las transformo en MOL2 a través de Openbabel. Se obtienen los PDB e ITP correspondientes a ambas moléculas. Los ITP para ambas deberán contener la misma información, ya que son moléculas idénticas.
-
-Topología de la proteína
-
-| gmx pdb2gmx -f protein.pdb -ff charmm27 -water tip3p -ignh -o protein-complex.pdb |
-| --------------------------------------------------------------------------------- |
-
-Creación del complejo ligandos-proteína
-
-Luego, agrego un sólo ITP ya que ambos tienen la misma información
-
-;    Force field was read from the standard GROMACS share directory.
-
-;
-
-; Include forcefield parameters
-
-#include "charmm27.ff/forcefield.itp"
-
-;ligandos, le dejé este nombre porque me confundí, pero no cambia nada
-
-#include "ligand1.itp"
-
-; Include chain topologies
-
-#include "topol\_Protein\_chain\_A.itp"
-
-#include "topol\_Protein\_chain\_B.itp"
-
-#include "topol\_Protein\_chain\_C.itp"
-
-#include "topol\_Protein\_chain\_D.itp"
-
-#include "topol\_Protein\_chain\_E.itp"
-
-#include "topol\_Protein\_chain\_F.itp"
-
-#include "topol\_Protein\_chain\_G.itp"
-
-#include "topol\_Protein\_chain\_H.itp"
-
-; Include water topology
-
-#include "charmm27.ff/tip3p.itp"
-
-...
-
-...
-
-Agregar DOS moléculas de LIG
-
-...
-
-...
+~~~ini
+#include "ligand_A.itp"
+#include "ligand_B.itp"
 
 [ molecules ]
+Protein_chain_A    1
+Protein_chain_B    1
+LIGA               1
+LIGB               1
+~~~
 
-; Compound        #mols
+Duplicar una topología solo para cambiar el nombre del residuo suele ser innecesario. Si se crean **LIGA** y **LIGB**, ambos archivos deben tener nombres de **[ moleculetype ]** diferentes y todos sus índices deben seguir siendo locales a cada molécula.
 
-Protein\_chain\_A     1
+### Sistemas con muchas cadenas: ejemplo 6BKK
 
-Protein\_chain\_B     1
+La estructura 6BKK corresponde al dominio transmembrana M2 de influenza A unido a amantadina. El sistema biológico y la unidad cristalográfica deben revisarse antes de simular: no debe suponerse que todas las cadenas del PDB forman la unidad funcional.
 
-Protein\_chain\_C     1
+Prepare la proteína sin eliminar ligandos o cofactores hasta haber registrado su identidad y posición. Luego genere la topología de las cadenas:
 
-Protein\_chain\_D     1
+~~~bash
+gmx pdb2gmx     -f protein_only.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -water tip3p
+~~~
 
-Protein\_chain\_E     1
+Seleccione un campo de fuerza compatible con la topología de amantadina. No use automáticamente CHARMM27 por aparecer en protocolos antiguos; registre el campo de fuerza concreto disponible en la instalación.
 
-Protein\_chain\_F     1
+Si **pdb2gmx** separa las cadenas en archivos ITP, **topol.top** puede contener:
 
-Protein\_chain\_G     1
+~~~ini
+#include "topol_Protein_chain_A.itp"
+#include "topol_Protein_chain_B.itp"
+#include "topol_Protein_chain_C.itp"
+#include "topol_Protein_chain_D.itp"
+#include "topol_Protein_chain_E.itp"
+#include "topol_Protein_chain_F.itp"
+#include "topol_Protein_chain_G.itp"
+#include "topol_Protein_chain_H.itp"
+~~~
 
-Protein\_chain\_H     1
+La cantidad y el orden deben verificarse en la salida real. No copie esta lista a otro sistema.
 
-LIG                 2
+Si existen dos amantadinas idénticas:
 
-Agregado de las coordenadas de cada ligando al archivo protein-complex.pdb. Deberíamos cambiar la numeración de cada ligando.
+~~~ini
+[ molecules ]
+Protein_chain_A    1
+Protein_chain_B    1
+Protein_chain_C    1
+Protein_chain_D    1
+Protein_chain_E    1
+Protein_chain_F    1
+Protein_chain_G    1
+Protein_chain_H    1
+AMA                2
+~~~
 
-ATOM   3255  OT1 LEU H  46      58.573  24.017  55.778  1.00  0.00           O
+Cada copia debe tener coordenadas propias, números de átomo válidos y el mismo orden interno que **ama.itp**.
 
-ATOM   3256  OT2 LEU H  46      58.474  24.287  55.844  1.00  0.00
+### Construcción y validación de las coordenadas
 
-TER
+Después de combinar proteína y ligandos:
 
-ATOM      1  N1  LIG     1      68.571  10.462  72.970  1.00  0.00      LIG
+~~~bash
+gmx editconf     -f protein_ligands.pdb     -o complex.gro
+~~~
 
-ATOM      2  C10 LIG     1      69.949  10.240  73.367  1.00  0.00      LIG
+Revise el archivo:
 
-ATOM      3  C7  LIG     1      70.850  11.256  72.670  1.00  0.00      LIG
+~~~bash
+gmx check -f complex.gro
+~~~
 
-ATOM      4  C1  LIG     1      72.300  11.024  73.090  1.00  0.00      LIG
+Genere un TPR de validación antes de solvatar. Puede usarse un MDP mínimo:
 
-ATOM      5  C8  LIG     1      70.073  10.402  74.880  1.00  0.00      LIG
+~~~ini
+integrator      = steep
+nsteps          = 0
+cutoff-scheme   = Verlet
+coulombtype     = PME
+rcoulomb        = 1.0
+rvdw            = 1.0
+pbc             = xyz
+~~~
 
-...
+~~~bash
+gmx grompp     -f validate.mdp     -c complex.gro     -p topol.top     -o validate.tpr     -pp processed.top
+~~~
 
-...
+La opción **-pp processed.top** guarda la topología ya expandida por el preprocesador. Resulta útil para comprobar el orden de las inclusiones, macros y restricciones activadas.
 
-TOM     27  H15 LIG     1      73.741   9.451  72.990  1.00  0.00      LIG
+No continúe si aparece alguno de estos problemas:
 
-ATOM     28  H16 LIG     1      72.641   9.499  71.633  1.00  0.00      LIG
+- número de coordenadas distinto del número de átomos de la topología;
+- tipos atómicos desconocidos;
+- parámetros enlazados ausentes;
+- carga total inesperada;
+- redefiniciones de **[ atomtypes ]**;
+- nombres distintos entre **[ molecules ]** y **[ moleculetype ]**.
 
-TER      29      LIG      1
+No use **-maxwarn** para forzar el TPR sin comprender cada advertencia.
 
-ATOM      1  N1  LIG     2      68.780  10.283  47.255  2.00  0.00      LIG
+### Caja, solvatación e iones
 
-ATOM      2  C10 LIG     2      67.420  10.497  46.797  2.00  0.00      LIG
+Para una proteína soluble:
 
-ATOM      3  C7  LIG     2      67.131   9.577  45.613  2.00  0.00      LIG
+~~~bash
+gmx editconf     -f complex.gro     -o complex_box.gro     -c     -d 1.0     -bt dodecahedron
+~~~
 
-...
+Para un sistema de membrana no debe construirse una caja acuosa genérica alrededor de la proteína. Primero debe definirse la membrana, su orientación, composición y espesor mediante un protocolo específico.
 
-...
+Solvatación:
 
-ATOM     27  H15 LIG     2      64.538  11.418  44.352  2.00  0.00      LIG
+~~~bash
+gmx solvate     -cp complex_box.gro     -cs spc216.gro     -o complex_solv.gro     -p topol.top
+~~~
 
-ATOM     28  H16 LIG     2      66.226  11.473  43.904  2.00  0.00      LIG
+Preprocesamiento para iones:
 
-TER      29      LIG      2
+~~~bash
+gmx grompp     -f ions.mdp     -c complex_solv.gro     -p topol.top     -o ions.tpr
+~~~
 
-ENDMDL
+Neutralización y NaCl 0.15 mol L⁻¹:
 
-Creación de la caja, solvatación y neutralización
+~~~bash
+gmx genion     -s ions.tpr     -o complex_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
+~~~
 
-| gmx editconf -f protein-complex.pdb -o protein-complex-box.pdb -c -d 1 -bt dodecahedron<br><br>gmx solvate -cs -cp protein-complex-box.pdb -o protein-complex-solv.pdb -p topol.top<br><br>gmx grompp -f em.mdp -c protein-complex-solv.pdb -p topol.top -o ions.tpr -maxwarn 2<br><br>gmx genion -s ions.tpr -o protein-complex-neutral.pdb -p topol.top -pname NA -nname CL -neutral |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+Seleccione el grupo de solvente, normalmente **SOL**. El número del grupo depende del sistema.
 
-Minimización energética
+### Restricciones de posición
 
-| gmx grompp -f em.mdp -c protein-complex-neutral.pdb -p topol.top -o em.tpr<br><br>gmx mdrun -v -deffnm em |
-| --------------------------------------------------------------------------------------------------------- |
+#### Múltiples copias del mismo tipo molecular
 
-Salida,
+Si dos ligandos son instancias del mismo **[ moleculetype ]**, un único archivo de restricciones incluido dentro de esa topología se aplica a todas las copias:
 
-...
+~~~bash
+gmx genrestr     -f bog_only.gro     -o posre_bog.itp     -fc 1000 1000 1000
+~~~
 
-...
+Incluya las restricciones inmediatamente después de la definición de BOG:
 
-Step= 5019, Dmax= 1.8e-03 nm, Epot= -5.09176e+05 Fmax= 1.42654e+03, atom= 1523
+~~~ini
+#include "bog.itp"
 
-Step= 5021, Dmax= 1.1e-03 nm, Epot= -5.09179e+05 Fmax= 7.74061e+01, atom= 1523
+#ifdef POSRES_BOG
+#include "posre_bog.itp"
+#endif
+~~~
 
-writing lowest energy coordinates.
+Active la macro durante la equilibración:
 
-Steepest Descents converged to Fmax < 100 in 5022 steps
+~~~ini
+define = -DPOSRES -DPOSRES_BOG
+~~~
 
-Potential Energy  = -5.0917916e+05
+No genere **posre_BOG1.itp** y **posre_BOG2.itp** para incluirlos sobre un único tipo molecular. Los índices de las restricciones son locales al tipo molecular, por lo que ambas copias usarán la misma selección local.
 
-Maximum force     =  7.7406082e+01 on atom 1523
+#### Restricciones diferentes para cada copia
 
-Norm of force     =  5.6013878e+00
+Si BOG1 y BOG2 deben tener restricciones diferentes, defina dos tipos moleculares:
 
-...
-
-Generación de las restraints para ambos ligandos
-
-| gmx genrestr -f ligand1.pdb -o posre\_LIG1.itp -fc 1000 1000 1000<br><br>gmx genrestr -f ligand2.pdb -o posre\_LIG2.itp -fc 1000 1000 1000 |
-| ------------------------------------------------------------------------------------------------------------------------------------------ |
-
-Editamos topol.top, y debemos agregar las restraints de cada cadena. Esto lo hacía automáticamente GMX en otros pasos, pero parece que no lo hace en el caso de múltiples cadenas. Por lo tanto, debemos crear la siguiente entrada
-
-; Include Position restraint file proteina
-
-#ifdef POSRES
-
-#include "posre\_Protein\_chain\_A.itp"
-
+~~~ini
+#include "bog1.itp"
+#ifdef POSRES_BOG1
+#include "posre_bog1.itp"
 #endif
 
-El problema es que se deberá hacer para cada cadena. Este ejemplo tiene cadenas de la A a la H. Una vez logrado esto,
+#include "bog2.itp"
+#ifdef POSRES_BOG2
+#include "posre_bog2.itp"
+#endif
+~~~
 
-; Include chain topologies
+~~~ini
+[ molecules ]
+Protein_chain_A    1
+Protein_chain_B    1
+BOG1               1
+BOG2               1
+~~~
 
-#include "topol\_Protein\_chain\_A.itp"
+Esta duplicación aumenta el mantenimiento y solo se justifica si las copias requieren un tratamiento realmente diferente.
 
-#include "topol\_Protein\_chain\_B.itp"
+#### Cadenas proteicas
 
-...
+Las restricciones de cada cadena deben estar dentro del ámbito del **[ moleculetype ]** correspondiente. Los ITP generados por **pdb2gmx** suelen incluir su propio archivo de restricciones mediante la macro **POSRES**. Revise cada archivo antes de añadir nuevas inclusiones.
 
-...
+Ejemplo dentro de **topol_Protein_chain_A.itp**:
 
-; Include Position restraint file proteina
+~~~ini
+[ moleculetype ]
+Protein_chain_A    3
+
+; átomos, enlaces y otros términos
+; ...
 
 #ifdef POSRES
-
-#include "posre\_Protein\_chain\_A.itp"
-
+#include "posre_Protein_chain_A.itp"
 #endif
+~~~
 
-...
+No reúna al final de **topol.top** restricciones de varias moléculas como si utilizaran índices globales.
 
-...
+### Grupos de índice para varias cadenas y ligandos
 
-; Include Position restraint file proteina
+Cree grupos explícitos:
 
-#ifdef POSRES
+~~~bash
+gmx make_ndx     -f complex_solv_ions.gro     -o index.ndx
+~~~
 
-#include "posre\_Protein\_chain\_H.itp"
+Ejemplo interactivo para dos ligandos con residuo BOG:
 
-#endif
+~~~text
+r BOG
+name 18 BOG_all
+"Protein" | 18
+name 19 Protein_BOG
+q
+~~~
 
-; Ligand position restraints LIG 1
+Los números 18 y 19 son ejemplos. Use los asignados en su sesión.
 
-#ifdef POSRES
+Las dos copias pueden seleccionarse por número de residuo, cadena o índice atómico. La sintaxis exacta depende de la información conservada en el archivo:
 
-#include "posre\_LIG1.itp"
+~~~bash
+gmx select     -s complex_solv_ions.gro     -n index.ndx     -select 'resname BOG'
+~~~
 
-#endif
+Para separar las copias por número de residuo:
 
-; Ligand position restraints LIG 2
+~~~bash
+gmx select     -s complex_solv_ions.gro     -select 'resname BOG and resid 1'     -on bog_1.ndx
 
-#ifdef POSRES
+gmx select     -s complex_solv_ions.gro     -select 'resname BOG and resid 2'     -on bog_2.ndx
+~~~
 
-#include "posre\_LIG2.itp"
+Si los números de residuo no son únicos entre cadenas, seleccione además por identificador de cadena cuando esté disponible o utilice rangos de índices verificados.
 
-#endif
+### Minimización y equilibración
 
-; Include water topology
+La minimización sigue el flujo general:
 
-#include "charmm27.ff/tip3p.itp
+~~~bash
+gmx grompp     -f em.mdp     -c complex_solv_ions.gro     -p topol.top     -n index.ndx     -o em.tpr
 
-...
+gmx mdrun -deffnm em -v
+~~~
 
-Crearemos el grupo Protein\_LIG, que tiene la ventaja de YA incluir ambos ligandos,
+NVT con restricciones:
 
-| gmx make\_ndx -f em.tpr -o index.ndx |
-| ------------------------------------ |
+~~~bash
+gmx grompp     -f nvt.mdp     -c em.gro     -r em.gro     -p topol.top     -n index.ndx     -o nvt.tpr
 
-Equilibrado NVT
+gmx mdrun -deffnm nvt -v
+~~~
 
-Edito el nvt.mdp
+NPT continuando coordenadas y velocidades:
 
-...
+~~~bash
+gmx grompp     -f npt.mdp     -c nvt.gro     -r nvt.gro     -t nvt.cpt     -p topol.top     -n index.ndx     -o npt.tpr
 
-...
+gmx mdrun -deffnm npt -v
+~~~
 
-; Run parameters
+No use el barostato Berendsen para obtener un ensamble de producción. Para equilibración, **C-rescale** permite controlar la presión y genera el ensamble correcto. Para producción suele utilizarse **Parrinello-Rahman**, según el sistema y el protocolo.
 
-integrator  = md        ; leap-frog integrator
+Ejemplo de acoplamiento durante NPT:
 
-nsteps      = 10000     ; dt\*nsteps = tiempo --> Ejemplo si 0.002 ps \* 50000 stp = 100ps
+~~~ini
+tcoupl           = V-rescale
+tc-grps          = Protein_LIG Water_and_ions
+tau-t            = 1.0 1.0
+ref-t            = 300 300
 
-dt          = 0.002     ; en ps, cuidado con ser >0.002 ps. fs
+pcoupl           = C-rescale
+pcoupltype       = isotropic
+tau-p            = 5.0
+ref-p            = 1.0
+compressibility  = 4.5e-5
+~~~
 
-; Output control
+**tau-t** y **tau-p** se expresan en ps; **ref-t**, en K; **ref-p**, en bar; la compresibilidad, en bar⁻¹.
 
-nstxout     = 500       ; save coordinates every (dt\*nsteps)
+El tiempo de simulación se calcula como:
 
-nstvout     = 500      ; save velocities
+~~~
+tiempo = dt × nsteps
+~~~
 
-nstenergy   = 500       ; save energies
+Con **dt = 0.002 ps** y **nsteps = 500000**, el tiempo es 1000 ps, equivalente a 1 ns. En el texto anterior, **nsteps = 20000** se interpretaba erróneamente como 60 ns: en realidad corresponde a 40 ps con un paso de 2 fs.
 
-nstlog      = 500       ; update log file
+### Producción
 
-energygrps  = Protein LIG ; recordar que acá los nombres deben ser correctos
+Genere el TPR sin las macros de restricciones, salvo que formen parte deliberada del experimento:
 
-...
+~~~bash
+gmx grompp     -f md.mdp     -c npt.gro     -t npt.cpt     -p topol.top     -n index.ndx     -o md.tpr
 
-...
+gmx mdrun -deffnm md -v
+~~~
 
-tc\_grps = Protein\_LIG Water\_and\_ions
+Compruebe que **md.mdp** contiene **continuation = yes** y **gen-vel = no**. La producción debe continuar las velocidades de NPT.
 
-...
+Para revisar métodos y parámetros contenidos en el TPR:
 
-...
+~~~bash
+gmx dump -s md.tpr > md_tpr_dump.txt
+gmx report-methods -s md.tpr -o methods.tex
+~~~
 
-Ejecutamos
+**gmx report-methods** genera una descripción de métodos a partir del TPR. Debe revisarse antes de incorporarla a un manuscrito.
 
-| gmx grompp -f nvt.mdp -c em.gro -p topol.top -o nvt.tpr -n index.ndx |
-| -------------------------------------------------------------------- |
+### Preparación de la trayectoria
 
-En GROMACS 2018-2019 hay un cambio particular en las restraints y se debe agregar el parámetro -r en.gro para lograr que funcione
+Haga las moléculas completas:
 
-| gmx grompp -f nvt.mdp -c em.gro -p topol.top -o nvt.tpr -r em.gro -n index.ndx |
-| ------------------------------------------------------------------------------ |
+~~~bash
+echo System |
+gmx trjconv     -s md.tpr     -f md.xtc     -o md_whole.xtc     -pbc whole
+~~~
 
-Y ejecutamos,
+Centre el complejo completo:
 
-| gmx mdrun -v -deffnm nvt |
-| ------------------------ |
+~~~bash
+(echo Protein_LIG; echo System) |
+gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_center.xtc     -center     -pbc mol     -ur compact     -n index.ndx
+~~~
 
-Equilibrado NPT
+Ajuste rotación y traslación respecto del backbone de todas las cadenas:
 
-Edito npt.mdp
+~~~bash
+(echo Backbone; echo System) |
+gmx trjconv     -s md.tpr     -f md_center.xtc     -o md_fit.xtc     -fit rot+trans     -n index.ndx
+~~~
 
-...
+Para oligómeros, inspeccione que el grupo usado para centrar contiene todas las cadenas funcionales y todos los ligandos relevantes.
 
-...
+### RMSD de cada ligando
 
-tcoupl      = V-rescale                     ; modified Berendsen thermostat
+Si ambas copias están en un mismo grupo, **gmx rms** calcula un único RMSD sobre el conjunto completo; no produce automáticamente una curva independiente por molécula.
 
-tc-grps     = Protein\_LIG Water\_and\_ions    ; two coupling groups - more accurate
+Cree grupos separados para BOG1 y BOG2 y calcule cada curva después de ajustar sobre la proteína:
 
-tau-t       = 0.1   0.1                     ; time constant, in ps
+~~~bash
+(echo Backbone; echo BOG1) |
+gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_bog1.xvg     -tu ns
 
-ref-t       = 300   300                     ; reference temperature, one for each group, in K
+(echo Backbone; echo BOG2) |
+gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_bog2.xvg     -tu ns
+~~~
 
-; Pressure coupling
+El primer grupo selecciona los átomos usados para el ajuste; el segundo, los átomos cuyo RMSD se calcula. Para ligandos simétricos, el RMSD convencional puede mostrar saltos por permutaciones de átomos equivalentes y debe interpretarse con cuidado.
 
-pcoupl      = berendsen             ; pressure coupling is on for NPT
+Comando extra para medir la distancia mínima de cada ligando a la proteína:
 
-pcoupltype  = isotropic                     ; uniform scaling of box vectors
+~~~bash
+gmx pairdist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -ref 'group "Protein"'     -sel 'group "BOG1"' 'group "BOG2"'     -type min     -o ligand_protein_mindist.xvg
+~~~
 
-tau-p       = 2.0                           ; time constant, in ps
+### RMSD de cadenas individuales
 
-ref-p       = 1.0                           ; reference pressure, in bar
+Cree grupos para cada cadena y use el oligómero completo como grupo de ajuste si desea comparar movimientos internos bajo una referencia común:
 
-compressibility = 4.5e-5                    ; isothermal compressibility of water,
+~~~bash
+(echo Backbone; echo Chain_A) |
+gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_chain_A.xvg     -tu ns
 
-...
+(echo Backbone; echo Chain_B) |
+gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_chain_B.xvg     -tu ns
+~~~
 
-...
+Si cada cadena se ajusta sobre sí misma, se elimina su movimiento relativo respecto del oligómero. Ambas estrategias responden preguntas diferentes y no deben mezclarse en una misma comparación.
 
-Empleo el Berendsen coupling ya que lo sugirió el programa
+### RMSD de la proteína, todas las cadenas juntas
 
-Ejecuto
+Después de corregir PBC y ajustar la trayectoria:
 
-| gmx grompp -f npt.mdp -c nvt.gro -p topol.top -o npt.tpr -r nvt.gro -n index.ndx<br><br>gmx mdrun -v -deffnm npt |
-| ---------------------------------------------------------------------------------------------------------------- |
+~~~bash
+(echo Backbone; echo Backbone) |
+gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o md_rmsd_protein_all_chains.xvg     -tu ns
+~~~
 
-Corrida MD
+Este RMSD describe el cambio del backbone del conjunto de cadenas respecto de la referencia seleccionada. Puede aumentar por reorganización cuaternaria aunque cada cadena conserve su estructura interna. Por eso conviene compararlo con los RMSD por cadena y con distancias entre centros de masa:
 
-Edito md.mdp
-
-...
-
-...
-
-integrator  = md        ; leap-frog integrator
-
-nsteps      = 20000   ; pasos = 60 ns
-
-dt          = 0.002     ; ps / paso
-
-; Output control
-
-nstxout             = 0         ; suppress .trr output
-
-nstvout             = 0         ; suppress .trr output
-
-nstenergy           = 100      ; save energies every 10.0 ps
-
-nstlog              = 100      ; update log file every 10.0 ps
-
-nstxout-compressed  = 100      ; write .xtc trajectory every 10.0 ps
-
-...
-
-...
-
-Ejecutamos
-
-| gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md.tpr -n index.ndx<br><br>gmx mdrun -v -deffnm md |
-| ------------------------------------------------------------------------------------------------------------- |
-
-El resultado
-
-...
-
-...
-
-starting mdrun 'MATRIX PROTEIN 2 in water'
-
-20000 steps,     40.0 ps.
-
-step 19900, remaining wall clock time:     4 s
-
-Writing final coordinates.
-
-step 20000, remaining wall clock time:     0 s
-
-`               `Core t (s)   Wall t (s)        (%)
-
-`       `Time:     3519.181      879.795      400.0
-
-`                 `(ns/day)    (hour/ns)
-
-Performance:        3.928        6.109
-
-...
-
-...
-
-Análisis numérico de la dinámica
-
-RMSD del LIG
-
-Van a figurar ambos en el mismo gráfico
-
-| gmx rms -s md.tpr -f md.xtc -o md\_rmsd.xvg |
-| ------------------------------------------- |
-
-
-RMSD de la proteína, todas las cadenas juntas
-
-| gmx rms -s md.tpr -f md.xtc -o md\_rmsd-prot.xvg |
-| ------------------------------------------------ |
-
+~~~bash
+gmx distance     -s md.tpr     -f md_fit.xtc     -n index.ndx     -select 'com of group "Chain_A" plus com of group "Chain_B"'     -oall chain_A_chain_B_distance.xvg
+~~~
 
 Dinámica de una proteína en agua
 
