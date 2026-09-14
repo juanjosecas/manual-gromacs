@@ -5,35 +5,33 @@
 Versión 2023.21.10.9.44
 
 > The greatest obstacle to discovery is not ignorance -- it is the illusion of knowledge.
-> 
+>
 > Never tell people how to do things. Tell them what to do and they will surprise you with their ingenuity.
-> 
+>
 > General George S. Patton
-> 
-> Desordené 
-> átomos tuyos 
-> para hacerte aparecer. 
-> 
+>
+> Desordené
+> átomos tuyos
+> para hacerte aparecer.
+>
 > Puente - Gustavo Cerati
-> 
+>
 > Jerry, just remember, it's not a lie if you believe it.
-> 
+>
 > George Costanza
-> 
+>
 > Sometimes
 > Only sometimes
 > I question everything
-> 
+>
 > Sometimes - Depeche Mode
-> 
+>
 > The laughter penetrates my silence
 > As drunken men find flaws in science
-> 
+>
 > Set The Fire To The Third Bar - Snow Patrol
-> 
+>
 # Estrategia para la simulación
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.003.png)
 
 
 # Instalación de GROMACS
@@ -385,1148 +383,839 @@ Si se activa otro entorno, módulo o instalación, ejecute nuevamente el **GMXRC
 
 # Caso: 1 proteína - 1 ligando
 
-> Empezaremos con un caso complejo. Normalmente se empezaría con un sistema más sencillo compuesto de una molécula y un solvente, comúnmente una proteína en agua. Sin embargo, yo empecé estudiando el diseño racional de fármacos y se centra en el estudio de interacciones entre una molécula orgánica pequeña y un receptor. Por eso empezaremos con el estudio del comportamiento dinámico de un complejo proteína-ligando. Es una cuestión que debería corregir con el tiempo, pero requiere demasiado esfuerzo para un manual que fue concebido sólo para mí. En los casos subsiguientes se estudiarán otros escenarios posibles y otras estrategias. Si bien este manual se va actualizando con el tiempo, cuando surja una duda teórica remitirse al manual de Gromacs y cuando se tengan dudas sobre un comando específico lo recomendable es buscar la ayuda online de cada comando. Si tu interés es sobre macromoléculas, igual leer esta parte, que tiene todo o casi todo lo teórico.
+Este tutorial describe la preparación, simulación y análisis de un complejo proteína–ligando con **GROMACS 2026.3**. Se supone que el ligando ya está colocado en la pose inicial que se desea estudiar.
 
-## REQUERIMIENTOS BÁSICOS
+Los nombres de archivos son ejemplos. Conviene mantener nombres explícitos y una carpeta por etapa:
 
-Los requerimientos básicos implican archivos de estructuras
+~~~bash
+mkdir -p 00_entrada 01_preparacion 02_em 03_nvt 04_npt 05_md 06_analisis
+~~~
 
-Tenemos dos archivos de estructuras
+## Requisitos básicos
 
-* [protein.pdb = archivo de la proteína sin cofactores, ligandos, solventes, etc
-* ligand.mol2 = ligando en 3D con todos los hidrógenos agregados, es fundamental que se encuentre en la posición inicial deseada. Puede haber más de uno, por lo tanto deberán ser diferentes. “ligand.mol2” se puede llamar de la forma que queramos, pero mantendrá la extensión MOL2.
+Archivos iniciales:
 
-NOTA: protein.pdb usada como ejemplo acá contiene UNA cadena (A), puede que no siempre sea así. Incluso hay “cadenas A” que tienen múltiples moléculas proteicas. Es un problema, o no, dependiendo qué necesitamos
+- **protein.pdb:** estructura de la proteína.
+- **ligand.pdb** o **ligand.mol2:** ligando con geometría, estereoquímica, protonación y carga formal revisadas.
+- **ligand.itp:** topología del ligando compatible con el campo de fuerza de la proteína.
+- **ions.mdp**, **em.mdp**, **nvt.mdp**, **npt.mdp** y **md.mdp:** parámetros de cada etapa.
 
-Cinco archivos de configuración
+Antes de procesar la proteína deben revisarse residuos faltantes, conformaciones alternativas, enlaces disulfuro, metales, cofactores, aguas estructurales y estados de protonación. Eliminar automáticamente todos los heteroátomos puede destruir información necesaria.
 
-ions.mdp
+El ligando debe conservar la pose obtenida por cristalografía, docking u otro procedimiento. Un archivo MOL2 puede contener tipos atómicos y cargas, pero eso no demuestra que sean compatibles con el campo de fuerza seleccionado.
 
-em.mdp
+## Unidades utilizadas por GROMACS
 
-nvt.mdp
+| Magnitud | Unidad habitual |
+|---|---|
+| Distancia | nm |
+| Tiempo | ps |
+| Temperatura | K |
+| Presión | bar |
+| Energía | kJ mol⁻¹ |
+| Fuerza | kJ mol⁻¹ nm⁻¹ |
+| Velocidad | nm ps⁻¹ |
+| Constante de fuerza de restricción posicional | kJ mol⁻¹ nm⁻² |
 
-npt.mdp
+Equivalencias útiles:
 
-md.mdp
+$
+1\ \mathrm{nm}=10\ \text{Å}
+$
 
-ligand.pdb deberá ser convertido en mol2 con todos los H agregados. Se puede usar Chimera[^1][^2] y lo hará en forma perfecta, dependiendo de la calidad de la molécula original. También puede que ya tengamos el ligando en MOL2 de una conversión anterior[^3]. Avogadro[^4] permite diseñar una molécula en forma visual y genera un MOL2 correcto. Tomar los mismos recaudos.
+$
+1\ \mathrm{ps}=10^{-12}\ \mathrm{s},\qquad
+1\ \mathrm{ns}=1000\ \mathrm{ps}
+$
 
-Se puede usar Open Babel, pero se deberá tener cuidado con agregar los H correctamente. Si tenemos una molécula en formato PDB y queremos transformarla en MOL2 adecuado, entonces,
+$
+1\ \mathrm{kcal\ mol^{-1}}=4.184\ \mathrm{kJ\ mol^{-1}}
+$
 
-| obabel -ipdb ligand.pdb -omol2 -O ligand.mol2 -h #Completa las valencias con H<br><br>obabel -ipdb ligand.pdb -omol2 -O ligand.mol2 -p7.4 #A pH 7.4 |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- |
+No convierta distancias de Å a nm de forma implícita. Una distancia de corte de 1.0 en un archivo MDP significa 1.0 nm, es decir, 10 Å.
 
-Encontré que también funciona: resultado del docking ---> coordenadas XYZ ---> abrir con Chimera ---> guardar en MOL2.
+## Preparación del ligando
 
-Se creará, entonces, el archivo
+La protonación debe corresponder al pH y al microentorno que se pretende simular. Añadir hidrógenos con una herramienta de conversión no sustituye esta decisión química.
 
-`  `ligand.mol2
+Conversión básica con Open Babel:
 
-Tiene una estructura de tipo:
+~~~bash
+obabel -ipdb ligand.pdb -omol2 -O ligand.mol2 -h
+~~~
 
-@<TRIPOS>MOLECULE
+Protonación aproximada a pH 7.4:
 
-Docked dv01.pdb
+~~~bash
+obabel -ipdb ligand.pdb -omol2 -O ligand_pH7.4.mol2 -p 7.4
+~~~
 
-` `47 50 0 0 0
+La opción **-p 7.4** predice una forma de protonación. Para moléculas con tautomería, centros ionizables acoplados o metales, el resultado debe verificarse. También deben revisarse carga formal, orden de enlaces y estereoquímica.
 
-SMALL
+GROMACS no parametriza automáticamente moléculas orgánicas arbitrarias. La topología debe obtenerse con una herramienta apropiada para la familia del campo de fuerza:
 
-USER\_CHARGES
+- CHARMM: parámetros compatibles con CGenFF/CHARMM.
+- AMBER: parámetros compatibles con GAFF u otra metodología AMBER.
+- OPLS-AA: tipos y cargas consistentes con OPLS.
+- GROMOS: parámetros desarrollados bajo las convenciones GROMOS.
 
-@<TRIPOS>ATOM
+No deben mezclarse tipos atómicos, reglas de combinación, cargas o términos de CHARMM y AMBER sin una transformación validada.
 
-`      `1 C8        -11.4860  155.6600   34.5000 C.ar      1 LIG         0.1390
+Ejemplo mínimo de un archivo ITP:
 
-`      `2 N2        -12.4420  156.5890   34.6570 N.ar      1 LIG        -0.2100
-
-`      `3 C5        -11.5370  154.4580   35.1990 C.ar      1 LIG         0.0380
-
-`      `4 C6        -10.7430  153.3730   34.8640 C.ar      1 LIG         0.0170
-
-…
-
-| ![ref1] Cuando veamos los tres puntos “...” significa que hay más contenido pero no lo muestro para simplificar la lectura y no extender innecesariamente el manual. |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-<a name="_3znysh7"></a>CREACIÓN DE LA TOPOLOGÍA
-
-Siempre deberán estar definidas las topologías[^5] para cada una de las moléculas que se usarán en la simulación. El agua y los iones monovalentes son parte del código de Gromacs, por lo tanto no necesitan una definición explícita de su topología. 
-
-LIGANDO
-
-Ir a la web de SwissParam[^6] (<http://www.swissparam.ch/>) y subir el mol2.
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.005.png)
-
-Hay que esperar unos segundos y nos redirige a otra página. Se descarga un ZIP que se descomprime a través de la línea de comandos:
-
-| unzip ligand.zip |
-| ---------------- |
-
-O mediante una interfaz gráfica (PeaZIP, UnRAR, 7zip, etc).
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.006.png)
-
-De acá necesitamos dos archivos (.pdb, .itp), si bien aparecen otros que corresponden a los parámetros usados en NAMD:
-
-`  `ligand.pdb
-
-`  `ligand.itp (puede tener otro nombre pero siempre es .itp)
-
-Todos los residuos que representen al ligando deberán llamarse LIG para lograr coherencia.[^7] O cualquier otro código, pero deberá ser exactamente el mismo. En los archivos que salen de SwissParam puede que aparezca la palabra "ligand" como referencia a la molécula, esto debe cambiarse por LIG. Lo que ocurre es que SwissParam usa como nombre del ligando el nombre del archivo MOL2 subido a la página (si fue ligand.mol2 entonces el nombre de la molécula será ‘ligand’, si fue aspirina.mol2 será ‘aspirina’). En este protocolo, para lograr simplicidad, siempre uso LIG. Si tengo más de un ligando, deberíamos llamarlos distinto (se verá un ejemplo en otra sección). Si quiero usar un código específico, como las siglas de la moléculas, podría ser una mejor idea. Por ejemplo,
-
-; ----
-
-; Built itp for dv01.mol2
-
-;    by user vzoete     Mon Dec 11 18:15:36 CET 2017
-
-; ----
-
-;
-
-[ atomtypes ]
-
-; name at.num  mass   charge  ptype    sigma            epsilon
-
-CB      6   12.0110  0.0  A         0.355005    0.292880  
-
-…
-
-…
-
+~~~ini
 [ moleculetype ]
-
-; Name nrexcl
-
-LIG 3
+; nombre   nrexcl
+LIG        3
 
 [ atoms ]
+; nr  type  resnr  residuo  átomo  cgnr  carga  masa
+1     CG2R61  1     LIG      C1     1     0.12   12.011
+2     NG2R50  1     LIG      N1     2    -0.32   14.007
+; ...
+~~~
 
-; nr type resnr resid atom cgnr charge mass
+Las líneas iniciadas por punto y coma son comentarios. El nombre definido en **[ moleculetype ]** debe coincidir exactamente con el utilizado en **[ molecules ]**. La suma de las cargas parciales debe reproducir la carga formal esperada dentro de la precisión numérica del modelo.
 
-`   `1 CB   1  LIG C8      1  0.4100  12.0110
+El valor de **nrexcl** depende de la convención del campo de fuerza. No debe cambiarse solo para eliminar errores de preprocesamiento.
 
-`   `2 NPYD 1  LIG N2      2 -0.6200  14.0067
+## Preparación de la proteína
 
-…
+Ejecute **pdb2gmx** sobre una copia de la estructura original:
 
-…
+~~~bash
+cd 01_preparacion
 
-Las líneas que empiezan por “;” son comentarios. El término “nrexcl” cuando nrexcl = 3 significa excluir las interacciones no unidas entre átomos que están a no más de 3 enlaces de distancia.
+gmx pdb2gmx     -f ../00_entrada/protein.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -water tip3p
+~~~
 
-PROTEÍNA
+Seleccione el campo de fuerza de manera interactiva o especifíquelo mediante **-ff** si el identificador instalado está documentado:
 
-Las proteínas, los ácidos nucleicos y los lípidos (en realidad, muy pocos, mejor vamos a trabajar en un capítulo aparte esto) están incluidos en el código de Gromacs. Por lo tanto, a menos que se esté probando un FF nuevo o modificado, no es necesario emplear ningún archivo especial. Corremos GROMACS suite en el directorio de trabajo. El comando es “gmx”.
+~~~bash
+gmx pdb2gmx     -f ../00_entrada/protein.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -ff charmm36-jul2022     -water tip3p
+~~~
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.007.png)
+El nombre disponible puede diferir según los campos de fuerza instalados. Consulte:
 
-Si "gmx" no está en el PATH del usuario[^8] se deberá apuntar hacia la dirección absoluta del ejecutable[^9]:
+~~~bash
+gmx pdb2gmx -h
+~~~
 
-| gmx pdb2gmx -f protein.pdb -ff charmm27 -water tip3p -ignh -o protein-complex.pdb |
-| --------------------------------------------------------------------------------- |
+Evite **-ignh** como opción automática: descarta los hidrógenos presentes y los regenera según las plantillas del campo de fuerza. Puede ser útil, pero también elimina estados de protonación definidos previamente.
 
-Esto va a generar una topología con el campo de fuerza (-ff) CHARMM27 (en realidad se llama CHARMM22/CMAP)[^10], agua (-water) según el modelo rígido TIP3P[^11], se ignorarán los hidrógenos (-ignh) ya establecidos en la proteína y la salida será "protein-complex.pdb" con los H a pH 7 según los parámetros originales de compilación de Gromacs. Eliminar los hidrógenos ya puestos implica la pérdida de información, por ejemplo de protonación a determinado pH, por eso pensemos si es lo que necesitamos. El archivo este lo vamos a usar para construir el complejo con el ligando.
+Compruebe la estructura:
 
-| <p><http://deposit.rcsb.org/format-faq-v1.html></p><p><http://manual.gromacs.org/current/online/gro.html></p><p><http://chembytes.wikidot.com/g-grofile></p><p>![ref1] A diferencia de otros protocolos, usaremos el formato PDB[^12] ya que resultan más sencillos de interpretar. Si bien GRO no es muy distinto (bueno, sí por [^13] y [^14]).</p> |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+~~~bash
+gmx check -f protein_processed.gro
+~~~
 
-¿Cuáles son los modelos de agua disponibles? En la actualidad, existe una gran cantidad de modelos moleculares de agua, que van desde geometrías planas tetraédricas, con topologías rígidas o flexibles, cargas fijas o polarizables, con tres, cuatro, cinco o seis cargas puntuales. Analizaremos algunas propiedades de los cuatro modelos planos rígidos más populares de agua, es decir, SPC, SPC/E, TIP3P y TIP4P.
+Revise en la salida de **pdb2gmx**:
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.008.png)
+- residuos y átomos no reconocidos;
+- carga total de la proteína;
+- enlaces disulfuro;
+- terminales asignados;
+- histidinas y otros residuos titulables;
+- moléculas separadas por cadena.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.009.png)
+## Construcción del complejo
 
-COMPLEJO PROTEÍNA - LIGANDO
+Las coordenadas finales deben contener primero la proteína y después el ligando si ese es el orden declarado en la topología. No concatene directamente dos archivos GRO completos: cada uno contiene título, número de átomos y caja.
 
-En la carpeta aparecerá el archivo con la topología[^15] de la proteína solamente "topol.top" y hay que modificarlo en la sección "Include chain topologies" agregando lo siguiente antes de cualquier otra molécula de la proteína
+Use un editor molecular o un script validado para combinar las coordenadas sin alterar la pose. Después inspeccione el complejo visualmente y descarte solapamientos.
 
+En **topol.top**, incluya la topología del ligando después de los parámetros generales del campo de fuerza y antes de las topologías de agua e iones:
+
+~~~ini
+; Parámetros generales
+#include "charmm36-jul2022.ff/forcefield.itp"
+
+; Tipos o parámetros adicionales del ligando, si existen
+#include "ligand_atomtypes.itp"
+
+; Topología molecular del ligando
 #include "ligand.itp"
 
-Entonces va a quedar, por ejemplo:
+; Topología de la proteína generada por pdb2gmx
+#include "topol_Protein_chain_A.itp"
+~~~
 
-; Include forcefield parameters
+Una sección **[ atomtypes ]** debe aparecer antes de cualquier **[ moleculetype ]** que utilice esos tipos. No incluya el mismo bloque de tipos atómicos más de una vez.
 
-#include "charmm27.ff/forcefield.itp"
+Al final de **topol.top**:
 
-#include "ligand.itp"
-
-[ moleculetype ]
-
-; Name            nrexcl
-
-Protein\_chain\_A     3
-
-El archivo ligand.itp podría tener otro nombre, es cierto, pero nos estamos manejando con la salida de SwissParam. Recordar que, con más de una molécula diferente, tendremos archivos ITP diferentes. Luego en la sección [molecules] después de las moléculas de la proteína y antes del solvente, si es que existe, debemos indicar la existencia de la molécula del ligando con la nomenclatura usada en los pasos previos (LIG, en este caso):
-
-LIG        1
-
-Entonces:
+~~~ini
+[ system ]
+Complejo proteína–ligando
 
 [ molecules ]
-
-; Compound        #mols
-
-Protein\_chain\_A     1
-
+; molécula          cantidad
+Protein_chain_A     1
 LIG                 1
+~~~
 
-Esto hará que la topología tome en cuenta todas las moléculas del complejo.
+El orden en **[ molecules ]** debe coincidir con el orden de las moléculas en el archivo de coordenadas. La cantidad representa moléculas, no átomos ni residuos.
 
-Otra forma de pensar cómo tienen que estar estos archivos en el topol.top es la siguiente: el orden en el cual aparecen los  archivos .itp debe coincidir con el orden en el cual aparecen listados en la sección [ molecules ].
+## Caja periódica
 
-Tomamos las líneas que dicen ATOM y TERM[^16] del archivo ligand.pdb y las ponemos en el archivo protein-complex.pdb, después del AA terminal de la cadena proteica.
+Para una proteína soluble aproximadamente globular, una caja dodecaédrica reduce el número de moléculas de agua respecto de una caja cúbica:
 
-ATOM   7497  OT1 PRO A 487     105.401  -6.119   5.005  1.00  0.00           O
+~~~bash
+gmx editconf     -f complex.gro     -o complex_box.gro     -c     -d 1.0     -bt dodecahedron
+~~~
 
-ATOM   7498  OT2 PRO A 487     105.194  -3.985   5.330  1.00  0.00           O
+**-d 1.0** establece una distancia mínima de 1.0 nm entre el soluto y el límite de la caja. No es una constante universal. Debe ser compatible con los radios de corte y con los movimientos esperados del sistema.
 
-TER
+Compruebe el volumen y los vectores de caja:
 
-ATOM      1  C1  LIG     1      76.056 -15.540  -1.018  1.00  0.00      LIG
+~~~bash
+gmx editconf -f complex_box.gro
+~~~
 
-ATOM      2  C2  LIG     1      75.560 -15.932   0.163  1.00  0.00      LIG
+## Solvatación
 
-ATOM      3  C3  LIG     1      74.509 -15.282   0.682  1.00  0.00      LIG
+~~~bash
+gmx solvate     -cp complex_box.gro     -cs spc216.gro     -o complex_solv.gro     -p topol.top
+~~~
 
-...
+El nombre **spc216.gro** identifica una configuración preequilibrada distribuida con GROMACS. La topología final del agua está determinada por el modelo elegido en **pdb2gmx**, por lo que debe mantenerse la compatibilidad entre campo de fuerza, archivo de agua y topología.
 
-...
+**gmx solvate** actualiza automáticamente el número de moléculas de solvente en **topol.top**. Revise la sección **[ molecules ]** después del comando.
 
-ATOM     43 HC14 LIG     1      72.849  -7.260   3.312  1.00  0.00      LIG
+## Neutralización y concentración salina
 
-ATOM     44 HC15 LIG     1      73.189  -8.416   4.621  1.00  0.00      LIG
+Archivo **ions.mdp** mínimo:
 
-TER      45      LIG      1
+~~~ini
+integrator      = steep
+nsteps          = 0
+emtol           = 1000.0
 
-ENDMDL
+cutoff-scheme   = Verlet
+coulombtype     = PME
+rcoulomb        = 1.0
+rvdw            = 1.0
+pbc             = xyz
+~~~
 
-En el siguiente paso se renumerará todo el sistema (Sólo en el formato .GRO, en PDB ese orden se conserva, a veces y otras veces no dependiendo qué procesamiento se ha hecho. Por eso no recomiendo usar GRO. Es esencial verificar el final) ya que por ahora no tiene coherencia ya que cada molécula tiene su propia numeración. Algo para destacar es que esto CAMBIA LA NUMERACIÓN DE LOS AA EN LA PROTEÍNA ASÍ QUE AL FINAL LAS POSICIONES DE CADA AA NO COINCIDIRÁN CON LA ORIGINAL[^17].
+Genere un TPR temporal:
 
-<a name="_2et92p0"></a>SOLVATACIÓN Y NEUTRALIZACIÓN
+~~~bash
+gmx grompp     -f ions.mdp     -c complex_solv.gro     -p topol.top     -o ions.tpr
+~~~
 
-La solvatación es un proceso que consiste en la atracción y agrupación de las moléculas que conforman un disolvente, o en el caso del soluto, sus iones. Cuando se disuelven los iones de un disolvente, éstos se separan y se rodean de las moléculas que forman el disolvente. Cuanto mayor es el tamaño del ion, mayor será el número de moléculas capaces de rodear a éste, por lo que se dice que el ion se encuentra mayormente solvatado. Según la IUPAC, (Unión Internacional de Química Pura y Aplicada), la estabilización de las especies que forman un soluto en una solución, viene dada por la interacción de un soluto con un disolvente. También, cuando un ion se encuentra formado por un átomo central y rodeado por moléculas, se dice que está solvatado, a este tipo de ion se le llama complejo. La solvatación, también puede darse en un material que sea insoluble.
+Añada NaCl, neutralice la carga neta y solicite una concentración nominal de 0.15 mol L⁻¹:
 
-Los cálculos DEBEN realizarse en un solvente. Trabajar en vacío NO es la función de diseño de Gromacs. Sin embargo, se pueden modelar sistemas que estén “llenos” de una determinada molécula, casos que se verán más adelante. Para la caja del solvente, crearemos un dodecahedro[^18] con la opción -bt (es lo más parecido a una superficie curva, por lo tanto, tiene menos volumen, entonces menos solvente)
+~~~bash
+gmx genion     -s ions.tpr     -o complex_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
+~~~
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.010.png)
+Seleccione el grupo de solvente, normalmente **SOL**, cuando el programa pregunte qué moléculas reemplazar. No use un número de grupo copiado de otro sistema.
 
-Ejecutamos:
+La concentración se relaciona con el número de pares iónicos mediante:
 
-| gmx editconf -f protein-complex.pdb -o protein-complex-box.pdb -c -d 1 -bt dodecahedron |
-| --------------------------------------------------------------------------------------- |
+$
+N_{\mathrm{pares}} \approx c\,N_A\,V
+$
 
-Acá en -d se pone la distancia hacia el extremo de la proteína en nanómetros (1 = 1 nanómetros). Pero si es muy grande entonces una computadora "común" no va a poder hacer los cálculos y ocurrirá un desbordamiento en la memoria. También puede ocurrir que se extienda innecesariamente el tiempo de cálculo. Probar. Si es muy chico, empezarán a ocurrir fenómenos de interacción de las proteínas con su imagen periódica, dando lugar a fuerzas artificiales por interacciones electrostáticas irreales.
+donde **c** es la concentración en mol L⁻¹, (N_A) es la constante de Avogadro y **V** es el volumen en litros. Debido a que el número de iones debe ser entero y la caja es pequeña, la concentración efectiva puede diferir del valor solicitado.
 
-1 nm son 10 A que equivalen a 5-6 moléculas de agua en forma lineal
+La opción **-neutral** agrega los contraiones necesarios para llevar la carga neta a cero. **-conc 0.15** agrega además la sal correspondiente a la concentración solicitada. Revise la cantidad final de NA y CL en **topol.top**.
 
-` `![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.011.jpeg)
+## Grupos de índice
 
-La caja va a estar centrada en la molécula (-c). Si queremos conservar la distribución inicial de las coordenadas 3D, no tenemos que usar esa opción.
+Los números de grupo cambian con la composición del sistema. Cree los grupos necesarios y documente las selecciones:
 
-| ![ref1]1 Angstrom = 0.1 nanómetro |
-| --------------------------------- |
+~~~bash
+gmx make_ndx -f complex_solv_ions.gro -o index.ndx
+~~~
 
-| <p>![ref2]Opciones de editconf</p><p></p><p>gmx editconf converts generic structure format to .gro, .g96 or .pdb.</p><p></p><p>The box can be modified with options -box, -d and -angles. Both -box and -d will center the system in the box, unless -noc is used.</p><p></p><p>Option -bt determines the box type: triclinic is a triclinic box, cubic is a rectangular box with all sides equal dodecahedron represents a rhombic dodecahedron and octahedron is a truncated octahedron. The last two are special cases of a triclinic box. The length of the three box vectors of the truncated octahedron is the shortest distance between two opposite hexagons. Relative to a cubic box with some periodic image distance, the volume of a dodecahedron with this same periodic distance is 0.71 times that of the cube, and that of a truncated octahedron is 0.77 times.</p><p></p><p>Option -box requires only one value for a cubic, rhombic dodecahedral, or truncated octahedral box.</p><p></p><p>With -d and a triclinic box the size of the system in the x-, y-, and z-directions is used. With -d and cubic, dodecahedron or octahedron boxes, the dimensions are set to the diameter of the system (largest distance between atoms) plus twice the specified distance.</p><p></p><p>Option -angles is only meaningful with option -box and a triclinic box and cannot be used with option -d.</p><p></p><p>When -n or -ndef is set, a group can be selected for calculating the size and the geometric center, otherwise the whole system is used.</p><p></p><p>-rotate rotates the coordinates and velocities.</p><p></p><p>-princ aligns the principal axes of the system along the coordinate axes, with the longest axis aligned with the x-axis. This may allow you to decrease the box volume, but beware that molecules can rotate significantly in a nanosecond.</p><p></p><p>Scaling is applied before any of the other operations are performed. Boxes and coordinates can be scaled to give a certain density (option -density). Note that this may be inaccurate in case a .gro file is given as input. A special feature of the scaling option is that when the factor -1 is given in one dimension, one obtains a mirror image, mirrored in one of the planes. When one uses -1 in three dimensions, a point-mirror image is obtained.</p><p></p><p>Groups are selected after all operations have been applied.</p><p></p><p>Periodicity can be removed in a crude manner. It is important that the box vectors at the bottom of your input file are correct when the periodicity is to be removed.</p><p></p><p>When writing .pdb files, B-factors can be added with the -bf option. B-factors are read from a file with with following format: first line states number of entries in the file, next lines state an index followed by a B-factor. The B-factors will be attached per residue unless an index is larger than the number of residues or unless the -atom option is set. Obviously, any type of numeric data can be added instead of B-factors. -legend will produce a row of CA atoms with B-factors ranging from the minimum to the maximum value found, effectively making a legend for viewing.</p><p></p><p>With the option -mead a special .pdb (.pqr) file for the MEAD electrostatics program (Poisson-Boltzmann solver) can be made. A further prerequisite is that the input file is a run input file. The B-factor field is then filled with the Van der Waals radius of the atoms while the occupancy field will hold the charge.</p><p></p><p>The option -grasp is similar, but it puts the charges in the B-factor and the radius in the occupancy.</p><p></p><p>Option -align allows alignment of the principal axis of a specified group against the given vector, with an optional center of rotation specified by -aligncenter.</p><p></p><p>Finally, with option -label, editconf can add a chain identifier to a .pdb file, which can be useful for analysis with e.g. Rasmol.</p><p></p><p>To convert a truncated octrahedron file produced by a package which uses a cubic box with the corners cut off (such as GROMOS), use:</p><p></p><p>gmx editconf -f in -rotate 0 45 35.264 -bt o -box veclen -o out</p><p></p><p>where veclen is the size of the cubic box times sqrt(3)/2.</p> |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+Ejemplo interactivo:
 
-Si queremos que el LIG agregado sea reconocido como parte de la cadena A, podríamos usar
+~~~text
+r LIG
+"Protein" | "LIG"
+name 18 Protein_LIG
+q
+~~~
 
-| gmx editconf -f protein-complex.pdb -o protein-complex-box.pdb -c -d 1 -bt dodecahedron -label A |
-| ------------------------------------------------------------------------------------------------ |
+El número 18 es ilustrativo: debe reemplazarse por el número asignado durante esa sesión. El grupo **Protein_LIG** resulta útil para centrar y visualizar el complejo, pero no crea una única molécula física.
 
-Ya que tenemos los límites del solvente, pasamos a crear cada molécula de agua necesaria para llenarlo:
+Puede examinar selecciones modernas con:
 
-| gmx solvate -cs -cp protein-complex-box.pdb -o protein-complex-solv.pdb -p topol.top |
-| ------------------------------------------------------------------------------------ |
+~~~bash
+gmx select     -s complex_solv_ions.gro     -select 'group "Protein" or resname LIG'
+~~~
 
-Ahora neutralizamos con NaCl, primero vamos a crear los archivos binarios necesarios. Esto SE HACE cuando la carga total del sistema es DISTINTA DE 0 o necesitamos simular un entorno con una determinada fuerza iónica. Esta información sale de los numerosos mensajes de gmx cuando realizamos las conversiones anteriores. Usaré los parámetros del em.mdp usado para la posterior minimización. Acá se puede usar (casi, en el sentido que no debería ser complejo) cualquier .mdp genérico (si con este MDP genérico aparecen errores, se pueden ignorar con la opción -maxwarn). También se usa cuando necesitamos simular un medio salino determinado. Un ejemplo de mdp genérico para generar iones sería
+## Restricciones de posición del ligando
 
-| title            = Ions    ; Title of run<br><br>; Parameters describing what to do, when to stop and what to save<br>integrator        = steep    ; Algorithm (steep = steepest descent minimization)<br>emtol            = 1000.0  ; Stop minimization when the maximum force < 10.0 kJ/mol<br>emstep          = 0.01    ; Energy step size<br>nsteps        = 50000      ; Maximum number of (minimization) steps to perform<br><br>; Parameters describing how to find the neighbors of each atom and how to calculate the interactions<br>nstlist = 1.  ; Frequency to update the neighbor list and long range forces<br>cutoff-scheme   = Verlet<br>ns\_type         = grid ; Method to determine neighbor list (simple, grid)<br>rlist      = 1.0 ; Cut-off for making neighbor list (short range forces)<br>coulombtype        = cutoff ; Treatment of long range electrostatic interactions<br>rcoulomb        = 1.0        ; long range electrostatic cut-off<br>rvdw            = 1.0        ; long range Van der Waals cut-off<br>pbc             = xyz         ; Periodic Boundary Conditions |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+Genere las restricciones usando una estructura que contenga solamente el ligando y cuyo orden atómico coincida con **ligand.itp**:
 
-| <p>![ref2]Opciones de solvate</p><p></p><p>gmx solvate can do one of 2 things:</p><p></p><p>1) Generate a box of solvent\. Specify -cs and -box\. Or specify -cs and -cp with a structure file with a box, but without atoms\.</p><p></p><p>2) Solvate a solute configuration, e\.g\. a protein, in a bath of solvent molecules\. Specify -cp (solute) and -cs (solvent)\. The box specified in the solute coordinate file (-cp) is used, unless -box is set\. If you want the solute to be centered in the box, the program gmx editconf has sophisticated options to change the box dimensions and center the solute\. Solvent molecules are removed from the box where the distance between any atom of the solute molecule(s) and any atom of the solvent molecule is less than the sum of the scaled van der Waals radii of both atoms\. A database (vdwradii\.dat) of van der Waals radii is read by the program, and the resulting radii scaled by -scale\. If radii are not found in the database, those atoms are assigned the (pre-scaled) distance -radius\.</p><p></p><p>The default solvent is Simple Point Charge water (SPC), with coordinates from $GMXLIB/spc216.gro. These coordinates can also be used for other 3-site water models, since a short equilibration will remove the small differences between the models. Other solvents are also supported, as well as mixed solvents. The only restriction to solvent types is that a solvent molecule consists of exactly one residue. The residue information in the coordinate files is used, and should therefore be more or less consistent. In practice, this means that two subsequent solvent molecules in the solvent coordinate file should have different residue number. The box of solute is built by stacking the coordinates read from the coordinate file. This means that these coordinates should be equilibrated in periodic boundary conditions to ensure a good alignment of molecules on the stacking interfaces.</p><p></p><p>![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.013.png)</p><p></p><p>The -maxsol option simply adds only the first -maxsol solvent molecules and leaves out the rest that would have fitted into the box. This can create a void that can cause problems later. Choose your volume wisely.</p><p></p><p>The program can optionally rotate the solute molecule to align the longest molecule axis along a box edge. This way the amount of solvent molecules necessary is reduced. It should be kept in mind that this only works for short simulations, as e.g. an alpha-helical peptide in solution can rotate over 90 degrees, within 500 ps. In general, it is therefore better to make a more or less cubic box.</p><p></p><p>Setting -shell larger than zero will place a layer of water of the specified thickness (nm) around the solute. Hint: it is a good idea to put the protein in the center of a box first (using gmx editconf).</p><p></p><p>Finally, gmx solvate will optionally remove lines from your topology file in which a number of solvent molecules is already added, and adds a line with the total number of solvent molecules in your coordinate file.</p> |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+~~~bash
+gmx genrestr     -f ligand.gro     -o posre_ligand.itp     -fc 1000 1000 1000
+~~~
 
-Con esto se neutraliza definitivamente el sistema.[^19] Se puede usar KCl también, pero Na2SO4 no funciona porque es no es monoatómico, entonces hay que considerarlo como un ligando grande y eso implica parametrizar y obtener la topología (no es imposible, pero no sé si vale la pena, por [^20] y [^21])
+Seleccione **LIG**. Los índices del archivo de restricciones son locales al **[ moleculetype ]**. Si se usa la estructura completa y se generan índices globales, las restricciones pueden apuntar a átomos incorrectos.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.014.png)
+Incluya el archivo inmediatamente después de la topología del ligando:
 
-Ejecutamos:
+~~~ini
+#include "ligand.itp"
 
-| gmx grompp -f ions.mdp -c protein-complex-solv.pdb -p topol.top -o ions.tpr |
-| --------------------------------------------------------------------------- |
-
-| <p>![ref2]Opciones de grompp</p><p></p><p>gmx grompp (the gromacs preprocessor) reads a molecular topology file, checks the validity of the file, expands the topology from a molecular description to an atomic description. The topology file contains information about molecule types and the number of molecules, the preprocessor copies each molecule as needed. There is no limitation on the number of molecule types. Bonds and bond-angles can be converted into constraints, separately for hydrogens and heavy atoms. Then a coordinate file is read and velocities can be generated from a Maxwellian distribution if requested. gmx grompp also reads parameters for gmx mdrun (eg. number of MD steps, time step, cut-off), and others such as NAMD parameters, which are corrected so that the net acceleration is zero. Eventually a binary file is produced that can serve as the sole input file for the MD program.</p><p>gmx grompp uses the atom names from the topology file. The atom names in the coordinate file (option -c) are only read to generate warnings when they do not match the atom names in the topology. Note that the atom names are irrelevant for the simulation as only the atom types are used for generating interaction parameters.</p><p></p><p>gmx grompp uses a built-in preprocessor to resolve includes, macros, etc. The preprocessor supports the following keywords:</p><p></p><p>#ifdef VARIABLE</p><p>#ifndef VARIABLE</p><p>#else</p><p>#endif</p><p>#define VARIABLE</p><p>#undef VARIABLE</p><p>#include "filename"</p><p>#include <filename></p><p></p><p>The functioning of these statements in your topology may be modulated by using the following two flags in your .mdp file:</p><p></p><p>define = -DVARIABLE1 -DVARIABLE2</p><p>include = -I/home/john/doe</p><p></p><p>When using position restraints a file with restraint coordinates can be supplied with -r, otherwise restraining will be done with respect to the conformation from the -c option. For free energy calculation, the coordinates for the B topology can be supplied with -rb, otherwise they will be equal to those of the A topology.</p><p></p><p>Starting coordinates can be read from trajectory with -t. The last frame with coordinates and velocities will be read, unless the -time option is used. Only if this information is absent will the coordinates in the -c file be used. Note that these velocities will not be used when gen\_vel = yes in your .mdp file. An energy file can be supplied with -e to read Nose-Hoover and/or Parrinello-Rahman coupling variables.</p><p></p><p>gmx grompp can be used to restart simulations (preserving continuity) by supplying just a checkpoint file with -t. However, for simply changing the number of run steps to extend a run, using gmx convert-tpr is more convenient than gmx grompp. You then supply the old checkpoint file directly to gmx mdrun with -cpi. If you wish to change the ensemble or things like output frequency, then supplying the checkpoint file to gmx grompp with -t along with a new .mdp file with -f is the recommended procedure. Actually preserving the ensemble (if possible) still requires passing the checkpoint file to gmx mdrun -cpi.</p><p></p><p>The -maxwarn option can be used to override warnings printed by gmx grompp that otherwise halt output. In some cases, warnings are harmless, but usually they are not. The user is advised to carefully interpret the output messages before attempting to bypass them with this option.</p> |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-
-Luego,
-
-| gmx genion -s ions.tpr -o protein-complex-neutral.pdb -p topol.top -pname NA -nname CL -neutral |
-| ----------------------------------------------------------------------------------------------- |
-
-Te va a pedir que elijas qué vas a reemplazar con el ion necesario, el solvente (SOL, 15).
-
-Reading file ions.tpr, VERSION 5.1.2 (single precision)
-
-Reading file ions.tpr, VERSION 5.1.2 (single precision)
-
-Will try to add 2 NA ions and 0 CL ions.
-
-Select a continuous group of solvent molecules
-
-Group     0 (         System) has 674658 elements
-
-Group     1 (        Protein) has 12258 elements
-
-Group     2 (      Protein-H) has  6124 elements
-
-Group     3 (        C-alpha) has   788 elements
-
-Group     4 (       Backbone) has  2364 elements
-
-Group     5 (      MainChain) has  3150 elements
-
-Group     6 (   MainChain+Cb) has  3864 elements
-
-Group     7 (    MainChain+H) has  3904 elements
-
-Group     8 (      SideChain) has  8354 elements
-
-Group     9 (    SideChain-H) has  2974 elements
-
-Group    10 (    Prot-Masses) has 12258 elements
-
-Group    11 (    non-Protein) has 662400 elements
-
-Group    12 (          Other) has    96 elements
-
-Group    13 (            LIG) has    96 elements
-
-Group    14 (          Water) has 662304 elements
-
-Group    15 (            SOL) has 662304 elements
-
-Group    16 (      non-Water) has 12354 elements
-
-El resultado de este comando será parecido a:
-
-Back Off! I just backed up temp.topgMwlTi to ./#temp.topgMwlTi.1#
-
-Replacing 2 solute molecules in topology file (topol.top)  by 2 NA and 0 CL ions.
-
-Back Off! I just backed up topol.top to ./#topol.top.4#
-
-Replacing solvent molecule 22170 (atom 78864) with NA
-
-Replacing solvent molecule 61453 (atom 196713) with NA
-
-| <p>![ref2]Opciones de genion</p><p></p><p>gmx genion randomly replaces solvent molecules with monoatomic ions. The group of solvent molecules should be continuous and all molecules should have the same number of atoms. The user should add the ion molecules to the topology file or use the -p option to automatically modify the topology.</p><p>The ion molecule type, residue and atom names in all force fields are the capitalized element names without sign. This molecule name should be given with -pname or -nname, and the [molecules] section of your topology updated accordingly, either by hand or with -p. Do not use an atom name instead!</p><p></p><p>Ions which can have multiple charge states get the multiplicity added, without sign, for the uncommon states only.</p><p></p><p>For larger ions, e.g. sulfate we recommended using gmx insert-molecules.</p><p></p><p>-np (0)              Number of positive ions</p><p>-pname (NA)    Name of the positive ion</p><p>-pq (1)              Charge of the positive ion</p><p>-nn (0)              Number of negative ions</p><p>-nname (CL)    Name of the negative ion</p><p>-nq (-1)            Charge of the negative ion</p><p>-rmin (0.6)       Minimum distance between ions</p><p>-conc               Specify salt concentration (mol/liter). This will add sufficient ions to reach up to the specified concentration as computed from the volume of the cell in the input .tpr file. Overrides the -np and -nn options.</p><p>-neutral          This option will add enough ions to neutralize the system. These ions are added on top of those specified with -np/-nn or -conc.</p> |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-Con respecto a las concentraciones, un medio isotónico corresponde a una concentración de 0.154 M de NaCl (0.154 M de Na+ y 0.154 M de Cl-)
-
-<a name="_tyjcwt"></a>MINIMIZACIÓN ENERGÉTICA
-
-Necesitamos el archivo em.mdp para minimizar[^22] el complejo solvatado, el cual será necesario para realizar los cálculos:
-
-| gmx grompp -f em.mdp -c protein-complex-neutral.pdb -p topol.top -o em.tpr |
-| -------------------------------------------------------------------------- |
-
-Esto crea el archivo de configuración. Si cambio el nombre em.tpr por otro, entonces voy a tener que cambiar los siguiente. Esto puede ser útil para probar diferentes configuraciones. Corremos (mdrun) la minimización energética (-deffnm em)
-
-| gmx mdrun -v -deffnm em |
-| ----------------------- |
-
-Si no queremos ver la salida del programa y dejar que se ejecute en segundo plano, podemos usar el carácter “&” al final del comando. Esto es válido para todos los comandos de linux (aunque también depende de las características del comando que estemos usando). Entonces,
-
-| gmx mdrun -v -deffnm em & |
-| ------------------------- |
-
-La pregunta lógica sería ¿cómo sabe el programa qué archivos usar para hacer el cálculo? La realidad es que no lo sabe, pero asume que hemos creado un archivo em.tpr con grompp (-o em.tpr). En el caso de emplear otro nombre de archivo (ejemplo minimizado.tpr), se deberá indicar con el parámetro -s, ejemplo
-
-| gmx mdrun -v -s minimizado.tpr -deffnm em |
-| ----------------------------------------- |
-
-Si queremos correr en paralelo el programa (y no reconoce bien los núcleos) debemos usar el comando:
-
-| gmx mdrun -v -nt X -deffnm em |
-| ----------------------------- |
-
-Donde X es el número de threads que se quiere usar (lo óptimo para EM es entre 1-6, esto significa que NO se puede paralelizar en un cluster). El problema con el MPI/OpenMPI y la EM, se puede resolver usando el parámetro -ntomp en vez del -nt. Las EM son muy rápidas y no debería ser necesario el empleo del cluster con sus muchos núcleos,
-
-| gmx mdrun -v -ntomp 6 -deffnm em |
-| -------------------------------- |
-
-Esta estrategia se puede emplear con cualquiera de las corridas de MD siguientes. El parámetro -v es para que nos muestre en pantalla qué está haciendo el programa. De lo contrario, sólo aparecerá algo como:
-
-Reading file em.tpr, VERSION 5.1.2 (single precision)
-
-Using 1 MPI thread
-
-Using 4 OpenMP threads
-
-Steepest Descents:
-
-`   `Tolerance (Fmax)   =  1.00000e+03
-
-`   `Number of steps    =        50000
-
-Cuando termine veremos:
-
-writing lowest energy coordinates.
-
-Steepest Descents converged to Fmax < 1000 in 1494 steps
-
-Potential Energy  = -1.0737046e+07
-
-Maximum force     =  9.4401129e+02 on atom 7692
-
-Norm of force     =  1.1543166e+01
-
-NOTE: 18 % of the run time was spent in pair search,
-
-`      `you might want to increase nstlist (this has no effect on accuracy)
-
-Se deberá realizar el análisis de la evolución de la energía potencial del sistema hasta llegar al equilibrio. Conviene analizar la evolución de la minimización y cómo termina. Puede que el sistema se minimice antes de cumplir con todos los pasos, deberá seguirse el cálculo o no, se verá el efecto de esta terminación durante el equilibrado posterior.
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.015.jpeg)
-
-Ejemplo de evolución energética de la minimización. Para más detalles sobre cómo calcular ir a la referencia gmx energy de este manual.
-
-Ahora creamos las restraint[^23] para el ligando, esto le pondrá barreras energéticas a las conformaciones de la molécula:
-
-| gmx genrestr -f ligand.pdb -o posre\_lig.itp -fc 1000 1000 1000 |
-| --------------------------------------------------------------- |
-
-Aparecerá algo como,
-
-Reading structure file
-
-Select group to position restrain
-
-Group     0 (         System) has    48 elements
-
-Group     1 (          Other) has    48 elements
-
-Group     2 (            LIG) has    48 elements
-
-Select a group: 2
-
-Selected 2: 'LIG'
-
-Si no necesito hacerlo en forma interactiva (porque conozco muy bien el sistema que estoy manipulando), puedo usar la siguiente estrategia
-
-|echo "2 \n" | gmx genrestr -f ligand.pdb -o posre\_lig.itp -fc 1000 1000 1000|
-| - |
-
-| ![ref1] echo “2 \n q” sirve para indicarle al programa que elija el grupo “2”. Normalmente esto sería lo correcto y necesario, pero también nos sirve para automatizar cálculos si no es necesario alterar nada del sistema y/o tenemos un sistema similar en cada cálculo a pesar de cambiar el ligando u otras cosas. Esto nos va a servir en las otras ocasiones en las cuales debemos seleccionar grupos en forma interactiva. |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-Editamos topol.top y ponemos la siguiente sección
-
-; Ligand position restraints
-
-#ifdef POSRES
-
-#include "posre\_lig.itp"
-
+#ifdef POSRES_LIG
+#include "posre_ligand.itp"
 #endif
+~~~
 
-antes de la inclusión de la topología del agua pero después de la de la proteína, posre.itp. Si existe más de un ligando, tendrá cada uno, un archivo de las restraints. Lo mismo si existe más de una cadena de proteína.
+El valor 1000 corresponde a 1000 kJ mol⁻¹ nm⁻² en cada eje. La energía armónica de una restricción unidimensional es:
 
-PREGUNTA: ¿Por qué querría restringir el movimiento interno de algo?  
+$
+V(x)=\frac{1}{2}k(x-x_0)^2
+$
 
-; Include Position restraint file
+donde **k** es la constante de fuerza y (x_0) la posición de referencia.
 
-#ifdef POSRES
+Active las restricciones desde el MDP:
 
-#include "posre.itp"
+~~~ini
+define = -DPOSRES -DPOSRES_LIG
+~~~
 
-#endif
+El archivo indicado mediante **gmx grompp -r** proporciona las coordenadas de referencia. Las restricciones se usan normalmente durante la equilibración y se eliminan en producción.
 
-; Ligand position restraints
+## Minimización de energía
 
-#ifdef POSRES
+Archivo **em.mdp**:
 
-#include "posre\_lig.itp"
+~~~ini
+title            = Minimización de energía
+integrator       = steep
+nsteps           = 50000
+emtol            = 1000.0
+emstep           = 0.01
 
-#endif
+cutoff-scheme    = Verlet
+nstlist          = 20
+rlist            = 1.0
+coulombtype      = PME
+rcoulomb         = 1.0
+vdwtype          = Cut-off
+rvdw             = 1.0
+pbc              = xyz
+~~~
 
-; Include water topology
+Preprocese y ejecute:
 
-#include "charmm27.ff/tip3p.itp"
+~~~bash
+mkdir -p ../02_em
+cd ../02_em
 
-Al hacer esto lograremos aplicar las restraints a la proteína y al ligando al mismo tiempo.
+gmx grompp     -f ../01_preparacion/em.mdp     -c ../01_preparacion/complex_solv_ions.gro     -p ../01_preparacion/topol.top     -o em.tpr
 
-NOTA: esto puede hacerse antes de la minimización. Por ejemplo, si ya tenemos el ligando en la menor energía de unión que deriva de un docking. Un valor de “1000” significan 10 kJ/mol de restraint en el eje (están en orden así que x y z).
+gmx mdrun -deffnm em -v
+~~~
 
-![ref1] 1kcal = 4.184 kJ
+El criterio **emtol = 1000** significa que la minimización puede finalizar cuando la fuerza máxima sea menor que 1000 kJ mol⁻¹ nm⁻¹. Este valor es habitual antes de equilibrar, pero no garantiza que la estructura represente un mínimo profundo.
 
-Nos damos cuenta porque hay una sección que se llama POSRES. Esto vendría a representar la variable que define cada restraint. En los MDP se pueden leer como -DPOSRES, así que todo lo que está acá va a ser sometido a las restraints. Supongamos que también le quiero poner restraints al agua, para limitar su movimiento, en el .mdp pondría lo siguiente
+Extraiga la energía potencial:
 
-define = -DPOSRES -DPOSRES\_WATER
+~~~bash
+(echo Potential; echo 0) |
+gmx energy -f em.edr -o ../06_analisis/em_potential.xvg
+~~~
 
-| <p>![ref2]Opciones de genrestr</p><p></p><p>gmx genrestr produces an #include file for a topology containing a list of atom numbers and three force constants for the x-, y-, and z-direction based on the contents of the -f file. A single isotropic force constant may be given on the command line instead of three components.</p><p>WARNING: Position restraints are interactions within molecules, therefore they must be included within the correct [ moleculetype ] block in the topology. The atom indices within the [ position\_restraints ] block must be within the range of the atom indices for that molecule type. Since the atom numbers in every moleculetype in the topology start at 1 and the numbers in the input file for gmx genrestr number consecutively from 1, gmx genrestr will only produce a useful file for the first molecule. You may wish to edit the resulting index file to remove the lines for later atoms, or construct a suitable index group to provide as input to gmx genrestr.</p><p></p><p>The -of option produces an index file that can be used for freezing atoms. In this case, the input file must be a .pdb file.</p><p></p><p>With the -disre option, half a matrix of distance restraints is generated instead of position restraints. With this matrix, that one typically would apply to Cα atoms in a protein, one can maintain the overall conformation of a protein without tieing it to a specific position (as with position restraints).</p> |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+Compruebe:
 
-Otra consideración que puede ser útil en el futuro es la agrupación de moléculas o fragmentos en “grupos”, consisten en definiciones que le pasamos a Gromacs para que considere moléculas separadas físicamente como una sola. No desde el punto de vista físico, sino desde el punto de vista del tratamiento termodinámico (por ejemplo coupling). Esos grupos no figuran en ninguna parte de la molécula sino en un archivo aparte denominado archivo de índices o index file[^24], normalmente llamado index.ndx. Se puede construir a base del siguiente comando:
+- descenso de la energía potencial;
+- ausencia de valores NaN;
+- fuerza máxima final;
+- átomo sobre el cual actúa la fuerza máxima;
+- advertencias de LINCS o contactos anómalos.
 
-| gmx make\_ndx -f em.tpr -o index.ndx |
-| ------------------------------------ |
+No use **-maxwarn** para ocultar advertencias de **grompp**. Debe entenderse la causa antes de continuar.
 
-Y va a aparecer algo como
+## Equilibración NVT
 
-Reading structure file
-Reading file md\_fixed\_whole.tpr, VERSION 2016.3 (single precision)
-Reading file md\_fixed\_whole.tpr, VERSION 2016.3 (single precision)
-Going to read 0 old index file(s)
-Analysing residue names:
-There are:   588    Protein residues
-There are:     1      Other residues
-There are:    18        Ion residues
-Analysing Protein...
-Analysing residues not classified as Protein/DNA/RNA/Water and splitting into groups...
-Analysing residues not classified as Protein/DNA/RNA/Water and splitting into groups...
+En NVT se estabiliza la temperatura manteniendo fijo el volumen. Ejemplo a 300 K durante 100 ps:
 
-`  `0 System              :  9604 atoms
-`  `1 Protein             :  9526 atoms
-`  `2 Protein-H           :  4741 atoms
-`  `3 C-alpha             :   588 atoms
-`  `4 Backbone            :  1764 atoms
-`  `5 MainChain           :  2351 atoms
-`  `6 MainChain+Cb        :  2898 atoms
-`  `7 MainChain+H         :  2918 atoms
-`  `8 SideChain           :  6608 atoms
-`  `9 SideChain-H         :  2390 atoms
-` `10 Prot-Masses         :  9526 atoms
-` `11 non-Protein         :    78 atoms
-` `12 Other               :    60 atoms
-` `13 LIG                 :    60 atoms
-` `14 CL                  :    18 atoms
-` `15 Ion                 :    18 atoms
-` `16 LIG                 :    60 atoms
-` `17 CL                  :    18 atoms
+~~~ini
+title                    = Equilibración NVT
+define                   = -DPOSRES -DPOSRES_LIG
 
-` `nr : group      '!': not  'name' nr name   'splitch' nr    Enter: list groups
-` `'a': atom       '&': and  'del' nr         'splitres' nr   'l': list residues
-` `'t': atom type  '|': or   'keep' nr        'splitat' nr    'h': help
-` `'r': residue              'res' nr         'chain' char
-` `"name": group             'case': case sensitive           'q': save and quit
-` `'ri': residue index
+integrator               = md
+dt                       = 0.002
+nsteps                   = 50000
+continuation             = no
 
-\> 1 | 13
+gen-vel                  = yes
+gen-temp                 = 300
+gen-seed                 = -1
 
-“1 | 13” significa que se tomará la proteína y el ligando como una sóla molécula, de nuevo, en forma no física sino como grupo (la “|” se hace con una combinación de teclas si no la tenemos en una tecla en especial[^25]). Esto nos permitirá hacer muchos cálculos considerando al complejo en sí como uno. En forma no interactiva es:
+constraints              = h-bonds
+constraint-algorithm     = lincs
 
-|<p>echo "1 | 13 \n q" | gmx make\_ndx -f em.tpr -o index.ndx</p><p></p><p>#si no funciona el 'echo' entonces usar 'printf'</p><p></p><p>printf "1 | 13 \n q" | gmx make\_ndx -f em.tpr -o index.ndx</p>|
-| - |
+cutoff-scheme            = Verlet
+nstlist                  = 20
+rlist                    = 1.0
+coulombtype              = PME
+rcoulomb                 = 1.0
+vdwtype                  = Cut-off
+rvdw                     = 1.0
 
-El grupo que se crea se llama, en este caso, Protein\_LIG por razones obvias. En los pasos sucesivos, aparecerá como último grupo agregado y se podrá usar o no dependiendo del proceso que queramos hacer. Esto sólo se hace cuando necesitamos tratamientos especiales de grupos, algo que normalmente no es necesario en sistemas proteicos sencillos. Si tengo cofactores, habrá que aplicar esta estrategia. La creación de grupos también se puede aplicar a átomos en particular o residuos. Para átomos se usa “a C1” siendo C1 el átomo en cuestión. Se pueden unir las cadenas múltiples con “chain A”.
+tcoupl                   = V-rescale
+tc-grps                  = Protein_LIG Water_and_ions
+tau-t                    = 1.0 1.0
+ref-t                    = 300 300
 
-Para residuos se emplea la letra "r". Si se pone un número, y hay múltiples cadenas, el residuo se va a elegir en cada cadena. Ejemplo 'r 50', selecciona todos los residuos 50 de las cadenas que haya.
+pcoupl                   = no
+pbc                      = xyz
 
-Se pueden hacer selecciones más largas separando con "\n" que representa el ENTER 
+nstxout-compressed       = 500
+compressed-x-precision   = 1000
+nstenergy                = 500
+nstlog                   = 500
+~~~
 
-|printf  "r 76 | r 77 | r 78 | r 180 | r 24 | r 192 | r 193 | r 194 | r 195 | r 56 \n r 50 \n q\n" | gmx make\_ndx -f md-popc.tpr -o NPA.ndx |
-| - |
+El tiempo simulado es:
 
-| <p>![ref2]Opciones de make\_ndx</p><p></p><p>Index groups are necessary for almost every GROMACS program. All these programs can generate default index groups. You ONLY have to use gmx make\_ndx when you need SPECIAL index groups. There is a default index group for the whole system, 9 default index groups for proteins, and a default index group is generated for every other residue name.<br>When no index file is supplied, also gmx make\_ndx will generate the default groups. With the index editor you can select on atom, residue and chain names and numbers. When a run input file is supplied you can also select on atom type. You can use NOT, AND and OR, you can split groups into chains, residues or atoms. You can delete and rename groups.<br>The atom numbering in the editor and the index file starts at 1.<br><br>The -twin switch duplicates all index groups with an offset of -natoms, which is useful for Computational Electrophysiology double-layer membrane setups.</p> |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+$
+t_{\mathrm{total}}=\mathrm{dt}\times\mathrm{nsteps}
+$
 
-<a name="_3dy6vkm"></a><a name="_1t3h5sf"></a>
+En este ejemplo:
 
-<a name="_4d34og8"></a>SIMULACIÓN DE NVT
+$
+0.002\ \mathrm{ps}\times 50000=100\ \mathrm{ps}
+$
 
-Equilibrado a temperatura constante
+Con restricciones sobre enlaces con hidrógeno, un paso de 0.002 ps equivale a 2 fs.
 
-Lo siguiente es especificar el acoplamiento térmico (termostatos[^26]), se basa en que las moléculas muy unidas/juntas tendrán la misma temperatura. Es obvio que no se deben poner cada molécula a su propia temperatura porque el algoritmo se va a volver loco[^27]. Yo pongo que los grupos acoplados son Protein Non-Protein. En Non-Protein se incluyen el ligando, los iones, el solvente, etc. Si creamos un grupo Protein\_LIG este principio se aplica también. La verdad un ligando está en el solvente primero, para mí adquiere la temperatura del medio que después oscile armónicamente con la proteína si se une muy fuerte, ponele que pase, y efectivamente es así. Si se quiere hacer un acople proteína-ligando se debe tener en cuenta el grupo.
+Ejecución:
 
-En el nvt.mdp deberá figurar:
+~~~bash
+mkdir -p ../03_nvt
+cd ../03_nvt
 
-tc\_grps = Protein Non-Protein
+gmx grompp     -f ../01_preparacion/nvt.mdp     -c ../02_em/em.gro     -r ../02_em/em.gro     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o nvt.tpr
 
-ó si tenemos grupos definidos
+gmx mdrun -deffnm nvt -v
+~~~
 
-tc\_grps = Protein\_LIG Water\_and\_ions
+Las velocidades se generan una sola vez. Para las etapas posteriores se conserva el estado mediante el checkpoint.
 
-PERO SOLO EN EL CASO DE SER NECESARIO:
+Análisis de temperatura:
 
-energygrps  = Protein LIG
+~~~bash
+(echo Temperature; echo 0) |
+gmx energy -f nvt.edr -o ../06_analisis/nvt_temperature.xvg
+~~~
 
-Cuando se trabaja con GPU los grupos energéticos no funcionan. Y eso trae como consecuencia que la velocidad baja muchísimo.
+La temperatura debe evaluarse como serie temporal y promedio, no por un único valor final.
 
-Por supuesto, dentro de los parámetros más importantes está el tiempo en el cual queremos simular. En general, todo está expresado en picosegundos (ps). Dentro del MDP el tiempo dado para cada paso o step de cálculo está dado por dt y el número de pasos será por nsteps:
+## Equilibración NPT
 
-nsteps      = 100000
+En NPT se ajustan presión, volumen y densidad. Ejemplo de 500 ps con barostato C-rescale:
 
-dt          = 0.002
+~~~ini
+title                    = Equilibración NPT
+define                   = -DPOSRES -DPOSRES_LIG
 
-El cálculo de tiempo total de simulación es:
+integrator               = md
+dt                       = 0.002
+nsteps                   = 250000
+continuation             = yes
+gen-vel                  = no
 
-tiempo = nsteps ⋅ dt
+constraints              = h-bonds
+constraint-algorithm     = lincs
 
-Sabiendo que dt no puede adquirir valores mayores a 0.002 ps, el número de steps de cálculo estará dado por el tiempo de simulación que queremos:
+cutoff-scheme            = Verlet
+nstlist                  = 20
+rlist                    = 1.0
+coulombtype              = PME
+rcoulomb                 = 1.0
+vdwtype                  = Cut-off
+rvdw                     = 1.0
 
-nsteps = tiempo / dt
+tcoupl                   = V-rescale
+tc-grps                  = Protein_LIG Water_and_ions
+tau-t                    = 1.0 1.0
+ref-t                    = 300 300
 
-La siguiente tabla nos permite elegir rápidamente
+pcoupl                   = C-rescale
+pcoupltype               = isotropic
+tau-p                    = 5.0
+ref-p                    = 1.0
+compressibility          = 4.5e-5
 
-| Tiempo Simulación (ps) | nsteps (dt=0.001) | nsteps (dt=0.002) | nsteps (dt=0.003)\* |
-| ---------------------- | ----------------- | ----------------- | ------------------- |
-| 50                     | 50000             | 25000             | 17000               |
-| 100                    | 100000            | 50000             | 34000               |
-| 150                    | 150000            | 75000             | 50000               |
-| 200                    | 200000            | 100000            | 67000               |
-| 500                    | 500000            | 250000            | 170000              |
-| 1000 (1 ns)            | 1000000           | 500000            | 340000              |
-| 5000 (5 ns)            | 5000000           | 2500000           | 1700000             |
-| 10000 (10 ns)          | 10000000          | 5000000           | 3400000             |
-| 20000 (20 ns)          | 20000000          | 10000000          | 6700000             |
-| 40000 (40 ns)          | 40000000          | 20000000          | 14000000            |
+pbc                      = xyz
 
-\* no funciona si el sistema está mal equilibrado o los enlaces y moléculas son “raros”
+nstxout-compressed       = 500
+compressed-x-precision   = 1000
+nstenergy                = 500
+nstlog                   = 500
+~~~
 
-Corremos GROMACS para crear la configuración para la simulación de equilibrio térmico:
+**ref-p = 1.0** significa 1 bar. **compressibility = 4.5e-5 bar⁻¹** es un valor habitual para agua líquida cerca de condiciones ambientales; debe adaptarse si el medio no es agua.
 
-| gmx grompp -f nvt.mdp -c em.gro -p topol.top -o nvt.tpr |
-| ------------------------------------------------------- |
+Ejecución:
 
-y si existe un index.ndx iría explícito con el parámetro -n y esto será así cuando necesitemos usar un grupo.
+~~~bash
+mkdir -p ../04_npt
+cd ../04_npt
 
-| gmx grompp -f nvt.mdp -c em.gro -p topol.top -o nvt.tpr -n index.ndx |
-| -------------------------------------------------------------------- |
+gmx grompp     -f ../01_preparacion/npt.mdp     -c ../03_nvt/nvt.gro     -r ../03_nvt/nvt.gro     -t ../03_nvt/nvt.cpt     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o npt.tpr
 
-En Gromacs superior a 2018 se debe agregar el parámetro -r apuntando al archivo em.gro, así
+gmx mdrun -deffnm npt -v
+~~~
 
-| gmx grompp -f nvt.mdp -c em.gro -p topol.top -o nvt.tpr -r em.gro -n index.ndx |
-| ------------------------------------------------------------------------------ |
+Extraiga presión y densidad:
 
-Sale:
+~~~bash
+(echo Pressure; echo Density; echo 0) |
+gmx energy -f npt.edr -o ../06_analisis/npt_pressure_density.xvg
+~~~
 
-Velocities were taken from a Maxwell distribution at 310 K
+La presión instantánea fluctúa mucho en sistemas pequeños. Evalúe promedios por bloques, densidad y volumen. Si existe una deriva sistemática, prolongue la equilibración desde el checkpoint.
 
-Removing all charge groups because cutoff-scheme=Verlet
+## Dinámica molecular de producción
 
-Analysing residue names:
+Durante producción se retiran las restricciones posicionales, salvo que formen parte explícita del protocolo. El siguiente MDP describe 100 ns:
 
-There are:   788    Protein residues
+~~~ini
+title                    = Producción NPT
 
-There are:     2      Other residues
+integrator               = md
+dt                       = 0.002
+nsteps                   = 50000000
+continuation             = yes
+gen-vel                  = no
 
-There are: 220766      Water residues
+constraints              = h-bonds
+constraint-algorithm     = lincs
 
-There are:     2        Ion residues
+cutoff-scheme            = Verlet
+nstlist                  = 20
+rlist                    = 1.0
+coulombtype              = PME
+rcoulomb                 = 1.0
+vdwtype                  = Cut-off
+rvdw                     = 1.0
 
-Analysing Protein...
+tcoupl                   = V-rescale
+tc-grps                  = Protein_LIG Water_and_ions
+tau-t                    = 1.0 1.0
+ref-t                    = 300 300
 
-Analysing residues not classified as Protein/DNA/RNA/Water and splitting into groups...
+pcoupl                   = Parrinello-Rahman
+pcoupltype               = isotropic
+tau-p                    = 5.0
+ref-p                    = 1.0
+compressibility          = 4.5e-5
 
-Analysing residues not classified as Protein/DNA/RNA/Water and splitting into groups...
+pbc                      = xyz
 
-Number of degrees of freedom in T-Coupling group Protein is 24379.95
+nstxout-compressed       = 5000
+compressed-x-precision   = 1000
+nstenergy                = 5000
+nstlog                   = 5000
+~~~
 
-Number of degrees of freedom in T-Coupling group non-Protein is 1324791.00
+Con 2 fs por paso:
 
-Determining Verlet buffer for a tolerance of 0.005 kJ/mol/ps at 310 K
+$
+50000000\times 0.002\ \mathrm{ps}
+=100000\ \mathrm{ps}
+=100\ \mathrm{ns}
+$
 
-Calculated rlist for 1x1 atom pair-list as 1.036 nm, buffer size 0.036 nm
+Ejecución:
 
-Set rlist, assuming 4x4 atom pair-list, to 1.000 nm, buffer size 0.000 nm
+~~~bash
+mkdir -p ../05_md
+cd ../05_md
 
-Note that mdrun will redetermine rlist based on the actual pair-list setup
+gmx grompp     -f ../01_preparacion/md.mdp     -c ../04_npt/npt.gro     -t ../04_npt/npt.cpt     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o md.tpr
 
-Calculating fourier grid dimensions for X Y Z
+gmx mdrun -deffnm md -v
+~~~
 
-Using a fourier grid of 192x192x192, spacing 0.111 0.111 0.111
+Archivos principales:
 
-Estimate for the relative computational load of the PME mesh part: 0.24
+| Archivo | Contenido |
+|---|---|
+| **md.tpr** | Topología, parámetros, coordenadas y estado de entrada. |
+| **md.xtc** | Coordenadas comprimidas. |
+| **md.edr** | Energías y variables termodinámicas. |
+| **md.log** | Registro detallado de la ejecución. |
+| **md.cpt** | Checkpoint para continuar. |
+| **md.gro** | Coordenadas finales. |
+| **md.trr** | Coordenadas, velocidades o fuerzas en precisión completa, si se solicitaron. |
 
-This run will generate roughly 1611 Mb of data
+No es necesario generar TRR si el análisis no requiere velocidades, fuerzas o coordenadas de precisión completa.
 
-There was 1 note
+## Continuación y extensión
 
-y ahora se corre efectivamente la simulación
+Para reanudar una ejecución interrumpida:
 
-| gmx mdrun -v -deffnm nvt |
-| ------------------------ |
+~~~bash
+gmx mdrun -deffnm md -cpi md.cpt -append
+~~~
 
-el parámetro “nvt” no sólo significa la corrida sino que hace referencia al nombre que les pusimos a los archivos nvt.mdp, nvt.tpr, etc. También nos dará el nombre de todas los archivos de salida. Si cambio el cálculo deberá ser alterado el nombre a menos que no nos importe la sobreescritura.
+**-append** verifica y continúa los archivos existentes. Use **-noappend** solo cuando necesite segmentos separados.
 
-Devuelve una pantalla:
+Si el TPR agotó el número de pasos, extiéndalo. **-extend** se expresa en picosegundos:
 
-Using 1 MPI thread
+~~~bash
+gmx convert-tpr     -s md.tpr     -extend 50000     -o md_extended.tpr
 
-Using 4 OpenMP threads
+gmx mdrun     -s md_extended.tpr     -deffnm md     -cpi md.cpt     -append
+~~~
 
-starting mdrun 'MAJOR ENVELOPE PROTEIN E in water'
+Aquí se agregan 50000 ps, equivalentes a 50 ns.
 
-500 steps,      1.0 ps.
+Concatenación de segmentos XTC:
 
-step 0
+~~~bash
+gmx trjcat     -f md.part0001.xtc md.part0002.xtc     -o md_complete.xtc
+~~~
 
-Al finalizar veremos
+Revise el orden y los tiempos. La concatenación no corrige superposiciones temporales ni discontinuidades físicas.
 
-step 400, remaining wall clock time:    88 s
+## Corrección de condiciones periódicas
 
-Writing final coordinates.
+Las condiciones periódicas pueden separar visualmente moléculas que continúan próximas. No existe una única secuencia válida para todos los sistemas. Para un complejo soluble:
 
-step 500, remaining wall clock time:     0 s
+~~~bash
+echo System |
+gmx trjconv     -s md.tpr     -f md.xtc     -o md_whole.xtc     -pbc whole
+~~~
 
-`               `Core t (s)   Wall t (s)        (%)
+Trayectoria sin saltos, útil para difusión:
 
-`       `Time:     1435.812      444.475      323.0
+~~~bash
+echo System |
+gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_nojump.xtc     -pbc nojump
+~~~
 
-`                 `(ns/day)    (hour/ns)
+Centre el complejo y lleve las moléculas a una caja compacta:
 
-Performance:        0.195      123.219
+~~~bash
+(echo Protein_LIG; echo System) |
+gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_center.xtc     -center     -pbc mol     -ur compact     -n index.ndx
+~~~
 
-Para correr un comando en segundo plano y poder cerrar la terminal
+Elimine rotación y traslación ajustando el backbone:
 
-Podemos usar varios comandos y/o formas, pero descubrí el comando "at". Este nos permite "programar" cuándo queremos que se ejecute el comando. Es algo así
+~~~bash
+(echo Backbone; echo System) |
+gmx trjconv     -s md.tpr     -f md_center.xtc     -o md_fit.xtc     -fit rot+trans     -n index.ndx
+~~~
 
-| at now + 1 minute |
-| ----------------- |
+El orden importa: no aplique **-pbc nojump** después de centrar. Inspeccione visualmente la trayectoria final.
 
-Y luego aparece un at> donde empezamos a escribir el comando. Se ejecuta con Crtl+D. El comando "atq" nos muestra las futuras ejecuciones. Me parece mejor que redirigir el standar output a un null.
+Extracción de una estructura a 50 ns:
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.016.png)
+~~~bash
+echo Protein_LIG |
+gmx trjconv     -s md.tpr     -f md_fit.xtc     -o frame_50ns.pdb     -dump 50     -tu ns     -n index.ndx
+~~~
 
-| ![ref1] Dependiendo del sistema y la configuración del MDP podríamos simular 100 ps en 2-3 horas (1-1.5 ns/día) en una computadora con Ubuntu 64 bits, 4 núcleos, 16 gb RAM, 3.6 MHz de procesador. Ejecutando otros programas al mismo tiempo. |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+## Análisis de resultados
 
-<a name="_2s8eyo1"></a>SIMULACIÓN DE NPT
+Use el mismo intervalo de producción, tratamiento de PBC y selección en todas las réplicas. Los archivos XVG son texto y pueden analizarse con Grace, Python, R u otro programa.
 
-Equilibrado a presión constante
+### RMSD
 
-Si todo salió bien, generamos la configuración para equilibrar la presión del sistema. Acá la simulación se hace más larga (>1.25x, algunos con 2x) que la anterior y con el archivo npt.mdp. Todo depende del sistema que simulamos.
+El RMSD mide la desviación respecto de una referencia después del ajuste:
 
-| gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -p topol.top -o npt.tpr |
-| ------------------------------------------------------------------- |
+$
+\mathrm{RMSD}(t)=
+\sqrt{\frac{1}{M}\sum_i m_i
+\left\|\mathbf r_i(t)-\mathbf r_i^{\mathrm{ref}}\right\|^2}
+$
 
-Recordar el tema de los grupos y el index.ndx (parámetro -n index.ndx) 
+donde **M** es la masa total de los átomos seleccionados. Una meseta indica estabilidad relativa frente a esa referencia, no convergencia termodinámica.
 
-| gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -r nvt.gro -p topol.top -o npt.tpr -n index.ndx |
-| ------------------------------------------------------------------------------------------- |
+~~~bash
+mkdir -p ../06_analisis/rmsd
 
-y corremos la simulación
+(echo Backbone; echo Backbone) |
+gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o ../06_analisis/rmsd/rmsd_backbone.xvg     -tu ns
+~~~
 
-| gmx mdrun -v -deffnm npt |
-| ------------------------ |
+RMSD del ligando después de ajustar la proteína:
 
-<a name="_17dp8vu"></a>La salida será
+~~~bash
+(echo Backbone; echo LIG) |
+gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o ../06_analisis/rmsd/rmsd_ligand_fit_protein.xvg     -tu ns
+~~~
 
-...
+### Radio de giro
 
-...
+~~~bash
+gmx gyrate     -s md.tpr     -f md_fit.xtc     -n index.ndx     -sel 'group "Protein"'     -o ../06_analisis/gyrate_protein.xvg
+~~~
 
-step 400, remaining wall clock time:    90 s
+El radio de giro informa sobre la compacidad global. Debe interpretarse junto con RMSD, estructura secundaria y contactos internos.
 
-Writing final coordinates.
+### Distancias y contactos proteína–ligando
 
-step 500, remaining wall clock time:     0 s
+Distancia entre el centro geométrico del ligando y un átomo de referencia:
 
-`               `Core t (s)   Wall t (s)        (%)
+~~~bash
+gmx distance     -s md.tpr     -f md_fit.xtc     -n index.ndx     -select 'com of group "LIG" plus com of resid 123 and name CA'     -oall ../06_analisis/dist_lig_res123.xvg
+~~~
 
-`       `Time:     1477.875      466.310      316.9
+El residuo 123 es un ejemplo y debe reemplazarse. Para distancia mínima y número de contactos:
 
-`                 `(ns/day)    (hour/ns)
+~~~bash
+(echo Protein; echo LIG) |
+gmx mindist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_analisis/mindist_protein_lig.xvg     -on ../06_analisis/contacts_protein_lig.xvg     -d 0.4
+~~~
 
-Performance:        0.186      129.272
+**-d 0.4** establece un umbral de contacto de 0.4 nm, equivalente a 4 Å. Debe informarse el umbral utilizado.
 
-<a name="_3rdcrjn"></a>SIMULACIÓN DE DINÁMICA MOLECULAR
+### Puentes de hidrógeno
 
-La simulación de dinámica implica el estudio del movimiento de los átomos en el tiempo. Acá se podrán observar las estabilidades de nuestro sistema.
+GROMACS 2026 incluye la implementación moderna de **gmx hbond**, incorporada inicialmente en GROMACS 2024:
 
-NO se aplican restraints a la dinámica. A menos que sea un caso extraño.
+~~~bash
+gmx hbond     -s md.tpr     -f md_fit.xtc     -n index.ndx     -r 'group "Protein"'     -t 'group "LIG"'     -num ../06_analisis/hbonds_protein_lig.xvg
+~~~
 
-La MD se larga con el último comando, pero antes generamos la configuración a partir del md.mdp. Recordar el tema de los grupos y el index.ndx (parámetro -n index.ndx),
+Las selecciones de referencia y objetivo deben ser idénticas o no solaparse. Los valores recomendados por la herramienta son 0.35 nm para distancia y 30 grados para el criterio angular. Si se modifican, deben reportarse.
 
-| gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md.tpr -n index.ndx |
-| ------------------------------------------------------------------------------ |
+### Contactos iónicos
 
-Claro que puede ser
+Un contacto corto entre grupos cargados puede estudiarse mediante selecciones explícitas:
 
-| gmx grompp -f md.mdp -c npt.gro -r npt.gro -t npt.cpt -p topol.top -o md.tpr -n index.ndx |
-| ----------------------------------------------------------------------------------------- |
+~~~bash
+gmx pairdist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -ref 'group "Protein_charged"'     -sel 'group "LIG_charged"'     -type min     -o ../06_analisis/ion_pairs.xvg
+~~~
 
-y
+Los grupos **Protein_charged** y **LIG_charged** deben construirse previamente según los átomos efectivamente cargados. Una distancia corta no demuestra por sí sola una interacción energéticamente favorable.
 
-| gmx mdrun -v -deffnm md |
-| ----------------------- |
+### Área accesible al solvente
 
-La salida, si todo sale bien:
+~~~bash
+gmx sasa     -s md.tpr     -f md_fit.xtc     -n index.ndx     -surface 'group "Protein_LIG"'     -output 'group "Protein_LIG"'     -o ../06_analisis/sasa_complex.xvg     -or ../06_analisis/sasa_per_residue.xvg
+~~~
 
-...
+SASA depende de la selección, los radios atómicos y la sonda. Una disminución del área expuesta del ligando puede acompañar su enterramiento, pero no equivale a energía de unión.
 
-...
+### Variables termodinámicas
 
-step 100, remaining wall clock time:     0 s
+~~~bash
+(echo Temperature; echo Pressure; echo Density; echo Volume; echo Potential; echo 0) |
+gmx energy     -f md.edr     -o ../06_analisis/thermodynamics.xvg
+~~~
 
-`               `Core t (s)   Wall t (s)        (%)
+Los nombres disponibles dependen del contenido de EDR. Evalúe promedios por bloques y deriva temporal. La presión instantánea suele presentar fluctuaciones grandes.
 
-`       `Time:      318.000       92.644      343.3
+### Desplazamiento cuadrático medio
 
-`                 `(ns/day)    (hour/ns)
+**gmx msd** usa selecciones modernas:
 
-Performangmx mdrun -v -deffnm md
+~~~bash
+gmx msd     -s md.tpr     -f md_nojump.xtc     -n index.ndx     -sel 'group "LIG"'     -o ../06_analisis/msd_ligand.xvg
+~~~
 
-ce:        0.188      127.398
+Difusión lateral en el plano XY:
 
-Esto genera varios archivos, de los más importantes rescato:
+~~~bash
+gmx msd     -s md.tpr     -f md_nojump.xtc     -n index.ndx     -sel 'group "LIG"'     -lateral z     -o ../06_analisis/msd_ligand_xy.xvg
+~~~
 
-`    `md.tpr
+La estimación del coeficiente de difusión se basa en la región lineal de la relación de Einstein:
 
-`    `md.xtc
+$
+\left\langle |\mathbf r(t)-\mathbf r(0)|^2\right\rangle=2dDt
+$
 
-`    `md.edr
+donde **d** es la dimensionalidad: 3 para difusión tridimensional y 2 para difusión lateral. Debe elegirse un intervalo de ajuste en el régimen difusivo; el tramo inicial balístico y las regiones con muestreo insuficiente sesgan el resultado.
 
-`    `md.trr
+### Mapas de densidad
 
-`    `state.cpt
+~~~bash
+echo LIG |
+gmx densmap     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_analisis/density_ligand.xpm     -aver z
+~~~
 
-`    `state\_prev.cpt
+El sistema debe estar alineado previamente. Informe el eje promediado, la resolución de la grilla y la selección.
 
-¿Qué pasa si queremos continuar la dinámica anterior? 
+### Fluctuación de los residuos
 
-Esto se puede dar por muchos motivos, el más común es el corte de suministro de energía (Argentina, país inviable). Entonces, debemos seguir la corrida con el siguiente comando:
+La RMSF mide la fluctuación de cada átomo alrededor de su posición promedio:
 
-| gmx mdrun -s md.tpr -o md.trr -cpi state\_prev.cpt --noappend |
-| ------------------------------------------------------------- |
+$
+\mathrm{RMSF}_i=
+\sqrt{
+\left\langle
+\left\|\mathbf r_i(t)-\langle\mathbf r_i\rangle\right\|^2
+\right\rangle}
+$
 
-Todos esos archivos deberían estar en el directorio de corrida original. El parámetro --noappend hace que se separen las corridas consecutivas, puede ayudarnos a analizar en forma más rápida la MD, o también porque hay cosas que no coinciden exactamente. 
+Primero ajuste la trayectoria sobre una región estructuralmente estable:
 
-Si la simulación descrita por el archivo tpr se ha completado y debe ampliarse, utilice la herramienta gmx convert-tpr para ampliar la ejecución, p. Ej. 
+~~~bash
+mkdir -p ../06_analisis/rmsf
 
-| gmx convert-tpr -s previous.tpr -extend timetoextendby-in-ps -o next.tpr <br><br>gmx mdrun -s next.tpr -cpi state.cpt |
-| --------------------------------------------------------------------------------------------------------------------- |
+echo Backbone |
+gmx trjconv     -s md.tpr     -f md_center.xtc     -o ../06_analisis/rmsf/md_fit_backbone.xtc     -fit rot+trans     -n index.ndx
+~~~
 
-El tiempo también se puede extender usando las opciones -until y -nsteps. Tenga en cuenta que el archivo mdp original puede haber generado velocidades, pero esa es una operación única dentro de gmx grompp que nunca se vuelve a realizar con ninguna otra herramienta.
+Calcule RMSF por residuo usando C-alpha:
 
-Si necesitamos concatenar todos los resultados, digamos los XTC, usamos el siguiente comando:
+~~~bash
+echo C-alpha |
+gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -o ../06_analisis/rmsf/rmsf_calpha.xvg     -res     -oq ../06_analisis/rmsf/rmsf_calpha_bfactor.pdb
+~~~
 
-| gmx trjcat -f md\_1.xtc md\_2.xtc -o md\_unidos.xtc |
-| --------------------------------------------------- |
+**-oq** escribe los valores convertidos al campo B del PDB. La relación isotrópica es:
 
-donde el \*.xtc implica todos los archivos de salida de las corridas secuenciales y el md\_fixed.xtc es la salida del archivo total, concatenado. Esto se puede usar también para el TRR. Se deberá tener cuidado con los tiempos y el orden en el cual se concatena.
+$
+B_i=\frac{8\pi^2}{3}\mathrm{RMSF}_i^2
+$
 
-| <p>![ref2]Opciones de trjcat</p><p></p><p>gmx trjcat concatenates several input trajectory files in sorted order. In case of double time frames the one in the later file is used. By specifying -settime you will be asked for the start time of each file. The input files are taken from the command line, such that a command like gmx trjcat -f \*.trr -o fixed.trr should do the trick. Using -cat, you can simply paste several files together without removal of frames with identical timestamps.</p> |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+Para evaluar estabilidad temporal, compare bloques de igual duración:
 
-Conversión a formatos legibles por otros programas:
+~~~bash
+echo C-alpha |
+gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -b 20     -e 40     -tu ns     -res     -o ../06_analisis/rmsf/rmsf_20_40ns.xvg
 
-La trayectoria se puede convertir a PDB (no sólo a PDB sino a una nueva TRR o XTC, entonces reemplazamos la extensión PDB por XTC)
+echo C-alpha |
+gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -b 40     -e 60     -tu ns     -res     -o ../06_analisis/rmsf/rmsf_40_60ns.xvg
+~~~
 
-| gmx trjconv -s md.tpr -f md.xtc -o md\_trajectoria.pdb -pbc nojump -skip 10 |
-| --------------------------------------------------------------------------- |
+Picos persistentes suelen corresponder a terminales, bucles o regiones expuestas. Cambios localizados cerca del sitio de unión pueden sugerir estabilización o reorganización, pero deben contrastarse con contactos, estructura secundaria, RMSD y réplicas independientes.
 
-Si no deseamos la conservación de las PBC, usamos
+No compare RMSF obtenidas con distinta alineación, selección, duración o intervalo temporal.
 
-| gmx trjconv -s md.tpr -f md.xtc -o md\_trajectoria.pdb -pbc no |
-| -------------------------------------------------------------- |
+## Control de calidad y reproducibilidad
 
-Si queremos omitir los primeros frames de la MD, que corresponden a una nueva fase de equilibrado, debemos
+Conserve:
 
-| gmx trjconv -s md.tpr -f md.xtc -o md\_trajectoria.pdb -pbc no -b 10 -tu ns |
-| --------------------------------------------------------------------------- |
+- versión exacta de GROMACS y salida de **gmx --version**;
+- estructuras iniciales y decisiones de protonación;
+- campo de fuerza, modelo de agua y método de parametrización del ligando;
+- archivos MDP, TOP, ITP y NDX;
+- TPR, checkpoints y registros;
+- comandos ejecutados;
+- semillas y configuración de hardware;
+- intervalo y selección utilizados en cada análisis.
 
-Significa que se empezará la conversión a partir de los 10 ns de simulación (-b 10 -tu ns). Puedo usa -e para decirle hasta cuándo.
+Use réplicas independientes cuando la conclusión dependa del muestreo. RMSD, RMSF, contactos, puentes de hidrógeno y distancias no son estimaciones directas de afinidad ni energía libre de unión.
 
-Podemos jugar con muchas opciones, tales como usar el archivo TRR de la trayectoria, el cual contiene mucha información y así generar nuevas XTC con variantes de los cálculos. Cuando se use, no permitirá seleccionar el grupo a convertir. En muchísimas ocasiones aparecerá el efecto de “deformación” de los enlaces y esto es sólo un artefacto visual y no debería afectar ningún cálculo[^28]. Sin embargo, es inviable seguir una dinámica con este tipo de visualización:
+## Fuentes
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.017.png)        ![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.018.png)
+1. [Formatos de archivo de GROMACS 2026.3](https://manual.gromacs.org/current/reference-manual/file-formats.html)
+2. [Topologías de GROMACS](https://manual.gromacs.org/current/reference-manual/topologies/topologies.html)
+3. [Manual de análisis](https://manual.gromacs.org/current/reference-manual/analysis/analysis.html)
+4. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
+5. [Referencia de comandos de GROMACS](https://manual.gromacs.org/current/onlinehelp/gmx.html)
 
-ATENCION: "-skip" indica cada cuántos frames se debe guardar el PDB. Si son muchos frames conviene que sea grande. Por ejemplo: una película común tiene entre 24 y 30 FPS[^29]. Igual depende qué quieras hacer con el PDB. Si, en cambio, se necesita separar cada cuadro en un PDB distinto agregamos "-sep". Entonces:
-
-| gmx trjconv -s md.tpr -f md.xtc -o md\_trajectoria.pdb -pbc nojump -skip 10 -sep |
-| -------------------------------------------------------------------------------- |
-
-Si bien esto creará los PDB que pueden ser interpretados fácilmente, se perderá toda la información acerca de las velocidades y momentos, junto con el tiempo. Otra cosa importante implica el cómo manejar las Periodic Boundary Conditions[^30], del manual leemos:
-
-La opción -pbc establece el tipo de tratamiento periódico de la condición de contorno:
-
-\* mol coloca el centro de masa de las moléculas en el cuadro y requiere que se proporcione un archivo de entrada de ejecución con -s.
-
-\* res pone el centro de masa de residuos en la caja.
-
-\* atom pone todos los átomos en la caja.
-
-\* nojump comprueba si los átomos saltan a través de la caja y luego los vuelve a colocar. Esto tiene el efecto de que todas las moléculas permanecerán completas (siempre que estuvieran completas en la conformación inicial). Tenga en cuenta que esto asegura una trayectoria continua, pero las moléculas pueden difundirse fuera de la caja (Chimera va a tirar error con esto si no tenemos cuidado de convertir en completas las moléculas). La configuración inicial para este procedimiento se toma del archivo de estructura, si se proporciona uno; de lo contrario, es el primer marco.
-
-\* cluster agrupa todos los átomos en el índice seleccionado de manera que todos estén más cerca del centro de masa del cluster, que se actualiza iterativamente. Tenga en cuenta que esto sólo dará resultados significativos si de hecho tiene un clúster. Afortunadamente, eso se puede verificar luego usando un visor de trayectoria. Tenga en cuenta también que si sus moléculas se rompen, esto tampoco funcionará.
-
-La opción separada -clustercenter se puede utilizar para especificar un centro aproximado para el grupo. Esto es útil, p. Ej. si tiene dos vesículas grandes y desea mantener sus posiciones relativas.
-
-\* whole solo hace que las moléculas rotas sean completas.
-
-Ajustar la molécula a la estructura de referencia en el archivo de estructura se usa -fit: 
-
-none, rot+trans, rotxy+transxy, translation, transxy, progressive
-
-Chimera tiene problemas cuando ocurren difusiones de moléculas fuera de la caja, ya que necesita la indicación precisa de cuántos átomos existen realmente. Si necesitamos manipular las moléculas debemos usar el concepto de grupos vistos al principio de este manual. Por ejemplo, se pueden separar los grupos Protein\_LIG del resto y analizar qué pasa con esas interacciones, pero manteniendo todo el sistema “entero” sin los artefactos que aparecen cuando difunden fuera de la caja. Para ello cargaremos el index file con el parámetro “-n index.ndx”.
-
-El caso más sencillo es cuando tenemos un Protein\_LIG,
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.019.png)
-
-Aparentemente una solución que encontré a los problemas de la PBC (para el caso de una proteína-un ligando) que deforma la simulación es
-
-| gmx trjconv -s md.tpr -f md.xtc -o md\_altrenativo.xtc -pbc mol -n index.ndx |
-| ---------------------------------------------------------------------------- |
-
-<a name="_26in1rg"></a>Seleccionando en el grupo Protein\_LIG. Al menos se cumple en una proteína monomérica con un ligando. Si es necesario, realizar cambios secuenciales de los comandos anteriores hasta conseguir una simulación normal. Cuidado porque si dejamos el XTC nuevo, debemos modificar el archivo TPR correspondiente ya que cambiaría la salida. El grupo de moléculas será sólo Protein\_LIG, dejando de lado a SOL o cualquier otra.
-
-Otra forma, parece que funciona para sistemas multicadena sin borrar el solvente, es
-
-| gmx trjconv -s md.tpr -f md.xtc -o md\_noPBC.xtc -pbc whole -ur compact -skip 10<br><br>y<br><br>gmx trjconv -s md.tpr -f md\_noPBC.xtc -o md\_mol.xtc -pbc mol<br><br>o<br><br>gmx trjconv -s md.tpr -f md\_noPBC.xtc -o md\_mol.xtc -pbc nojump |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-En un sistema multicadena, con membrana y solvente, puede que funcione algo así
-
-| <p>gmx trjconv -f md-popc.xtc -s md-popc.tpr -o NPA1-center.xtc -center -pbc nojump -n NPA.ndx </p><p>y</p><p>gmx trjconv -f NPA1-center.xtc -s md-popc.tpr -o NPA2-center.xtc -ur compact -center -pbc atom -n NPA.ndx</p> |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-También se puede extraer un frame específico, por ejemplo si queremos hacer algo más sólo con una estructura o queremos crear una imagen fácil de cargar. La opción -dump se puede usar para extraer un fotograma en o cerca de un momento específico de su trayectoria, pero solo funciona de manera confiable si el intervalo de tiempo entre fotogramas es uniforme.
-
-Flujo de trabajo de trjconv sugerido
-
-Arreglar los efectos de periodicidad con trjconv para que se adapten a la visualización o al análisis puede ser complicado. Pueden ser necesarias múltiples invocaciones. Es posible que deba crear grupos de índices personalizados (por ejemplo, para mantener su ligando con su proteína)
-
-Seguir los pasos a continuación en orden (omitiendo los que no son necesarios) debería ayudarlo a obtener un resultado agradable. Deberá consultar trjconv -h para conocer los detalles de cada paso. Eso es deliberado: no hay una receta mágica de "haz lo que quiero". Primero tienes que decidir lo que quieres :-)
-
-Primero haz tus moléculas completas si las quieres completas. -pbc whole. gmx trjconv -s md.tpr -f md.xtc -o md\_noPBC.xtc -pbc whole -ur compact -skip 10
-
-Agrupe sus moléculas / partículas si las quiere agrupadas. 
-
-Si desea eliminar los saltos, extraiga el primer fotograma de la trayectoria para usarlo como referencia y luego use trjconv -pbc nojump con ese primer fotograma como referencia
-
-Centre su sistema usando algún criterio. Hacerlo cambia el sistema, así que no use trjconv -pbc nojump después de este paso.
-
-Quizás poner todo en alguna caja con las otras opciones trjconv -pbc o -ur.
-
-Ajuste la trayectoria resultante a alguna (otra) estructura de referencia (si lo desea) y no use ninguna opción relacionada con PBC después.
-
-Otra forma es
-
-Center (-center) on the Protein and remap all the molecules (-pbc mol) of the whole System:
-
-|printf "Protein\nSystem\n" | gmx trjconv -s md.tpr -f md.xtc -center -ur compact -pbc mol -o md\_center.xtc|
-| - |
-
-RMS-fit (-fit rot+trans) to the protein backbone atoms in the initial frame (supplied in the TPR file) and write out the whole System:
-
-|printf "Backbone\nSystem\n" | gmx trjconv -s md.tpr -f md\_center.xtc -fit rot+trans -o md\_fit.xtc|
-| - |
-
-También ha funcionado
-
-| gmx trjconv -f step7\_production.trr -s step7\_production.tpr -pbc mol -o first-mol.xtc |
-| --------------------------------------------------------------------------------------- |
-
-Se selecciona 0. O también,
-
-|printf "System\n" | gmx trjconv -f step7\_production.trr -s step7\_production.tpr -pbc mol -o first-mol.xtc |
-| - |
-
-Luego,
-
-| gmx trjconv -f first-mol.xtc -s step7\_production.tpr -pbc mol -center -o second-center.trr |
-| ------------------------------------------------------------------------------------------- |
-
-Como centro el backbone o la proteina y luego el sistema. Automático sería
-
-|printf "Protein\nSystem\n" | gmx trjconv -f first-mol.xtc -s step7\_production.tpr -pbc mol -center -o second-center.trr  |
-| - |
-
-Si se mueve mucho la proteína, eliminamos la traslación con
-
-|printf "Protein\nSystem\n" | gmx trjconv -s md.tpr -f md\_center.xtc -fit rot+trans -o md\_fit.xtc|
-| - |
-
-Script de MDAnalysis
-
-| import warnings<br>import MDAnalysis as mda<br>from MDAnalysis import transformations<br><br>import time<br>startTime = time.time()<br><br>u = mda.Universe('/home/juan/Documentos/AQP1/dopc/dopc.tpr',<br>`                 `'/home/juan/Documentos/AQP1/dopc/dopc.trr', in\_memory=True, verbose=True)<br><br>prot = u.select\_atoms("protein")<br>ag = u.atoms<br>workflow = (transformations.unwrap(ag),<br>`            `transformations.center\_in\_box(prot),<br>`            `transformations.wrap(ag, compound='fragments'))<br><br>u.trajectory.add\_transformations(\*workflow)<br><br>ag.write('traj.pdb', frames=u.trajectory[::40])<br><br>executionTime = (time.time() - startTime) / 60<br><br><br>print('Execution time in minutes: ' + str(executionTime)) |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-<a name="_lnxbz9"></a>ANÁLISIS DE LOS RESULTADOS
-
-La dinámica se puede analizar usando los archivos de salida, los archivos con extensión XTC, TPR y TRR nos van a servir para determinar parámetros estructurales como RMSD o los puentes de hidrógeno. Los archivos que son EDR nos van a dar los parámetros termodinámicos como temperatura, presión, energía, etc. Esto será aplicable a todos los pasos vistos (EM, NVT, NPT, MD, etc)
-
-El comando “gmx view”[^31]
-
-| gmx view -f md.xtc -s md.tpr |
-| ---------------------------- |
-
-Creará una ventana de X11[^32] con un visualizador rudimentario pero extremadamente rápido sin costo de recursos.
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.020.png)
-
-![ref1] los archivos generados deberían ser copiados en diferentes carpetas dentro de la carpeta actual de trabajo, ya que se pueden tener problemas para identificarlos. Ejemplo, si vamos a analizar el RMSD[^33] suelo crear una carpeta llamada 'rmsd' con:
-
-mkdir -p rmsd
-
-Lo siguiente genera las diferentes variantes de los análisis de RMSD, se deberá elegir si se quiere el LIG la proteína, todo, etc.
-
-| gmx rms -s md.tpr -f md.xtc -o md\_rmsd.xvg |
-| ------------------------------------------- |
-
-Cada vez que tengamos que elegir "grupos" nos aparecerán estas listas, en algunos comandos podemos "estudiar" diferentes grupos, pero en otros debemos elegir el mismo.
-
-Group     0 (         System) has 407785 elements
-
-Group     1 (        Protein) has  7498 elements
-
-Group     2 (      Protein-H) has  3741 elements
-
-Group     3 (        C-alpha) has   486 elements
-
-Group     4 (       Backbone) has  1458 elements
-
-Group     5 (      MainChain) has  1943 elements
-
-Group     6 (   MainChain+Cb) has  2387 elements
-
-Group     7 (    MainChain+H) has  2409 elements
-
-Group     8 (      SideChain) has  5089 elements
-
-Group     9 (    SideChain-H) has  1798 elements
-
-Group    10 (    Prot-Masses) has  7498 elements
-
-Group    11 (    non-Protein) has 400287 elements
-
-Group    12 (          Other) has    44 elements
-
-Group    13 (            LIG) has    44 elements
-
-Group    14 (             NA) has     1 elements
-
-Group    15 (          Water) has 400242 elements
-
-Group    16 (            SOL) has 400242 elements
-
-Group    17 (      non-Water) has  7543 elements
-
-Group    18 (            Ion) has     1 elements
-
-Group    19 (            LIG) has    44 elements
-
-Group    20 (             NA) has     1 elements
-
-Group    21 ( Water\_and\_ions) has 400243 elements
-
-Cuidado con la lista anterior que va a depender del sistema que corras. Si cambian los parámetros la lista anterior y los números cambian. Se puede usar el truco del comando echo visto al principio del manual.
-
-Los archivos XVG se abren con Grace[^34]:
-
-| xmgrace <nombre>.xvg |
-| -------------------- |
-
-Si se desean comparar gráficos con los mismos parámetros pero en diferentes situaciones o moléculas, el comando se puede combinar en una sola salida:
-
-| xmgrace <nombre-1>.xvg <nombre-2>.xvg <nombre-3>.xvg |
-| ---------------------------------------------------- |
-
-La conversión directa de un archivo XVG a un archivo de imagen PNG, se puede hacer con el siguiente comando. Esto ayuda a convertir archivos sin necesidad de abrir el GUI de Grace
-
-| grace -printfile <nombre\_de\_la\_imagen>.ps -hardcopy <Nombre\_del\_archivo\_grafico>.xvg |
-| ------------------------------------------------------------------------------------------ |
-
-Para convertir el archivo de salida en PostScript a una imagen PNG, se deberá tener instalado ImageMagik y el comando es
-
-| convert -density 150 <nombre\_de\_la\_imagen>.ps <nombre\_de\_la\_imagen>.png |
-| ----------------------------------------------------------------------------- |
-
-Las distancias entre grupos y sus contactos a través del tiempo, se calculan con:
-
-| gmx mindist -s md.tpr -f md.xtc -od md\_mindist.xvg -on md\_numcont.xvg -or md\_mindistres.xvg |
-| ---------------------------------------------------------------------------------------------- |
-
-Los puentes de hidrógeno[^35] se calculan según
-
-| gmx hbond -s md.tpr -f md.xtc -num md\_hbnum.xvg -g md\_hbond.log -ac md\_hbac.xvg -dist md\_hbdist.xvg -ang md\_hbang.xvg -don md\_hbdonor.xvg |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- |
-
-Los puentes salinos[^36] son:
-
-| gmx saltbr -s md.tpr -f md.xtc |
-| ------------------------------ |
-
-Lo particular de este comando es que puede tirar muchos resultados, cuidado con identificarlos bien, en general son XVG
-
-El área accesible al solvente[^37] será
-
-| gmx sasa -s md.tpr -f md.xtc -o md\_totalarea.xvg -odg md\_desolvationenrg.xvg |
-| ------------------------------------------------------------------------------ |
-
-Los parámetros termodinámicos[^38] se obtiene con:
-
-| gmx energy -s md.tpr -f md.edr -o md\_energy.xvg |
-| ------------------------------------------------ |
-
-Seleccionando el valor a calcular:
-
-Select the terms you want from the following list by
-
-selecting either (part of) the name or the number or a combination.
-
-End your selection with an empty line or a zero.
-
-\-------------------------------------------------------------------
-
-`  `1  Bond             2  Angle            3  Proper-Dih.      4  Improper-Dih.
-
-`  `5  LJ-14            6  Coulomb-14       7  LJ-(SR)          8  Disper.-corr.
-
-`  `9  Coulomb-(SR)    10  Coul.-recip.    11  Potential       12  Pres.-DC
-
-` `13  Pressure        14  Vir-XX          15  Vir-XY          16  Vir-XZ
-
-` `17  Vir-YX          18  Vir-YY          19  Vir-YZ          20  Vir-ZX
-
-` `21  Vir-ZY          22  Vir-ZZ          23  Pres-XX         24  Pres-XY
-
-` `25  Pres-XZ         26  Pres-YX         27  Pres-YY         28  Pres-YZ
-
-` `29  Pres-ZX         30  Pres-ZY         31  Pres-ZZ         32  #Surf\*SurfTen
-
-` `33  Mu-X            34  Mu-Y            35  Mu-Z            36  T-rest
-
-Difusión de una molécula
-
-gmx msd calcula el desplazamiento cuadrado medio (MSD) de los átomos a partir de un conjunto de posiciones iniciales. Esto proporciona una manera fácil de calcular la constante de difusión utilizando la relación de Einstein. El tiempo entre los puntos de referencia para el cálculo de MSD se establece con -trestart. La constante de difusión se calcula mediante mínimos cuadrados que se ajustan a una línea recta (D \* t + c) a través del MSD (t) de -beginfit a -endfit (tenga en cuenta que t es el tiempo desde las posiciones de referencia, no el tiempo de simulación). Se da una estimación de error, que es la diferencia de los coeficientes de difusión obtenidos de los ajustes en las dos mitades del intervalo de ajuste.
-
-| gmx msd -s md.tpr -f md.xtc -o msd.xvg |
-| -------------------------------------- |
-
-Si queremos determinar la difusión en un plano (membranas, ejemplo), se usa la difusión lateral
-
-| gmx msd -s md.tpr -f md.xtc -rmcomm -lateral z -o msdl-z.xvg -tu ns |
-| ------------------------------------------------------------------- |
-
-Con esto también se puede seleccionar el grupo agregando un index.ndx adecuado
-
-Recordar cómo se configuró el sistema para entender qué tipo de difusión se está midiendo. En un sistema de membranas, en general se alinea todo en el eje XY y el Z queda perpendicular. Entonces, la MSD a medir sería la X y la Y. La MSD\_xy será el promedio de ambas.
-
-Mapas de densidad
-
-gmx densmap calcula mapas de densidad numérica 2D. Puede realizar mapas de densidad planos y axiales-radiales. El archivo .xpm de salida se puede visualizar, por ejemplo, con xv y se puede convertir a postscript con xpm2ps. Opcionalmente, la salida puede estar en forma de texto en un archivo .dat con -od, en lugar del archivo .xpm habitual con -o. El análisis predeterminado es un mapa de densidad numérica en 2-D para un grupo seleccionado de átomos en el plano x-y. 
-
-La dirección del promedio se puede cambiar con la opción -aver. Cuando se establecen -xmin y / o -xmax, solo se tienen en cuenta los átomos que están dentro de los límites en la dirección de promediado. El espaciado de la cuadrícula se establece con la opción -bin. Cuando -n1 o -n2 es distinto de cero, esta opción establece el tamaño de la cuadrícula. Las fluctuaciones del tamaño de la caja se tienen debidamente en cuenta. Cuando se establecen las opciones -amax y -rmax, se crea un mapa de densidad numérica axial-radial. Se deben suministrar tres grupos, los centros de masa de los dos primeros grupos definen el eje, el tercero define el grupo de análisis. 
-
-La dirección axial va de -amax a +amax, donde el centro se define como el punto medio entre los centros de masa y la dirección positiva va del primero al segundo centro de masa. La dirección radial va de 0 a rmax o de -rmax a +rmax cuando se ha configurado la opción -mirror. La normalización de la salida se establece con la opción -unit. El valor predeterminado produce una densidad numérica real. La unidad nm-2 omite la normalización para el promedio o la dirección angular. El recuento de opciones produce el recuento de cada celda de la cuadrícula. Cuando no desee que la escala en la salida pase de cero a la densidad máxima, puede establecer el máximo con la opción -dmax.
-
-Primero se elimina la rotación de la proteína
-
-| <p>gmx trjconv -f POPC.xtc -s POPC.tpr -fit rot+trans -o POPC-fit.xtc</p><p></p><p>#luego<br><br>gmx densmap -f POPC-fit.xtc -s POPC.tpr -bin 0.02  -n NPA.ndx -od mapa.dat -o imagen-densidad.xpm  </p> |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-
-Fluctuación de los residuos
-
-Simulación de una caja de agua
+# Simulación de una caja de agua
 
 Vamos a simular un sistema compuesto por agua. Puede ser que nos sirva para simular sistemas sencillos y así testear la instalación de GROMACS o estudiar variables.
 
@@ -1540,7 +1229,6 @@ NOTA: un caso más complejo se explica más adelante. Tal vez convenga leer las 
 
 Consideremos a la proteína 1OKE que consiste en dos cadenas, A y B, que están acompañadas por ocho moléculas, de las cuales dos son BOG unidas al sitio correspondiente a cada cadena. Ambas moléculas son idénticas, esto es, los BOG poseen los mismos tipos de átomos pero diferente conformación y posición.
 
-![https://cdn.rcsb.org/images/rutgers/ok/1oke/1oke.pdb1-500.jpg](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.021.jpeg)![https://cdn.rcsb.org/etl/ligand/img/B/BOG/BOG-large.png](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.022.png)
 
 Esto nos plante la pregunta: ¿las moléculas son idénticas? Sí. Son las mismas clases de átomos en ambas, sólo varían dónde están. Para generar la topología de ambas moléculas, puedo usar el MOL2 de cualquiera de ellas y emplear SwissParam para obtener el ITP y el PDB. Sin embargo, el ITP va a contener los mismos parámetros. Esto es clave[^39].
 
@@ -1746,7 +1434,7 @@ Editamos topol.top
 
 Edito el nvt.mdp
 
-define      = -DPOSRES  
+define      = -DPOSRES
 
 …
 
@@ -1760,7 +1448,7 @@ A continuación, un ejemplo con múltiples cadenas y dos moléculas del ligando
 
 Influenza A M2 transmembrane domain bound to amantadine
 
-6BKK. 
+6BKK.
 
 DOI: 10.2210/pdb6BKK/pdb
 
@@ -1768,15 +1456,12 @@ Classification: MEMBRANE PROTEIN
 
 Organism(s): Influenza A virus (strain A/Udorn/1972 H3N2)
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.023.png)
 
 La molécula cristalizada posee un catión y dos moléculas idénticas de amadantina.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.024.png)
 
 La estructura en 3D de cada cadena y ligando es,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.025.png)
 
 Extraigo ambas moléculas, las salvo en formato PDB desde Chimera. Separo las moléculas con un editor de texto y las transformo en MOL2 a través de Openbabel. Se obtienen los PDB e ITP correspondientes a ambas moléculas. Los ITP para ambas deberán contener la misma información, ya que son moléculas idénticas.
 
@@ -1859,7 +1544,7 @@ Agregado de las coordenadas de cada ligando al archivo protein-complex.pdb. Debe
 
 ATOM   3255  OT1 LEU H  46      58.573  24.017  55.778  1.00  0.00           O
 
-ATOM   3256  OT2 LEU H  46      58.474  24.287  55.844  1.00  0.00            
+ATOM   3256  OT2 LEU H  46      58.474  24.287  55.844  1.00  0.00
 
 TER
 
@@ -2144,11 +1829,11 @@ starting mdrun 'MATRIX PROTEIN 2 in water'
 
 20000 steps,     40.0 ps.
 
-step 19900, remaining wall clock time:     4 s          
+step 19900, remaining wall clock time:     4 s
 
 Writing final coordinates.
 
-step 20000, remaining wall clock time:     0 s          
+step 20000, remaining wall clock time:     0 s
 
 `               `Core t (s)   Wall t (s)        (%)
 
@@ -2171,14 +1856,12 @@ Van a figurar ambos en el mismo gráfico
 | gmx rms -s md.tpr -f md.xtc -o md\_rmsd.xvg |
 | ------------------------------------------- |
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.026.png)
 
 RMSD de la proteína, todas las cadenas juntas
 
 | gmx rms -s md.tpr -f md.xtc -o md\_rmsd-prot.xvg |
 | ------------------------------------------------ |
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.027.png)
 
 Dinámica de una proteína en agua
 
@@ -2269,7 +1952,7 @@ Proteina
 
 ; Compound        #mols
 
-Protein\_A           1     
+Protein\_A           1
 
 | #Creación de la caja (en este caso, puse un cubo)<br><br>gmx editconf -f protein\_proc.pdb -o protein\_newbox.pdb -c -d 1.0 -bt cubic<br><br>#Solvatar<br><br>gmx solvate -cp protein\_newbox.pdb -cs spc216.gro -o protein\_solv.pdb -p topol.top<br><br>#Neutralización<br><br>gmx grompp -f em.mdp -c protein\_solv.pdb -p topol.top -o ions.tpr<br><br>gmx genion -s ions.tpr -o protein\_neutral.pdb -p topol.top -pname NA -nname CL -neutral |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2286,13 +1969,12 @@ El empleo de moléculas que no están hechas de residuos estándar hace que deba
 
 Diseño de la molécula de 1-octanol en Chimera con SMILES CCCCCCCCOH.
 
-![Resultado de imagen para octanol](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.029.png)
 
 Creación del MOL2 y parametrización con SwissParam. Nos deja los siguientes archivos.
 
 octanol.pdb
 
-MODEL        1                  
+MODEL        1
 
 ATOM      1  C1  OCT     1       1.781   6.660   7.966  1.00  0.00      OCT
 
@@ -2320,7 +2002,7 @@ octanol.itp:
 
 ; Built itp for octanol.mol2
 
-;    by user vzoete     
+;    by user vzoete
 
 ; ----
 
@@ -2330,7 +2012,7 @@ octanol.itp:
 
 ; name at.num  mass   charge  ptype    sigma            epsilon
 
-CR      6   12.0110  0.0  A         0.387541    0.230120  
+CR      6   12.0110  0.0  A         0.387541    0.230120
 
 …
 
@@ -2362,7 +2044,7 @@ topol.top (creado a mano):
 
 ; name at.num  mass   charge  ptype    sigma            epsilon
 
-CR      6   12.0110  0.0  A         0.387541    0.230120  
+CR      6   12.0110  0.0  A         0.387541    0.230120
 
 …
 
@@ -2585,7 +2267,6 @@ Dado que las membranas biológicas son mezclas complicadas que son muy difícile
 
 Las bicapas lipídicas son bloques de construcción esenciales para las membranas biológicas . Ha habido un gran interés en sondear las membranas celulares ya que forman la estructura de los orgánulos celulares y sirven como una barrera para el transporte de materiales biológicos al citoplasma. Para las membranas lipídicas sin colesterol (o esteroles en general), existen tres fases principales que pueden existir: fluida (o líquido-cristalina) (Lα), ondulación (Pβ) y gel (Lβ). Líquido o líquido desordenado (con mezclas que contienen esteroles) es la fase más común en biología en la que las cadenas de ácidos grasos están completamente desordenadas. Esta fase se puede ver a altas temperaturas dependiendo del lípido en la membrana y las características de esta fase son la alta movilidad de los lípidos y la flexibilidad de la cadena. La fase L α ha sido ampliamente estudiada utilizando diversas técnicas experimentales y computacionales. Sin embargo, el enfoque de este artículo son las fases condensadas de una bicapa lipídica, es decir, P β y L β . El Lβ La fase se ve a temperaturas más bajas definidas por una temperatura de transición del gel. Las cadenas de acilo están más ordenadas y se componen de casi todas en la configuración trans.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.031.png)
 
 Entre la fase L α y L β puede existir una fase de pre transición que se cree que consiste en una configuración ondulada denominada fase P β , que no existe para todos los lípidos, como los que tienen colas insaturadas [ 7 ]. . Entre todos los lípidos, que tienen fase P β , 1,2-dimiristoil- sn -glicero-3-fosfocolina (DMPC) y 1,2-dipalmitoil- sn -glicero-fosfocolina (DPPC) son los lípidos más comunes, en los que P Se ha estudiado la β [ [8] , [9] , [10] ]. La formación de P β se puede obtener calentando la L βfase con cadenas inclinadas o enfriamiento de la fase L α [ 11 ]. Para la fase P β , se puede encontrar una región gruesa y delgada, que se definen principalmente en la literatura como un brazo mayor y menor ( Fig. 1 ), respectivamente [ 8 ]. La región de torcedura con cadenas de ácidos grasos interdigitadas podría existir entre los dominios del brazo mayor y del brazo menor. Se conoce la existencia de estos dos brazos, pero los detalles sobre la configuración precisa de los grupos de cabezas de lípidos y las colas de lípidos y cómo se diferencian entre las regiones se desconocen o se están debatiendo. Se ha investigado y sugerido la coexistencia tanto de L α como de L β en P β [ 12], es decir, el brazo mayor representa principalmente el L β y hay una pequeña región desordenada en la membrana que presenta la fase L α (brazo menor).
 
@@ -2598,17 +2279,13 @@ Entre la fase L α y L β puede existir una fase de pre transición que se cree 
 | di-14: 0    | 287\.15 a 297.15         |
 | di-16: 0    | 308,45 a 314,55          |
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.032.png)
 
 Desde su primer lanzamiento en 2007, CHARMM-GUI Membrane Builder, una herramienta basada en la web disponible públicamente ( <http://www.charmm-gui.org/input/membrane> ), ha facilitado enormemente la generación de sistemas de membranas complejos. Su primera implementación permitió a los usuarios construir un sistema complejo de proteína-membrana con tres tipos de lípidos. Después de un desarrollo y actualización continuos, Membrane Builder ahora admite bicapas heterogéneas, con o sin proteínas, utilizando más de 400 tipos de lípidos, incluidos fosfolípidos, fosfoinosítidos, cardiolipina, esfingolípidos, lípidos bacterianos, esteroles, ácidos grasos y detergentes, lo que permite a los usuarios construir biológicamente sistemas de membranas realistas y experimentalmente comparables. Es importante destacar que Membrane Builder también proporciona entradas de simulación bien validadas para varios programas de MD, como CHARMM, NAMD, GROMACS y AMBER permitiendo a los usuarios realizar una simulación de MD con su herramienta familiar.
 
 Ir a <https://www.charmm-gui.org/>
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.033.png)
-
-Por supuesto, podremos acceder a los tutoriales y papers que describen el funcionamiento. En realidad, recomiendo eso antes que este tutorial. Por qué? Tratan el funcionamiento completo del software, sus aplicaciones y sus limitaciones. 
+Por supuesto, podremos acceder a los tutoriales y papers que describen el funcionamiento. En realidad, recomiendo eso antes que este tutorial. Por qué? Tratan el funcionamiento completo del software, sus aplicaciones y sus limitaciones.
 
 Nuestro objetivo será crear un sistema compuesto por una proteína y una bicapa lipídica. Luego, ese sistema lo usaremos para correr una simulación de dinámica molecular. El mismo sistema será creado para dos tipos de simulaciones: all-atom y coarse grain.
 
@@ -2616,103 +2293,51 @@ All-Atom
 
 A la izquierda vamos a Input Generator
 
-![Interfaz de usuario gráfica
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.034.png)
 
 Inmediatamente, nos aparece una ventana de login. Se requiere un registro gratuito en el servidor.
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.035.png)
 
 El registro requiere una cuenta de mail académica. Parece que cualquier cosa .edu funciona. Después del registro entramos en el servidor.
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.036.png)
 
 Vamos a Membrane Builder. Obviamente, podríamos ir a Solution Builder y construir un sistema en solventes pero queremos algo más complejo.
 
-![Tabla
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.037.png)
 
 En Bilayer Builder encontraremos
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.038.png)
 
 Es importante leer la descripción que figura acá. Despeja bastantes dudas. Abajo del texto vemos,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.039.png)
+Podemos subir un archivo propio o usar el PDB ID que queramos. Voy a usar una proteína pequeña. Un barril β
 
-Podemos subir un archivo propio o usar el PDB ID que queramos. Voy a usar una proteína pequeña. Un barril β 
-
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.040.png)
-
-![Un dibujo de una persona
-
-Descripción generada automáticamente con confianza baja](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.041.jpeg)
 
 Entonces,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Chat o mensaje de texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.042.png)
 
 Cambiamos a source RCSB porque el código es del Protein Data Bank. Lo siguiente es
 
-![Texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.043.png)
 
 Cada vez que apretamos Next Step, puede aparecer una ventana superpuesta que nos muestra qué es lo que está haciendo el servidor. Cuanto más complejo es, más tiempo va a tardar.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.044.png)
 
 Bilayer Builder
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.045.png)
 
 Hay datos importantes. JOB ID nos permite recuperar el trabajo si pasa algo malo con el servidor o nuestra conexión de internet (lo segundo es más probable por cuestiones obvias, tales como vivir en Argentina). Se puede leer uno o más modelos. Esto dependerá de cómo están hechos los PDB. Después figura la información de cuáles son las moléculas que existen. En este caso, tenemos moléculas de sulfatos, el agua y dos cadenas. Figura la extensión de cada cadena. El nombre va a depender de cómo están en el archivo original. A veces nos conviene editar el PDB antes, así que tendríamos que usar el cargador del archivo y no el código PDB.
 
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.046.png)
 
 Sólo nos interesa la proteína. Podemos ignorar el resto. Si tiene residuos modificados y los necesitamos, hay que seleccionarlos. Siguiente,
 
-![Interfaz de usuario gráfica, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.047.png)
 
 Esta sección nos permite manipular el archivo, por ejemplo, con fosforilaciones o glicosilaciones. Una cuestión que tal vez sea relevante es el estado de protonación del aminoácido N y C terminal. Para cosas “comunes” podría decir que estas opciones serían las mejores.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.048.png)
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.049.png)
 
 Es la parte que nos permite orientar la proteína. Puede que esto lo quiera o no. Por ejemplo, si quiero estudiar la forma en la cual se puede orientar la molécula (en simulaciones largas que estudien plegamiento) me daría igual e ignoraría esta parte. Sin embargo, las proteínas de membrana TIENEN una orientación predecible y está dado por las alfa hélices o las beta plegadas en forma de barril. Si ya está previamente orientada, está perfecto. Si no, hay varias estrategias que se usan. Para proteínas de membrana “sencillas” podemos usar ciegamente alguna de las opciones,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.050.png)
 
 Usar orientación PDB Esta opción se sugiere para una estructura orientada de <http://opm.phar.umich.edu>
 
@@ -2724,197 +2349,103 @@ Usar servidor PPM Esta opción envía una estructura de entrada en <http://opm.p
 
 Voy a usar la última opción, porque no tengo idea cómo viene la proteína ni la conozco bien.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.051.png)
 
 También podemos hacer otras cosas, como rotarla.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.052.png)
-
-Siguiente, 
+Siguiente,
 
 Acá veremos algo así:
 
-![Gráfico, Gráfico de líneas
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.053.png)
 
 Este gráfico nos sirve para ver cómo se ubicó la molécula según el servidor. Se ve algo raro. Muy raro. Si la proteína es un canal, y debe estar paralelo a los lípidos de membrana, debería cruzar de lado a lado. Sin embargo, eso no pasa. Vamos a mirar qué pudo haber pasado,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.054.png)
 
 Y encontramos que,
 
-![Un dibujo de una persona
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.055.png)
 
 No tiene el mínimo sentido. En qué nos equivocamos? El canal es sólo una molécula, enviamos DOS moléculas mal orientadas al servidor. Soluciones? Hay que editar bien lo que pasó antes. Voy a aprovechar el JOB ID
 
-![Interfaz de usuario gráfica, Texto
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.056.png)
-
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.057.png) y ![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.058.png)
+ y
 
 Y así,
 
-![Texto
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.059.png)
 
 Es el paso 3 en el cual orientamos, pero es el paso 1 en el cual editamos el PDB. Vamos a elegir la Cadena A, porque quiero. Pero para elegir bien deberíamos CONOCER MUY BIEN la estructura de la proteína a simular.
 
-![Interfaz de usuario gráfica, Texto
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.060.png)
 
 Así repetimos los pasos anteriores pero con esta cadena solamente.
 
-![Gráfico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.061.png)
 
 Bueno, esto tampoco funcionó. Un desastre.
 
 Voy a cambiar de proteína y usar una clásica que tiene α hélices. La AQP0, 2B6P
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.062.png)
 
 Así que, (JOB ID 1945476414)
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.063.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.064.png)
 
 Ven? CUIDADO con lo que pasó acá‼! Las AQP son homotetrámeros, así que sólo vemos una cadena, pero son 4 en el ensamblado biológico. Con esto en cuenta, queda como,
 
-![Imagen que contiene Gráfico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.065.png)
 
 Ahora sí, con las otras opciones,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.066.png)
 
 Opciones
 
-![Texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.067.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.068.png)
 
 La altura del agua sobre y debajo de la membrana. Influye si tenemos proteínas que se insertan en el solvente.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.069.png)
 
 La parte de la longitud en la extensión XY. Es simétrico, dando origen a un cuadrado. Abajo figuran los lípidos con que se pueden construir la bicapa. Se pueden cambiar las proporciones
 
-![Imagen que contiene Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.070.png)
 
 Vamos a elegir el POPC
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.071.png)
 
 1 y 1 significa: 100% de moléculas de lípido son POPC en la capa superior y en la capa inferior. Elijo una extensión XY de 50 y luego
 
-![Texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.072.png)
 
 Al apretar Show the system info,
 
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.073.png)
 
 Puedo empezar a adivinar cuál es el número XY que necesito o me fijo en las propiedades de la proteína,
 
-![Texto
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.074.png)
+Si X va de -20 a 34 e Y va de -21 a 29, entonces X = 54 e Y = 50. La dimensión más grande es 54. Así que cualquier valor será mayor a esto. Si uso 90,
 
-Si X va de -20 a 34 e Y va de -21 a 29, entonces X = 54 e Y = 50. La dimensión más grande es 54. Así que cualquier valor será mayor a esto. Si uso 90, 
-
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.075.png)
 
 Y no hay error. Depende qué quiero estudiar, debemos elegir la extensión adecuada.
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.076.png)
 
 Si visualizamos, queda algo más lindo
 
-![Código QR
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.077.png)
 
 Los límites del sistema están marcados por los cuadrados de colores. Las esferas representan las cabezas de los lípidos. La otra parte que podemos/debemos editar es el equilibrado electrostático. Para esto se emplea una solución de NaCl, KCl, CaCl2 o MgCl2,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.078.png)
 
 0\.15 M es una solución isotónica. Si sólo quiero neutralizar, usaremos la opción de Add neutralizing ions. Es muy probable que los siguientes pasos tarden mucho en correrse.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.079.png)
 
 Entonces,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.080.png)
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.081.png)
 
 Podemos ver las estructuras finales,
 
-![Gráfico, Gráfico de dispersión
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.082.png)
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.083.png)
+Se pueden armar los archivos para correr con el software que usemos. Nosotros empleamos GROMACS y el FF CHARMM36m. Si mi sistema tiene problemas luego, entonces conviene poner más pasos de minimización.
 
-Se pueden armar los archivos para correr con el software que usemos. Nosotros empleamos GROMACS y el FF CHARMM36m. Si mi sistema tiene problemas luego, entonces conviene poner más pasos de minimización. 
+El equilibrado es otra parte importante. En general, una simulación implicará un NPT (pero podemos agregar o quitar pasos si el sistema es complicado o colapsa en la producción).
 
-El equilibrado es otra parte importante. En general, una simulación implicará un NPT (pero podemos agregar o quitar pasos si el sistema es complicado o colapsa en la producción). 
-
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.084.png)
 
 La temperatura se puede dejar como está, predeterminada en 303.15 K o cambiarla a la que deseemos. Una tabla con valores comunes es:
 
@@ -2932,33 +2463,18 @@ La temperatura se puede dejar como está, predeterminada en 303.15 K o cambiarla
 
 De nuevo, después de este paso va a tardar bastante. Así, el sistema queda
 
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.085.png)
 
 Esto debe descargarse en forma de archivo comprimido. No es un ZIP sino un archivo caracterísitco de Linux TGZ, pero se puede abrir en Windows de ser necesario (por ejemplo con 7zip),
 
-![Imagen que contiene Interfaz de usuario gráfica
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.086.png)
 
 El tamaño va a depender de la estructura y la cantidad de moléculas. Unas vez descargado podemos descomprimirlo y veremos,
 
-![Interfaz de usuario gráfica, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.087.png)
 
 Esta carpeta contiene muchos archivos pero, en nuestro caso, nos interesa otra carpeta interna, “gromacs”
 
-![Forma
-
-Descripción generada automáticamente con confianza baja](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.088.png)
 
 Adentro están todos los archivos que necesitamos para lanzar la simulación
 
-![Interfaz de usuario gráfica, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.089.png)
 
 Resumen (traducción LITERAL, perdón por tan poco)
 
@@ -3025,19 +2541,11 @@ Para las bicapas que consisten en un único componente lipídico, el área prome
 
 Área por lípido El área por lípido, APL, es un parámetro esencial para describir el estado del empaquetamiento molecular dentro de una bicapa lipídica. En una simulación de MD, se calcula dividiendo el área total de la caja de simulación en el plano x-y por el número total de moléculas de lípidos en un prospecto de la bicapa.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.090.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.091.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.092.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.093.png)
 
 Mean Square Displacement
 
 Este desplazamiento cuadrado medio y DADA son calculados por el programa gmx msd. Normalmente se usa un archivo de índice que contiene números de átomos y el MSD se promedia sobre estos átomos. Para las moléculas que consisten en más de un átomo, el riri puede tomarse como el centro de las posiciones de masa de las moléculas. En ese caso, debe usar un archivo de índice con números de moléculas. Sin embargo, los resultados serán casi idénticos al promedio de los átomos. El programa gmx msd también se puede usar para calcular la difusión en una o dos dimensiones. Esto es útil para estudiar la difusión lateral en las interfaces.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.094.png)
 
 | gmx msd -f run.xtc -s topol.tpr  -beginfit 1000 -endfit 10000 -trestart 10000 -lateral z |
 | ---------------------------------------------------------------------------------------- |
@@ -3109,11 +2617,9 @@ Modelo: energía de desolvatación del formaldehído
 
 La energía de desolvatación se puede ver como la energía libre de la molécula cuando pasa del vacío a rodearse con agua. ¿Por qué quiero calcular esta energía?[^43],[^44]
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.095.png)
 
 Este problema se resuelve tomando en cuenta que puede haber estados intermedios en los cuales la molécula va apareciendo en el agua y se evalúa la perturbación que eso le crea al sistema. El parámetro que controla el avance de los cálculos de “no existe la molécula” a “está la molécula” es λ[^45] que lo podríamos entender como:
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.096.png)
 
 Donde la energía libre de solvatación dependerá de la evolución de en los diferentes estados λ. El truco será elegir la mayor cantidad de estados intermedios para hacer los cálculos.
 
@@ -3129,11 +2635,11 @@ Tengo formaldehído en MOL2. Pasa a SwissParam y tenemos for.pdb y for.itp. Gene
 
 ; name at.num  mass   charge  ptype    sigma            epsilon
 
-C=O     6   12.0110  0.0  A         0.356359    0.460240  
+C=O     6   12.0110  0.0  A         0.356359    0.460240
 
-O=C     8   15.9994  0.0  A         0.302905    0.502080  
+O=C     8   15.9994  0.0  A         0.302905    0.502080
 
-HCMM    1    1.0079  0.0  A         0.235197    0.092048  
+HCMM    1    1.0079  0.0  A         0.235197    0.092048
 
 [ pairtypes ]
 
@@ -3419,13 +2925,13 @@ couple-moltype           = FOR ;el nombre de la molécula
 
 sc-power                 = 1    ; número entero. Siempre. Ni siquiera con 1.0
 
-sc-sigma                 = 0.3  
+sc-sigma                 = 0.3
 
-sc-alpha                 = 1.0          
+sc-alpha                 = 1.0
 
 ; we still want the molecule to interact with itself at lambda=0
 
-couple-intramol          = no   
+couple-intramol          = no
 
 couple-lambda1           = vdwq
 
@@ -3476,7 +2982,6 @@ Performance:       55.229        0.435
 
 Se generará un archivo XVG llamado run.xvg. Si lo abrimos veremos algo como
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.097.png)
 
 Lo mismo en cada directorio de lambda\_NN. En el directorio superior a estos, ejecutamos el comando que recupera información de los archivos XVG que se generan.
 
@@ -3595,7 +3100,6 @@ La alternativa a este método implica el uso de las capacidades del programa APB
 
 Se descarga de <http://rashmikumari.github.io/g_mmpbsa/Download-and-Installation.html>
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.098.png)
 
 La descarga nos da un archivo comprimido con los ejecutables para Linux. Esos los vamos a usar en la carpeta con los archivos de las simulaciones. Hay alternativas más útiles para correr los programas sin necesidad de copiar los ejecutables. Recordar el concepto y utilidad de la variable PATH.
 
@@ -3887,11 +3391,9 @@ Se nos pedirá elegir dos grupos, si necesitamos estudiar grupos especiales, ent
 
 La pantalla que aparecerá, luego de la selección de grupos,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.099.png)
 
 A medida que pasa el tiempo se realizan cálculos en diferentes instancias, las cuales se pueden controlar a través del archivo pbsa.mdp.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.100.png)
 
 El cálculo numérico de la energía de interacción se realiza con el script pbsa.py en forma automática o a través de la lectura de los archivos de salida anterior.
 
@@ -3942,13 +3444,10 @@ El código de pbsa.py es,
 
 Interacción energética lineal (Linear Interaction Energy)
 
-Otra forma de aproximar la energía de unión, es aprovechando la información de los archivos EDR, los mismos que usamos para estudiar la variación de energía en el tiempo. LIE utiliza la información de la MD del complejo y del ligando por separado. 
+Otra forma de aproximar la energía de unión, es aprovechando la información de los archivos EDR, los mismos que usamos para estudiar la variación de energía en el tiempo. LIE utiliza la información de la MD del complejo y del ligando por separado.
 
 La energía libre de unión según el método LIE es la diferencia de las energías libres de solvatación del ligando libre, ΔGsol(libre), y el ligando unido a la proteína, ΔGsol(proteína). Los cálculos de estas dos energías libres de solvatación para una pose dada, i , se pueden calcular de acuerdo con,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.101.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.102.png)
 
 Según el manual de  Gromacs,
 
@@ -4016,23 +3515,23 @@ Para utilizar gmx lie correctamente, se requieren dos simulaciones: una con la m
 
 `              `Name of the ligand in the energy file
 
-El cálculo de una energía de interacción se realiza mediante la palabra clave energygrps en el archivo .mdp. A pesar de ser una palabra clave .mdp, los cálculos de energía de interacción no deben considerarse parte de una simulación normal. 
+El cálculo de una energía de interacción se realiza mediante la palabra clave energygrps en el archivo .mdp. A pesar de ser una palabra clave .mdp, los cálculos de energía de interacción no deben considerarse parte de una simulación normal.
 
-La descomposición de las energías de corto alcance es incompatible con la ejecución en una GPU y también ralentiza el cálculo innecesariamente. 
+La descomposición de las energías de corto alcance es incompatible con la ejecución en una GPU y también ralentiza el cálculo innecesariamente.
 
 El módulo mdrun no necesita realizar este trabajo adicional para realizar una simulación válida. Como tal, solo calcule las energías de interacción como parte de su análisis, no su dinámica.
 
-Cree un nuevo archivo .tpr a partir de un archivo .mdp que tenga energygrps = Protein LIG definido, como este: 
+Cree un nuevo archivo .tpr a partir de un archivo .mdp que tenga energygrps = Protein LIG definido, como este:
 
 | gmx grompp -f ie.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx -o ie.tpr |
 | ------------------------------------------------------------------------------ |
 
-Luego, invoque mdrun con la opción -rerun para recalcular energías de la trayectoria de simulación existente: 
+Luego, invoque mdrun con la opción -rerun para recalcular energías de la trayectoria de simulación existente:
 
 | gmx mdrun -deffnm ie -rerun md\_0\_10.xtc -nb cpu |
 | ------------------------------------------------- |
 
-Note el uso de -deffnm para leer ie.tpr y escribir todo archivos de salida a ie. \* como sus nombres de archivo. La opción -rerun toma el nombre de la trayectoria para la que desea volver a calcular las energías, y -nb cpu le dice a mdrun que solo intente ejecutarse en el hardware de la CPU e ignore cualquier GPU que pueda estar disponible. Como se indicó anteriormente, este tipo de cálculo no se puede realizar en una GPU. La repetición debe ser muy rápida, y se completará en solo unos minutos. Extraiga los términos de energía de interés a través del módulo de energía. 
+Note el uso de -deffnm para leer ie.tpr y escribir todo archivos de salida a ie. \* como sus nombres de archivo. La opción -rerun toma el nombre de la trayectoria para la que desea volver a calcular las energías, y -nb cpu le dice a mdrun que solo intente ejecutarse en el hardware de la CPU e ignore cualquier GPU que pueda estar disponible. Como se indicó anteriormente, este tipo de cálculo no se puede realizar en una GPU. La repetición debe ser muy rápida, y se completará en solo unos minutos. Extraiga los términos de energía de interés a través del módulo de energía.
 
 Los términos que nos interesan son Coul-SR: Protein-LIG y LJ-SR: Protein-LIG.
 
@@ -4041,7 +3540,6 @@ Los términos que nos interesan son Coul-SR: Protein-LIG y LJ-SR: Protein-LIG.
 
 Tomemos la siguiente molécula ya estudiada,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.103.png)
 
 Al haber sido estudiada como ligando, se tiene preparado el ITP y el PDB ya formateado con la estructura necesaria. Asi, se creará un sistema nuevo a través del protocolo empleado en el caso de la simulación de una molécula en agua. La secuencia de cálculos para la molécula del ligando es:
 
@@ -4079,7 +3577,7 @@ End your selection with an empty line or a zero.
 
 37  Pres-YX         38  Pres-YY         39  Pres-YZ         40  Pres-ZX
 
-41  Pres-ZY         42  Pres-ZZ         43  #Surf\*SurfTen   44  Box-Vel-XX 
+41  Pres-ZY         42  Pres-ZZ         43  #Surf\*SurfTen   44  Box-Vel-XX
 
 45  Box-Vel-YY                          46  Box-Vel-ZZ
 
@@ -4135,7 +3633,6 @@ DGbind = -10.330 (9.163)
 
 La energía será de -10.330 kJ/mol. El gráfico obtenido,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.104.png)
 
 Vemos que la energía se estabiliza a partir de los 45 ns, entonces podríamos recalcular,
 
@@ -4218,7 +3715,7 @@ TOPOL.TOP
 
 ; The force field files to be included
 
-#include "rt41c5.itp"    
+#include "rt41c5.itp"
 
 [ moleculetype ]
 
@@ -4230,7 +3727,7 @@ Urea         3
 
 ;   nr    type   resnr  residu    atom    cgnr  charge
 
-`     `1       C       1    UREA      C1       1     0.683    
+`     `1       C       1    UREA      C1       1     0.683
 
 `     `2       O       1    UREA      O2       1    -0.683
 
@@ -4352,7 +3849,6 @@ SOL    1000
 
 Manual de trabajo con el cluster TUPAC
 
-![https://lh6.googleusercontent.com/xU8ByzRfiVsBAzbPVUoYokEwCMJ816P7-205WzYQG3XBkRl5n8UJcCUCGnwPrpO_8u3ooONBjyDI2xZlPcq7tMI_N1XU9o6vrpCJulxZwQV9LZg0br6xBaQlPs82aGEMYn_VuYGb](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.105.png)
 
 Ene. 2020
 
@@ -4400,7 +3896,6 @@ Por favor utilizar h2.tupac.conicet.gov.ar para conectarse a TUPAC.
 
 Cambiar a h2.tupac.conicet.gov.ar
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.106.png)
 
 Como todo será dentro de la consola, no tendremos interfaz gráfica.
 
@@ -4408,7 +3903,6 @@ Una aclaración muy importante es que no estarán disponibles las herramientas q
 
 Si quiero ver el contenido de la carpeta personal, empleo el comando ls -l
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.107.png)
 
 El ejecutable de GROMACS se deberá compilar especialmente para el cluster.
 
@@ -4426,13 +3920,11 @@ El protocolo de trabajo que emplearemos es el SFTP, que implica una transferenci
 
 Allí agregaremos un nuevo servidor “Nuevo sitio”, que yo lo llamé TUPAC
 
-![https://lh4.googleusercontent.com/cZQ66LxTDf0ddkklKkarZ2kYVEkHS8bgsmhrnpkLPw_lFIFFEAtlRR9AA2FUBK5QorjYRdu0XfR_NhruCm7meSY7yK7OadvHOEW2nlO4-RsgKMaNrXH_xr9c5gkEbk9ksjoVD6Oa](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.110.png)
 
 El protocolo deberá ser SFTP y el resto de las opciones se pueden dejar como están.
 
 Una vez hecho esto se puede apretar “Conectar” y del lado derecho de la ventana de Filezilla nos aparecerán las carpetas del servidor.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.111.png)
 
 Acá se pueden hacer todas las cosas que haríamos con el navegador de archivos de cualquier sistema operativo:
 
@@ -4450,14 +3942,12 @@ editar archivos, con ciertas limitaciones
 
 O sea, todo lo que no implica la ejecución del software. Todos estos procesos llevan más tiempo del que estamos acostumbrados, ya que implican la transferencia de las órdenes a través de la red.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.112.png)
 
 | <p>NOTA: Un mensaje del tipo</p><p></p><p>Respuesta:    fzSftp started, protocol\_version=8</p><p>Comando:    open "jcasal@h1.tupac.conicet.gov.ar" 22</p><p>Error:    Connection timed out after 20 seconds of inactivity</p><p>Error:    No se pudo conectar al servidor</p><p>Estado:    Desconectado del servidor</p><p></p><p>Significa que el cluster no está disponible.</p> |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
 Cuando se hacen modificaciones y procesos, la información aparece en la sección inferior.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.113.png)
 
 Manejo de las colas del cluster
 
@@ -4517,7 +4007,7 @@ Cuántas CPU van a usar
 #SBATCH --propagate
 Opciones que modifican el manejo de los procesos.
 
-#SBATCH -o slurm.%N.%j.out # STDOUT 
+#SBATCH -o slurm.%N.%j.out # STDOUT
 #SBATCH -e slurm.%N.%j.err # STDERR
 Los archivos de salida de información de la corrida.
 
@@ -4589,7 +4079,6 @@ scancel [ID del trabajo]
 
 Manejo básico de una terminal de UNIX
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.114.png)
 
 De “Linux Command-Line Cheat Sheet” By Benjamin Mako Hill and Jono Bacon
 Computerworld | AUG 14, 2007
@@ -4804,12 +4293,12 @@ If you need to pass the output of one command so that it goes to the input of th
     Ayuda a mejorar la simulación porque continúa a partir de la anterior
     Zafar, Ayesha, and Jóhannes Reynisson. “Hydration Free Energy as a Molecular Descriptor in Drug Design: A Feasibility Study.” Molecular Informatics 35, no. 5 (May 2016): 207–14. doi:10.1002/minf.201501035.
     Laboratory Journal – Business Web for Users in Science and Industry
-    
+
     Wiley-VCH Verlag GmbH & Co. KGaA - http://www.laboratory-journal.com/science/pharma-drug-discovery/computational-drug-discovery-hydration-behavior-de-novo-designed-pharm
     Klimovich, Pavel V., Michael R. Shirts, and David L. Mobley. “Guidelines for the Analysis of Free Energy Calculations.” Journal of Computer-Aided Molecular Design 29, no. 5 (May 2015): 397–411. doi:10.1007/s10822-015-9840-9.
     No sé si es necesario hacerlo así
     g\_mmpbsa—A GROMACS Tool for High-Throughput MM-PBSA Calculations
-    
+
     Rashmi Kumari-Rajendra Kumar-Andrew Lynn- - Journal of Chemical Information and Modeling - 2014
     Primer intento, papu
     Vosmeer CR, Kooi DP, Capoferri L, Terpstra MM, Vermeulen NPE, Geerke DP. Improving the iterative Linear Interaction Energy approach using automated recognition of configurational transitions. Journal of Molecular Modeling. 2016;22:31. doi:10.1007/s00894-015-2883-y.
