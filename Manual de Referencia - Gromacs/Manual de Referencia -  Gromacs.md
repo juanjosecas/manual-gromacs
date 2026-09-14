@@ -4921,355 +4921,1038 @@ Para formaldehído acuoso en equilibrio, el último criterio no se cumple si sol
 
 Energía de unión
 
-Modelo genérico
+## Modelo general: energía de unión mediante gmx_MMPBSA
+
+### 1. Qué calcula este método
+
+**gmx_MMPBSA** es la implementación actual para realizar cálculos de energía libre de unión de estados finales usando trayectorias y topologías de GROMACS. Está basado en **MMPBSA.py** de AmberTools y reemplaza el flujo antiguo basado en **g_mmpbsa**, un archivo **pbsa.mdp**, APBS ejecutado externamente y el script **pbsa.py**.
+
+MM/PBSA y MM/GBSA no son FEP. No contienen estados λ, no hacen desaparecer el ligando y no necesitan umbrella sampling para impedir que el ligando se aleje durante un desacoplamiento. Analizan configuraciones ya muestreadas de los estados unido y libre mediante un modelo de solvente implícito.
+
+El esquema básico es:
+
+\[
+\Delta G_{\mathrm{bind}}
+=
+G_{\mathrm{complejo}}
+-
+G_{\mathrm{receptor}}
+-
+G_{\mathrm{ligando}}
+\]
+
+Para cada especie:
+
+\[
+G=
+E_{\mathrm{MM}}
++
+G_{\mathrm{solv}}
+-
+TS
+\]
+
+La energía de mecánica molecular puede escribirse:
+
+\[
+E_{\mathrm{MM}}
+=
+E_{\mathrm{bonded}}
++
+E_{\mathrm{vdW}}
++
+E_{\mathrm{elec}}
+\]
 
-La determinación del ΔGbinding con GROMACS se puede hacer con el método anterior de FEP. El problema que se presenta es el siguiente: si se tiene que generar los λ de cada especie, proteína ligando solvente complejo puede ocurrir que exista una superposición de los λ intermedios del ligando con la proteína. Esto no puede ocurrir ya que estaríamos con resultados sin sentido. La solución para ello es realizar un umbrela sampling, que básicamente considera al ligando fijo en el sitio de unión y luego lo va haciendo desaparecer con el tiempo.
+y la contribución de solvatación:
 
-La alternativa a este método implica el uso de las capacidades del programa APBS que me permite calcular las propiedades electrónicas de complejos. Si bien puede realizarse el estudio a través de la generación de estructuras intermedias, derivadas de la MD del complejo, el proceso llega a ser tedioso. Existe otro software que combina los programas GROMACS y APBS para lograr esto: g\_mmpbsa[^47].
+\[
+G_{\mathrm{solv}}
+=
+G_{\mathrm{polar}}
++
+G_{\mathrm{nonpolar}}
+\]
 
-Se descarga de <http://rashmikumari.github.io/g_mmpbsa/Download-and-Installation.html>
+Por tanto:
 
+\[
+\Delta G_{\mathrm{bind}}
+=
+\Delta E_{\mathrm{MM}}
++
+\Delta G_{\mathrm{polar}}
++
+\Delta G_{\mathrm{nonpolar}}
+-
+T\Delta S
+\]
 
-La descarga nos da un archivo comprimido con los ejecutables para Linux. Esos los vamos a usar en la carpeta con los archivos de las simulaciones. Hay alternativas más útiles para correr los programas sin necesidad de copiar los ejecutables. Recordar el concepto y utilidad de la variable PATH.
+Si no se calcula entropía, el resultado contiene solo:
 
-Necesitamos crear un archivo MDP ligeramente diferente al resto pbsa.mdp
+\[
+\Delta G_{\mathrm{bind}}^{*}
+=
+\Delta E_{\mathrm{MM}}
++
+\Delta G_{\mathrm{solv}}
+\]
 
-;Polar calculation: "yes" or "no"
+El asterisco recuerda que no es una energía libre absoluta completa. Muchos informes la llaman “binding free energy”, pero físicamente es una estimación end-state sin el término entrópico explícito.
 
-polar        = yes
+### 2. PB frente a GB
 
-;=============
+MM/PBSA calcula la contribución polar resolviendo numéricamente la ecuación de Poisson–Boltzmann. MM/GBSA utiliza una aproximación Generalized Born.
 
-;PSIZE options
+| Método | Ventaja | Limitación |
+|---|---|---|
+| MM/GBSA | Más rápido; útil para explorar protocolos y series. | Mayor dependencia del modelo GB y del conjunto de radios. |
+| MM/PBSA | Tratamiento continuo electrostático más explícito. | Más costoso y sensible a malla, radios, dieléctricos y convergencia numérica. |
+| 3D-RISM | Describe estructura promedio del solvente con mayor detalle. | Coste y preparación superiores; escalamiento paralelo limitado. |
 
-;=============
+No existe una regla universal por la cual PB sea siempre más exacto que GB. La comparación debe validarse para la familia química y el objetivo.
 
-;Factor by which to expand molecular dimensions to get coarsegrid dimensions.
+### 3. Qué puede y qué no puede inferirse
 
-cfac         = 1.5
+Usos razonables:
 
-;The desired fine mesh spacing (in A)
+- comparar poses del mismo ligando;
+- ordenar ligandos estrechamente relacionados;
+- comparar mutantes con un protocolo idéntico;
+- detectar residuos que contribuyen de forma persistente;
+- estudiar sensibilidad a parámetros del continuo;
+- complementar estabilidad estructural y contactos.
 
-gridspace     = 0.5
+No debe interpretarse automáticamente como:
 
-:Amount (in A) to add to molecular dimensions to get fine grid dimensions.
+- afinidad experimental absoluta;
+- constante de disociación exacta;
+- mecanismo de unión;
+- tasa de asociación o disociación;
+- sustituto de FEP para transformaciones pequeñas;
+- prueba causal de que un residuo “produce” la unión;
+- evidencia de convergencia de la dinámica.
 
-fadd         = 5
+La aproximación omite o simplifica agua explícita, reorganización del solvente, cambios de protonación, polarización, estados alternativos y, con frecuencia, entropía conformacional.
 
-;Maximum memory (in MB) available per-processor for a calculation.
+### 4. Protocolo de trayectoria única
 
-gmemceil     = 4000
+En el protocolo de trayectoria única, **single trajectory, ST**, receptor y ligando se extraen de cada instantánea del complejo:
 
-;=============================================
+~~~text
+trayectoria del complejo
+        ├── complejo
+        ├── receptor extraído
+        └── ligando extraído
+~~~
 
-;APBS kwywords for polar solvation calculation
+Esto mantiene correspondencia conformacional entre los tres términos y favorece la cancelación:
 
-;=============================================
+\[
+\Delta E_{\mathrm{bonded}}\approx0
+\]
 
-;Charge of positive ions
+Ventajas:
 
-pcharge     = 1
+- menor ruido;
+- menor costo;
+- correspondencia exacta entre marcos;
+- buena reproducibilidad operativa.
 
-;Radius of positive charged ions
+Supuesto fuerte:
 
-prad        = 0.95
+- receptor y ligando libres adoptan las mismas conformaciones que en el complejo.
 
-;Concentration of positive charged ions
+ST no cuantifica adecuadamente una reorganización grande inducida por unión.
 
-pconc           = 0.150
+### 5. Protocolo de trayectorias múltiples
 
-;Charge of negative ions
+En el protocolo **multiple trajectory, MT**, complejo, receptor y ligando provienen de simulaciones separadas:
 
-ncharge     = -1
+\[
+\Delta G_{\mathrm{bind}}
+=
+\langle G_C\rangle_C
+-
+\langle G_R\rangle_R
+-
+\langle G_L\rangle_L
+\]
 
-;Radius of negative charged ions
+Puede incorporar reorganización conformacional, pero aumenta mucho la varianza porque se pierde cancelación entre configuraciones correlacionadas.
 
-nrad        = 1.81
+Use MT solo cuando:
 
-;Concentration of negative charged ions
+- existan trayectorias libres suficientemente muestreadas;
+- la reorganización sea parte de la pregunta;
+- se disponga de varias réplicas;
+- se evalúe la convergencia de cada estado por separado.
 
-nconc         = 0.150
+Un resultado MT más “completo” puede ser menos preciso que ST si el muestreo es insuficiente.
 
-;Solute dielectric constant
+### 6. Requisitos actuales
 
-pdie         = 2
+La documentación de desarrollo consultada en septiembre de 2026 recomienda rangos probados:
 
-;Solvent dielectric constant
+- Python 3.11 o 3.12;
+- AmberTools desde 24.8 y menor que 27;
+- GROMACS desde 2022 y menor que 2027;
+- ParmEd 4.2.2 o posterior dentro de la serie 4;
+- MPI opcional para paralelización.
 
-sdie         = 80
+GROMACS 2026 está dentro del rango probado. Esto no garantiza que cualquier topología se convierta correctamente.
 
-;Reference or vacuum dielectric constant
+Archivos necesarios para ST:
 
-vdie         = 1
+~~~text
+md.tpr              estructura y masas del complejo
+md_fit.xtc          trayectoria corregida
+index.ndx           grupos receptor y ligando
+topol.top           topología completa de GROMACS
+reference.pdb       referencia con cadenas y numeración, recomendada
+mmpbsa.in           opciones del cálculo
+~~~
 
-;Solvent probe radius
+La topología del ligando debe estar incluida en **topol.top**. La ruta actual no reconstruye ligandos desde un PDB sin parámetros.
 
-srad         = 1.4
+### 7. Instalación reproducible
 
-;Method used to map biomolecular charges on grid. chgm = spl0 or spl2 or spl4
+Conda o Mamba, Python 3.12:
 
-chgm            = spl4
+~~~bash
+conda create -n gmxMMPBSA python=3.12 -y
+conda activate gmxMMPBSA
 
-;Model used to construct dielectric and ionic boundary. srfm = smol or spl2 or spl4
+conda install -c conda-forge \
+    "mpi4py>=4.0.1,<5" \
+    "ambertools>=24.8,<27" \
+    -y
 
-srfm            = smol
+python -m pip install gmx_MMPBSA
+python -m pip check
+~~~
 
-;Value for cubic spline window. Only used in case of srfm = spl2 or spl4.
+Si GROMACS 2026 ya está instalado en el sistema y disponible en **PATH**, no instale otra copia sin necesidad. Verifique:
 
-swin         = 0.30
+~~~bash
+gmx --version
+gmx_MMPBSA --version
+gmx_MMPBSA -h
+python -m pip check
+~~~
 
-;Numebr of grid point per A^2. Not used when (srad = 0.0) or (srfm = spl2 or spl4)
+Para una instalación completamente aislada:
 
-sdens         = 10
+~~~bash
+conda install -c conda-forge "gromacs>=2022,<2027" pocl -y
+~~~
 
-;Temperature in K
+La interfaz gráfica requiere PyQt6:
 
-temp         = 300
+~~~bash
+conda install -c conda-forge pyqt6 -y
+~~~
 
-;Type of boundary condition to solve PB equation. bcfl = zero or sdh or mdh or focus or map
+No es necesaria en un nodo HPC sin entorno gráfico.
 
-bcfl         = mdh
+### 8. Probar la instalación
 
-;Non-linear (npbe) or linear (lpbe) PB equation to solve
+~~~bash
+gmx_MMPBSA_test -h
+~~~
 
-PBsolver     = lpbe
+Ejecute primero una prueba pequeña proporcionada por el paquete. Esto permite separar problemas de instalación de problemas propios de la topología.
 
-;========================================================
+Compruebe además:
 
-;APBS kwywords for Apolar/Non-polar solvation calculation
+~~~bash
+command -v gmx
+command -v gmx_MMPBSA
+command -v ante-MMPBSA.py
+echo "${AMBERHOME:-AMBERHOME no definido}"
+~~~
 
-;========================================================
+La instalación debe encontrar AmberTools y GROMACS dentro del entorno activo o mediante las opciones de configuración correspondientes.
 
-;Non-polar solvation calculation: "yes" or "no"
+### 9. Preparación de los grupos
 
-apolar        = yes
+Cree un índice que contenga grupos separados y sin solapamiento:
 
-;Repulsive contribution to Non-polar
+- receptor;
+- ligando;
+- complejo receptor–ligando.
 
-;===SASA model ====
+Forma interactiva:
 
-;Gamma (Surface Tension) kJ/(mol A^2)
+~~~bash
+gmx make_ndx \
+    -f md.tpr \
+    -o index.ndx
+~~~
 
-gamma           = 0.0226778
+Ejemplo dentro de **make_ndx**, si el ligando se llama LIG:
 
-;Probe radius for SASA (A)
+~~~text
+r LIG
+Protein | r LIG
+name NOMBRE_GRUPO_RECEPTOR Receptor
+name NOMBRE_GRUPO_LIGANDO Ligando
+name NOMBRE_GRUPO_COMPLEJO Complejo
+q
+~~~
 
-sasrad          = 1.4
+Los números reales dependen del índice creado. Verifique:
 
-;Offset (c) kJ/mol
+~~~bash
+gmx make_ndx \
+    -f md.tpr \
+    -n index.ndx \
+    -o index_check.ndx
+~~~
 
-sasaconst       = 3.84982
+No use números copiados de otro sistema. La opción actual **-cg** acepta números de grupo basados en cero o nombres.
 
-;===SAV model===
+### 10. Corregir la trayectoria
 
-;Pressure kJ/(mol A^3)
+La documentación requiere una trayectoria sin problemas de PBC y ajustada. El ligando debe permanecer junto al receptor.
 
-press           = 0
+Primero centre el complejo:
 
-;Probe radius for SAV (A)
+~~~bash
+(echo Complejo; echo System) | \
+gmx trjconv \
+    -s md.tpr \
+    -f md.xtc \
+    -n index.ndx \
+    -o md_center.xtc \
+    -pbc mol \
+    -center \
+    -ur compact
+~~~
 
-savrad          = 0
+Luego elimine rotación y traslación:
 
-;Offset (c) kJ/mol
+~~~bash
+(echo Backbone; echo System) | \
+gmx trjconv \
+    -s md.tpr \
+    -f md_center.xtc \
+    -n index.ndx \
+    -o md_fit.xtc \
+    -fit rot+trans
+~~~
 
-savconst        = 0
+Compruebe visualmente que:
 
-;Attractive contribution to Non-polar
+- la proteína esté entera;
+- el ligando no salte por PBC;
+- el orden atómico no cambie;
+- no se hayan descartado componentes necesarios;
+- los tiempos sean correctos.
 
-;===WCA model ====
+Para MM/PBSA se elimina el solvente durante la preparación interna. No genere una trayectoria manualmente desolvatada si todavía no verificó que la selección mantiene todos los componentes del complejo.
 
-;using WCA method: "yes" or "no"
+### 11. Estructura de referencia
 
-WCA             = no
+Genere un PDB de referencia con el complejo completo:
 
-;Probe radius for WCA
+~~~bash
+echo Complejo | \
+gmx trjconv \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -o reference.pdb \
+    -dump 0
+~~~
 
-wcarad          = 1.20
+Revise cadenas, numeración, nombres de residuos y átomos. La opción **-cr reference.pdb** es recomendada porque evita asignaciones automáticas incorrectas, especialmente en complejos con varias cadenas.
 
-;bulk solvent density in A^3
+### 12. Generar un archivo de entrada
 
-bconc        = 0.033428
+La versión actual puede generar plantillas:
 
-;displacment in A for surface area derivative calculation
+~~~bash
+gmx_MMPBSA --create_input gb
+gmx_MMPBSA --create_input pb
+gmx_MMPBSA --create_input gb decomp
+gmx_MMPBSA --create_input gb nmode
+~~~
 
-dpos        = 0.05
+Revise siempre la plantilla generada por la versión instalada:
 
-;Quadrature grid points per A for molecular surface or solvent accessible surface
+~~~bash
+gmx_MMPBSA --input-file-help
+~~~
 
-APsdens        = 20
+No reutilice el archivo **pbsa.mdp** de **g_mmpbsa**. La sintaxis actual usa bloques namelist como **&general**, **&gb**, **&pb** y **&decomp**.
 
-;Quadrature grid spacing in A for volume integral calculations
+### 13. Entrada mínima MM/GBSA
 
-grid            = 0.45 0.45 0.45
+Archivo **mmpbsa_gb.in**:
 
-;Parameter to construct solvent related surface or volume
+~~~text
+&general
+  sys_name="Complejo_proteina_ligando",
+  startframe=1,
+  endframe=5000,
+  interval=10,
+  PBRadii=4,
+  temperature=300.0,
+/
 
-APsrfm          = sacc
+&gb
+  igb=8,
+  saltcon=0.150,
+/
+~~~
 
-;Cubic spline window in A for spline based surface definitions
+Con **igb=8**, la documentación recomienda **PBRadii=4**, correspondiente a mbondi3.
 
-APswin          = 0.3
+**startframe**, **endframe** e **interval** se refieren a índices de marcos procesados, no necesariamente a ps. El número analizado es aproximadamente:
 
-;Temperature in K
+\[
+N_{\mathrm{frames}}
+=
+\left\lfloor
+\frac{f_{\mathrm{final}}-f_{\mathrm{inicial}}}
+     {\mathrm{interval}}
+\right\rfloor+1
+\]
 
-APtemp          = 300
+No elija 500 marcos consecutivos y los trate como 500 observaciones independientes.
 
-` `El programa se ejecuta con:
+### 14. Ejecutar MM/GBSA
 
-| ` `g\_mmpbsa -f md.xtc -s md.tpr -i pbsa.mdp -pdie 2 -pbsa -decomp |
-| ------------------------------------------------------------------ |
+~~~bash
+gmx_MMPBSA -O \
+    -i mmpbsa_gb.in \
+    -cs md.tpr \
+    -ct md_fit.xtc \
+    -ci index.ndx \
+    -cg Receptor Ligando \
+    -cp topol.top \
+    -cr reference.pdb \
+    -o FINAL_RESULTS_MMGBSA.dat \
+    -eo FINAL_RESULTS_MMGBSA.csv \
+    -nogui
+~~~
 
-![ref2]Opciones de g\_mmpbsa
+Significado de las opciones principales:
 
-Option     Filename  Type         Description
+| Opción | Función |
+|---|---|
+| **-O** | Permite sobrescribir resultados existentes. Úsela deliberadamente. |
+| **-i** | Archivo de parámetros. |
+| **-cs** | TPR o PDB del complejo; se recomienda el TPR de producción. |
+| **-ct** | Una o más trayectorias del complejo. |
+| **-ci** | Índice del complejo. |
+| **-cg** | Grupos receptor y ligando. |
+| **-cp** | Topología completa de GROMACS, obligatoria. |
+| **-cr** | PDB de referencia recomendado. |
+| **-o** | Resumen estadístico. |
+| **-eo** | Energías por marco en CSV. |
+| **-nogui** | No abre el analizador gráfico al terminar. |
 
-\------------------------------------------------------------
+### 15. Entrada mínima MM/PBSA
 
-`  `-f       traj.xtc  Input        Trajectory: xtc trr trj gro g96 pdb cpt
+Genere primero la plantilla de su versión:
 
-`  `-s      topol.tpr  Input        Run input file: tpr tpb tpa
+~~~bash
+gmx_MMPBSA --create_input pb
+~~~
 
-`  `-i     grompp.mdp  Input, Opt.  grompp input file with MD parameters
+Ejemplo inicial **mmpbsa_pb.in**:
 
-`  `-n      index.ndx  Input, Opt.  Index file
+~~~text
+&general
+  sys_name="Complejo_proteina_ligando_PB",
+  startframe=1,
+  endframe=1000,
+  interval=10,
+  temperature=300.0,
+/
 
-` `-mm  energy\_MM.xvg  Output, Opt. xvgr/xmgr file
+&pb
+  istrng=0.150,
+  fillratio=4.0,
+/
+~~~
 
--pol      polar.xvg  Output, Opt. xvgr/xmgr file
+Ejecución:
 
--apol    apolar.xvg  Output, Opt. xvgr/xmgr file
+~~~bash
+gmx_MMPBSA -O \
+    -i mmpbsa_pb.in \
+    -cs md.tpr \
+    -ct md_fit.xtc \
+    -ci index.ndx \
+    -cg Receptor Ligando \
+    -cp topol.top \
+    -cr reference.pdb \
+    -o FINAL_RESULTS_MMPBSA.dat \
+    -eo FINAL_RESULTS_MMPBSA.csv \
+    -nogui
+~~~
 
--mmcon contrib\_MM.dat  Output, Opt. Generic data file
+PB suele ser más costoso. Pruebe primero pocos marcos y revise convergencia numérica antes de lanzar el conjunto completo.
 
--pcon contrib\_pol.dat  Output, Opt. Generic data file
+### 16. Dieléctricos y fuerza iónica
 
--apcon contrib\_apol.dat  Output, Opt. Generic data file
+En PB aparecen:
 
-Option       Type   Value   Description
+- **indi**: dieléctrico interno;
+- **exdi**: dieléctrico externo;
+- **istrng**: fuerza iónica molar.
 
-\------------------------------------------------------
+En GB:
 
--[no]h       bool   yes     Print help info and quit
+- **intdiel**: dieléctrico interno;
+- **extdiel**: dieléctrico externo;
+- **saltcon**: concentración salina molar.
 
--[no]version bool   no      Print version info and quit
+No ajuste el dieléctrico interno solo para acercar el resultado a un dato experimental. Puede hacerse un análisis de sensibilidad, por ejemplo con 1, 2 y 4, manteniendo el resto constante.
 
--nice        int    19      Set the nicelevel
+La fuerza iónica se define:
 
--b           time   0       First frame (ps) to read from trajectory
+\[
+I=\frac{1}{2}\sum_i c_i z_i^2
+\]
 
--e           time   0       Last frame (ps) to read from trajectory
+Para NaCl ideal 1:1, 0.15 M produce \(I=0.15\ \mathrm{M}\). Para una sal divalente la concentración molar y la fuerza iónica no son iguales.
 
--dt          time   0       Only use frame when t MOD dt = first time (ps)
+### 17. Radios atómicos
 
--tu          enum   ps      Time unit: fs, ps, ns, us, ms or s
+Los radios influyen en la frontera dieléctrica y en el término polar. No son una opción cosmética.
 
--[no]w       bool   no      View output .xvg, .xpm, .eps and .pdb files
+Correspondencias documentadas:
 
--xvg         enum   xmgrace  xvg plot formatting: xmgrace, xmgr or none
+| PBRadii | Conjunto | Uso típico |
+|---:|---|---|
+| 1 | bondi | Asociado habitualmente con igb=7. |
+| 2 | mbondi | Asociado habitualmente con igb=1. |
+| 3 | mbondi2 | Asociado con igb=2 o 5. |
+| 4 | mbondi3 | Asociado con igb=8. |
+| 7 | charmm_radii | Solo PB y topologías preparadas con CHARMM. |
 
--[no]silent  bool   no      Display messages, output and errors from external
+El campo de fuerza de la dinámica y el conjunto de radios del solvente implícito son conceptos distintos. **PBRadii** no cambia los parámetros enlazados ni Lennard-Jones de la topología original.
 
-`                            `APBS program. Only works with external APBS
+Para topologías CHARMM, consulte las limitaciones de conversión y valore **charmm_radii** en PB. La documentación advierte que no toda topología producida por CHARMM-GUI queda validada automáticamente.
 
-`                            `program
+### 18. Compatibilidad de topologías
 
--rad         enum   bondi   van der Waal radius type: bondi, mbondi, mbondi2
+**gmx_MMPBSA** convierte la topología GROMACS usando ParmEd. Compruebe cuidadosamente sistemas con:
 
-`                            `or amber
+- parámetros CHARMM y CMAP;
+- átomos virtuales;
+- dummy atoms;
+- puntos de carga extra;
+- metales coordinados;
+- enlaces covalentes proteína–ligando;
+- topologías híbridas;
+- lípidos;
+- residuos modificados;
+- restricciones no convencionales.
 
--rvdw        real   1       Default van der Waal radius (in nm) if not found
+La versión actual documenta rutas probadas para topologías representativas Amber, OPLS y CHARMM, pero esto no implica compatibilidad universal.
 
--[no]mme     bool   yes     To calculate vacuum molecular mechanics energy
+Siempre inspeccione el log y las topologías intermedias creadas.
 
--pdie        real   1       Dielectric constant of solute. Should be same as
+### 19. Sistemas de membrana
 
-`                            `of polar solvation
+No elimine la membrana conceptualmente y aplique un modelo acuoso homogéneo sin evaluar el efecto. La versión actual incluye opciones PB para membranas:
 
--[no]incl\_14 bool   no      Include 1-4 atom-pairs, exclude 1-2 and 1-3 atom
+~~~text
+&pb
+  memopt=1,
+  emem=7.0,
+  indi=4.0,
+  mctrdz=automatic,
+  mthick=automatic,
+  membrane_atoms="P",
+  poretype=1,
+  radiopt=0,
+  istrng=0.150,
+/
+~~~
 
-`                            `pairs during MM calculation. Should be "yes" when
+Es un esquema orientativo. Debe adaptarse a la orientación de la bicapa, nombres de átomos, espesor, presencia de poro y modelo experimental. Una membrana implícita mal centrada puede producir un resultado peor que un modelo acuoso simplificado claramente declarado.
 
-`                            `groups are bonded with each other.
+### 20. Entropía
 
--[no]focus   bool   no      To enable focusing on the specfic region of
+Sin entropía:
 
-`                            `molecule, group of atoms must be provided in
+\[
+\Delta G_{\mathrm{estimada}}
+=
+\Delta E_{\mathrm{MM}}
++
+\Delta G_{\mathrm{solv}}
+\]
 
-`                            `index file
+Con entropía:
 
--[no]pbsa    bool   no      To calculate polar and/or non-polar solvation
+\[
+\Delta G_{\mathrm{bind}}
+=
+\Delta H_{\mathrm{aprox}}
+-
+T\Delta S
+\]
 
-`                            `energy
+Métodos disponibles:
 
--ndots       int    24      Number of dots per sphere in the calculation of
+- Interaction Entropy;
+- C2 Entropy;
+- modos normales, NMODE.
 
-`                            `SASA, more dots means more accuracy
+NMODE es costoso y sensible a minimización. El consumo total de memoria crece aproximadamente como:
 
--[no]diff    bool   yes     Calculate the energy difference between two group
+\[
+RAM_{\mathrm{total}}
+=
+RAM_{\mathrm{por\ marco}}
+\times
+N_{\mathrm{procesos}}
+\]
 
-`                            `otherwise only calculates for one group
+No paralelice NMODE hasta agotar memoria.
 
--[no]decomp  bool   no      Decomposition of energy for each residue
+### 21. Interaction Entropy
 
-File Options
+La aproximación IE usa fluctuaciones de la energía de interacción:
 
-Se nos pedirá elegir dos grupos, si necesitamos estudiar grupos especiales, entonces debemos especificar eso a través del archivo index.ndx. Tenemos que usar la misma forma para declarar la existencia del index.ndx
+\[
+-T\Delta S_{\mathrm{IE}}
+=
+k_\mathrm{B}T
+\ln
+\left\langle
+\exp
+\left[
+\beta\,
+\Delta E_{\mathrm{int}}
+\right]
+\right\rangle
+\]
 
-| g\_mmpbsa -f md\_mol.xtc -s md.tpr -i pbsa.mdp -pdie 2 -pbsa -decomp -n index.ndx |
-| --------------------------------------------------------------------------------- |
+con:
 
-La pantalla que aparecerá, luego de la selección de grupos,
+\[
+\Delta E_{\mathrm{int}}
+=
+E_{\mathrm{int}}
+-
+\left\langle E_{\mathrm{int}}\right\rangle
+\]
 
+Entrada:
 
-A medida que pasa el tiempo se realizan cálculos en diferentes instancias, las cuales se pueden controlar a través del archivo pbsa.mdp.
+~~~text
+&general
+  sys_name="Complejo_IE",
+  startframe=1,
+  endframe=5000,
+  interval=1,
+  temperature=300.0,
+  PBRadii=4,
+  interaction_entropy=1,
+  ie_segment=25,
+/
 
+&gb
+  igb=8,
+  saltcon=0.150,
+/
+~~~
 
-El cálculo numérico de la energía de interacción se realiza con el script pbsa.py en forma automática o a través de la lectura de los archivos de salida anterior.
+Debe informarse \(\sigma_{IE}\), la desviación de la energía de interacción. La documentación desaconseja IE cuando:
 
-| python pbsa.py -m energy\_MM.xvg -p polar.xvg -a apolar.xvg -bs -nbs 500 -of full\_energy.dat -os summary\_energy.dat -om meta\_energy.dat |
-| ------------------------------------------------------------------------------------------------------------------------------------------ |
+\[
+\sigma_{IE}\gtrsim3.6\ \mathrm{kcal\,mol^{-1}}
+\]
 
-Y
+porque el promedio exponencial se vuelve difícil de converger. Esto equivale aproximadamente a:
 
-| cat summary\_energy.dat |
-| ----------------------- |
+\[
+3.6\ \mathrm{kcal\,mol^{-1}}
+=
+15.1\ \mathrm{kJ\,mol^{-1}}
+\]
 
-Da
+**ie_segment** es un diagnóstico de la cola de la curva acumulativa; no reemplaza el resultado calculado sobre todo el conjunto seleccionado.
 
-#Complex Number:    1
+### 22. Descomposición por residuos
 
-\===============
+Genere una plantilla:
 
-`   `SUMMARY
+~~~bash
+gmx_MMPBSA --create_input gb decomp
+~~~
+
+Ejemplo:
+
+~~~text
+&general
+  sys_name="Descomposicion",
+  startframe=1,
+  endframe=5000,
+  interval=10,
+  PBRadii=4,
+/
 
-\===============
+&gb
+  igb=8,
+  saltcon=0.150,
+/
 
-` `van der Waal energy      =        -223.672   +/-    5.494 kJ/mol
+&decomp
+  idecomp=2,
+  dec_verbose=1,
+  print_res="within 4",
+/
+~~~
 
-` `Electrostattic energy    =         -64.061   +/-    2.452 kJ/mol
+Ejecución:
+
+~~~bash
+gmx_MMPBSA -O \
+    -i mmpbsa_decomp.in \
+    -cs md.tpr \
+    -ct md_fit.xtc \
+    -ci index.ndx \
+    -cg Receptor Ligando \
+    -cp topol.top \
+    -cr reference.pdb \
+    -o FINAL_RESULTS_DECOMP.dat \
+    -do FINAL_DECOMP_MMPBSA.dat \
+    -eo FINAL_RESULTS_DECOMP.csv \
+    -deo FINAL_DECOMP_MMPBSA.csv \
+    -nogui
+~~~
 
-` `Polar solvation energy   =         201.300   +/-    6.884 kJ/mol
+**print_res="within 4"** selecciona residuos próximos dentro de 4 Å en la sintaxis del programa. El conjunto impreso debe contener al menos un residuo del receptor y uno del ligando.
 
-` `SASA energy              =         -33.450   +/-    0.417 kJ/mol
+La descomposición:
 
-` `SAV energy               =           0.000   +/-    0.000 kJ/mol
+- depende del esquema elegido;
+- no es estrictamente única;
+- reparte términos colectivos;
+- no equivale a una mutación experimental;
+- no demuestra causalidad;
+- puede variar con radios y dieléctricos.
 
-` `WCA energy               =           0.000   +/-    0.000 kJ/mol
+Úsela para priorizar residuos y formular hipótesis.
 
-` `Binding energy           =        -119.594   +/-   11.074 kJ/mol
+### 23. Alanine scanning
 
-\===============
+El alanine scanning computacional estima el cambio al mutar un residuo:
 
-`    `END
+\[
+\Delta\Delta G_{\mathrm{bind}}
+=
+\Delta G_{\mathrm{bind}}^{\mathrm{mutante}}
+-
+\Delta G_{\mathrm{bind}}^{\mathrm{WT}}
+\]
 
-\===============
+Interpretación:
 
-En kcal/mol es: -28.6±2.6 kcal/mol
+- \(\Delta\Delta G>0\): la mutación debilita la unión en esta convención;
+- \(\Delta\Delta G<0\): la mutación la favorece.
 
-El código de pbsa.py es,
+Es una mutación end-state sobre estructuras existentes. No reemplaza una dinámica completa del mutante si este reorganiza la proteína.
 
-|#!/usr/bin/python<br>#<br># This file is part of g\_mmpbsa.<br><br>from \_\_future\_\_ import absolute\_import, division, print\_function<br>from builtins import range<br>from builtins import object<br><br>import re<br>import sys<br>import numpy as np<br>import argparse<br>import os<br>import math<br><br>def main():<br>`    `args = ParseOptions()<br>`    `#File => Frame wise component energy<br>`    `try:<br>`        `frame\_wise = open(args.outfr, 'w')<br>`    `except:<br>`        `raise IOError ('Could not open file {0} for writing. \n' .format(args.outfr))<br><br>`    `frame\_wise.write('#Time E\_VdW\_mm(Protein)\tE\_Elec\_mm(Protein)\tE\_Pol(Protein)\tE\_Apol(Protein)\tE\_VdW\_mm(Ligand)\tE\_Elec\_mm(Ligand)\tE\_Pol(Ligand)\tE\_Apol(Ligand)\tE\_VdW\_mm(Complex)\tE\_Elec\_mm(Complex)\tE\_Pol(Complex)\tE\_Apol(Complex)\tDelta\_E\_mm\tDelta\_E\_Pol\tDelta\_E\_Apol\tDelta\_E\_binding\n')<br>`    `#Complex Energy<br>`    `c = []<br>`    `if args.multiple:<br>`        `MmFile, PolFile, APolFile = ReadMetafile(args.metafile)<br>`        `for i in range(len(MmFile)):<br>`            `cTmp = Complex(MmFile[i],PolFile[i],APolFile[i])<br>`            `cTmp.CalcEnergy(args,frame\_wise,i)<br>`            `c.append(cTmp)<br>`    `else:<br>`        `cTmp = Complex(args.molmech,args.polar,args.apolar)<br>`        `cTmp.CalcEnergy(args,frame\_wise,0)<br>`        `c.append(cTmp)<br>`    `#Summary in output files => "--outsum" and "--outmeta" file options<br>`    `Summary\_Output\_File(c, args)<br><br>class Complex(object):<br>`    `def \_\_init\_\_(self,MmFile,PolFile,APolFile):<br>`        `self.TotalEn = []<br>`        `self.Vdw, self.Elec, self.Pol, self.Sas, self.Sav, self.Wca =[], [], [], [], [], []<br>`        `self.MmFile = MmFile<br>`        `self.PolFile = PolFile<br>`        `self.APolFile = APolFile<br>`        `self.AvgEnBS = []<br>`        `self.CI = []<br>`        `self.FinalAvgEnergy = 0<br>`        `self.StdErr = 0<br><br>`    `def CalcEnergy(self,args,frame\_wise,idx):<br>`        `mmEn = ReadData(self.MmFile,n=7)<br>`        `polEn = ReadData(self.PolFile,n=4)<br>`        `apolEn = ReadData(self.APolFile,n=10)<br>`        `CheckEnData(mmEn,polEn,apolEn)<br><br>`        `time, MM, Vdw, Elec, Pol, Apol, Sas, Sav, Wca = [], [], [], [], [], [], [], [], []<br>`        `for i in range(len(mmEn[0])):<br>`            `#Vacuum MM<br>`            `Energy = mmEn[5][i] + mmEn[6][i] - (mmEn[1][i] + mmEn[2][i] + mmEn[3][i] + mmEn[4][i])<br>`            `MM.append(Energy)<br>`            `Energy = mmEn[5][i] - (mmEn[1][i] + mmEn[3][i])<br>`            `Vdw.append(Energy)<br>`            `Energy = mmEn[6][i] - (mmEn[2][i] + mmEn[4][i])<br>`            `Elec.append(Energy)<br>`            `# Polar<br>`            `Energy = polEn[3][i] - (polEn[1][i] + polEn[2][i])<br>`            `Pol.append(Energy)<br>`            `#Non-polar<br>`            `Energy = apolEn[3][i] + apolEn[6][i] + apolEn[9][i] - (apolEn[1][i] + apolEn[2][i] + apolEn[4][i] + apolEn[5][i] + apolEn[7][i] + apolEn[8][i])<br>`            `Apol.append(Energy)<br>`            `Energy = apolEn[3][i] - (apolEn[1][i] + apolEn[2][i])<br>`            `Sas.append(Energy)<br>`            `Energy = apolEn[6][i] - (apolEn[4][i] + apolEn[5][i])<br>`            `Sav.append(Energy)<br>`            `Energy = apolEn[9][i] - (apolEn[7][i] + apolEn[8][i])<br>`            `Wca.append(Energy)<br>`            `#Final Energy<br>`            `time.append(mmEn[0][i])<br>`            `Energy = MM[i] + Pol[i] + Apol[i]<br>`            `self.TotalEn.append(Energy)<br><br>`        `# Writing frame wise component energy to file<br>`        `frame\_wise.write('\n#Complex %d\n' % ( (idx+1)))<br>`        `for i in range(len(time)):<br>`            `frame\_wise.write('%15.3lf %15.3lf %15.3lf %15.3lf %15.3lf' % (time[i], mmEn[1][i], mmEn[2][i], polEn[1][i], (apolEn[1][i] + apolEn[4][i] + apolEn[7][i])))<br>`            `frame\_wise.write('%15.3lf %15.3lf %15.3lf %15.3lf'         %          (mmEn[3][i], mmEn[4][i], polEn[2][i], (apolEn[2][i] + apolEn[5][i] + apolEn[8][i])))<br>`            `frame\_wise.write('%15.3lf %15.3lf %15.3lf %15.3lf'         %          (mmEn[5][i], mmEn[6][i], polEn[3][i], (apolEn[3][i] + apolEn[6][i] + apolEn[9][i])))<br>`            `frame\_wise.write('%15.3lf %15.3lf %15.3lf %15.3lf\n'         % (MM[i], Pol[i], Apol[i], self.TotalEn[i]))<br><br>`        `#Bootstrap analysis energy components<br>`        `if(args.bootstrap):<br>`            `bsteps = args.nbstep<br>`            `avg\_energy, error = BootStrap(Vdw,bsteps)<br>`            `self.Vdw.append(avg\_energy)<br>`            `self.Vdw.append(error)<br>`            `avg\_energy, error = BootStrap(Elec,bsteps)<br>`            `self.Elec.append(avg\_energy)<br>`            `self.Elec.append(error)<br>`            `avg\_energy, error = BootStrap(Pol,bsteps)<br>`            `self.Pol.append(avg\_energy)<br>`            `self.Pol.append(error)<br>`            `avg\_energy, error = BootStrap(Sas,bsteps)<br>`            `self.Sas.append(avg\_energy)<br>`            `self.Sas.append(error)<br>`            `avg\_energy, error = BootStrap(Sav,bsteps)<br>`            `self.Sav.append(avg\_energy)<br>`            `self.Sav.append(error)<br>`            `avg\_energy, error = BootStrap(Wca,bsteps)<br>`            `self.Wca.append(avg\_energy)<br>`            `self.Wca.append(error)<br>`            `#Bootstrap => Final Average Energy<br>`            `self.AvgEnBS, AvgEn, EnErr, CI = ComplexBootStrap(self.TotalEn,bsteps)<br>`            `self.FinalAvgEnergy = AvgEn<br>`            `self.StdErr = EnErr<br>`            `self.CI = CI<br>`        `#If not bootstrap then average and standard deviation<br>`        `else:<br>`            `self.Vdw.append(np.mean(Vdw))<br>`            `self.Vdw.append(np.std(Vdw))<br>`            `self.Elec.append(np.mean(Elec))<br>`            `self.Elec.append(np.std(Elec))<br>`            `self.Pol.append(np.mean(Pol))<br>`            `self.Pol.append(np.std(Pol))<br>`            `self.Sas.append(np.mean(Sas))<br>`            `self.Sas.append(np.std(Sas))<br>`            `self.Sav.append(np.mean(Sav))<br>`            `self.Sav.append(np.std(Sav))<br>`            `self.Wca.append(np.mean(Wca))<br>`            `self.Wca.append(np.std(Wca))<br>`            `self.FinalAvgEnergy = np.mean(self.TotalEn)<br>`            `self.StdErr = np.std(self.TotalEn)<br><br><br>def Summary\_Output\_File(AllComplex,args):<br>`    `try:<br>`        `fs = open(args.outsum,'w')<br>`    `except:<br>`        `raise IOError ('Could not open file {0} for writing. \n' .format(args.outsum))<br><br>`    `if args.multiple:<br>`        `try:<br>`            `fm = open(args.outmeta,'w')<br>`        `except:<br>`            `raise IOError ('Could not open file {0} for writing. \n' .format(args.outmeta))<br>`        `fm.write('# Complex\_Number\t\tTotal\_Binding\_Energy\t\tError\n')<br><br>`    `for n in range(len(AllComplex)):<br>`        `fs.write('\n\n#Complex Number: %4d\n' % (n+1))<br>`        `fs.write('===============\n   SUMMARY   \n===============\n\n')<br>`        `fs.write('\n van der Waal energy      = %15.3lf   +/-  %7.3lf kJ/mol\n' % (AllComplex[n].Vdw[0], AllComplex[n].Vdw[1]))<br>`        `fs.write('\n Electrostattic energy    = %15.3lf   +/-  %7.3lf kJ/mol\n' % (AllComplex[n].Elec[0],AllComplex[n].Elec[1]))<br>`        `fs.write('\n Polar solvation energy   = %15.3lf   +/-  %7.3lf kJ/mol\n' % (AllComplex[n].Pol[0], AllComplex[n].Pol[1]))<br>`        `fs.write('\n SASA energy              = %15.3lf   +/-  %7.3lf kJ/mol\n' % (AllComplex[n].Sas[0], AllComplex[n].Sas[1]))<br>`        `fs.write('\n SAV energy               = %15.3lf   +/-  %7.3lf kJ/mol\n' % (AllComplex[n].Sav[0], AllComplex[n].Sav[1]))<br>`        `fs.write('\n WCA energy               = %15.3lf   +/-  %7.3lf kJ/mol\n' % (AllComplex[n].Wca[0], AllComplex[n].Wca[1]))<br>`        `fs.write('\n Binding energy           = %15.3lf   +/-  %7.3lf kJ/mol\n' % (AllComplex[n].FinalAvgEnergy, AllComplex[n].StdErr))<br>`        `fs.write('\n===============\n    END     \n===============\n\n')<br><br>`        `if args.multiple:<br>`            `fm.write('%5d %15.3lf %7.3lf\n' % (n+1 , AllComplex[n].FinalAvgEnergy, AllComplex[n].StdErr))<br><br>def CheckEnData(mmEn,polEn,apolEn):<br>`    `frame = len(mmEn[0])<br>`    `for i in range(len(mmEn)):<br>`        `if(len(mmEn[i]) != frame):<br>`            `raise ValueError("In MM file, size of columns are not equal.")<br><br>`    `for i in range(len(polEn)):<br>`        `if(len(polEn[i]) != frame):<br>`            `raise ValueError("In Polar file, size of columns are not equal.")<br><br>`    `for i in range(len(apolEn)):<br>`        `if(len(apolEn[i]) != frame):<br>`            `raise ValueError("In APolar file, size of columns are not equal.")<br><br><br>def ParseOptions():<br>`    `parser = argparse.ArgumentParser()<br>`    `parser.add\_argument("-mt", "--multiple", help='If given, calculate for multiple complexes. Need Metafile containing path of energy files', action="store\_true")<br>`    `parser.add\_argument("-mf", "--metafile", help='Metafile containing path to energy files of each complex in a row obtained from g\_mmpbsa in following order: \<br>`                                                       `[MM file] [Polar file] [ Non-polar file] ',action="store", default='metafile.dat', metavar='metafile.dat')<br>`    `parser.add\_argument("-m", "--molmech", help='Vacuum Molecular Mechanics energy file obtained from g\_mmpbsa',action="store", default='energy\_MM.xvg', metavar='energy\_MM.xvg')<br>`    `parser.add\_argument("-p", "--polar", help='Polar solvation energy file obtained from g\_mmpbsa',action="store",default='polar.xvg', metavar='polar.xvg')<br>`    `parser.add\_argument("-a", "--apolar", help='Non-Polar solvation energy file obtained from g\_mmpbsa',action="store",default='apolar.xvg',metavar='apolar.xvg')<br>`    `parser.add\_argument("-bs", "--bootstrap", help='If given, Enable Boot Strap analysis',action="store\_true")<br>`    `parser.add\_argument("-nbs", "--nbstep", help='Number of boot strap steps for average energy calculation',action="store", type=int, default=500, metavar=500)<br>`    `parser.add\_argument("-of", "--outfr", help='Energy File: All energy components frame wise',action="store",default='full\_energy.dat', metavar='full\_energy.dat')<br>`    `parser.add\_argument("-os",<br>` `"--outsum", help='Final Energy File: Full Summary of energy components',action="store",default='summary\_energy.dat', metavar='summary\_energy.dat')<br>`    `parser.add\_argument("-om", "--outmeta", help='Final Energy File for Multiple Complexes: Complex wise final binding nergy',action="store",default='meta\_energy.dat',metavar='meta\_energy.dat')<br><br>`    `if len(sys.argv) < 2:<br>`        `print('ERROR: No input files. Need help!!!')<br>`        `parser.print\_help()<br>`        `sys.exit(1)<br><br>`    `args = parser.parse\_args()<br><br>`    `if args.multiple:<br>`        `if not os.path.exists(args.metafile):<br>`            `print('\nERROR: {0} not found....\n' .format(args.metafile))<br>`            `parser.print\_help()<br>`            `sys.exit(1)<br>`    `else:<br>`        `if not os.path.exists(args.molmech):<br>`            `print('\nERROR: {0} not found....\n' .format(args.molmech))<br>`            `parser.print\_help()<br>`            `sys.exit(1)<br>`        `if not os.path.exists(args.polar):<br>`            `print('\nERROR: {0} not found....\n' .format(args.polar))<br>`            `parser.print\_help()<br>`            `sys.exit(1)<br>`        `if not os.path.exists(args.apolar):<br>`            `print('\nERROR: {0} not found....\n' .format(args.apolar))<br>`            `parser.print\_help()<br>`            `sys.exit(1)<br><br>`    `return args<br><br>def ReadData(FileName,n=2):<br>`    `try:<br>`        `infile = open(FileName,'r')<br>`    `except:<br>`        `raise IOError('Could not open file {0} for reading. \n' .format(FileName))<br><br>`    `x, data = [],[]<br>`    `for line in infile:<br>`        `line = line.rstrip('\n')<br>`        `if not line.strip():<br>`            `continue<br>`        `if(re.match('#|@',line)==None):<br>`            `temp = line.split()<br>`            `data.append(np.array(temp))<br>`    `for j in range(0,n):<br>`        `x\_temp =[]<br>`        `for i in range(len(data)):<br>`            `try:<br>`                `value = float(data[i][j])<br>`            `except:<br>`                `raise FloatingPointError('\nCould not convert {0} to floating point number.. Something is wrong in {1}..\n' .format(data[i][j], FileName))<br><br>`            `x\_temp.append(value)<br>`        `x.append(x\_temp)<br>`    `return x<br><br>def ComplexBootStrap(x,step=1000):<br>`    `avg =[]<br>`    `x = np.array(x)<br>`    `n = len(x)<br>`    `idx = np.random.randint(0,n,(step,n))<br>`    `sample\_x = x[idx]<br>`    `avg = np.sort(np.mean(sample\_x,1))<br>`    `CI\_min = avg[int(0.005\*step)]<br>`    `CI\_max = avg[int(0.995\*step)]<br>`    `#print('Energy = %13.3f; Confidance Interval = (-%-5.3f / +%-5.3f)\n' % (np.mean(avg), (np.mean(avg)-CI\_min), (CI\_max-np.mean(avg))))<br>`    `return avg, np.mean(avg), np.std(avg), [(np.mean(avg)-CI\_min), (CI\_max-np.mean(avg))]<br><br>def BootStrap (x,step=1000):<br>`    `if(np.mean(x)) == 0:<br>`        `return 0.000, 0.000<br>`    `else:<br>`        `avg =[]<br>`        `x = np.array(x)<br>`        `n = len(x)<br>`        `idx = np.random.randint(0,n,(step,n))<br>`        `sample\_x = x[idx]<br>`        `avg = np.sort(np.mean(sample\_x,1))<br>`        `return np.mean(avg),np.std(avg)<br><br>def find\_nearest\_index(array,value):<br>`    `idx = (np.abs(array-value)).argmin()<br>`    `return idx<br><br>def ReadMetafile(metafile):<br>`    `MmFile,PolFile, APolFile = [], [], []<br>`    `FileList = open(metafile,'r')<br>`    `for line in FileList:<br>`        `line = line.rstrip('\n')<br>`        `if not line.strip():<br>`            `continue<br>`        `temp = line.split()<br>`        `MmFile.append(temp[0])<br>`        `PolFile.append(temp[1])<br>`        `APolFile.append(temp[2])<br><br>`        `if not os.path.exists(temp[0]):<br>`            `raise IOError('Could not open file {0} for reading. \n' .format(temp[0]))<br><br>`        `if not os.path.exists(temp[1]):<br>`            `raise IOError('Could not open file {0} for reading. \n' .format(temp[1]))<br><br>`        `if not os.path.exists(temp[2]):<br>`            `raise IOError('Could not open file {0} for reading. \n' .format(temp[2]))<br><br>`    `return MmFile, PolFile, APolFile<br><br>if \_\_name\_\_=="\_\_main\_\_":<br>`    `main()|
-| - |
+### 24. Paralelización
+
+Ejecución serial:
+
+~~~bash
+gmx_MMPBSA -O \
+    -i mmpbsa_gb.in \
+    -cs md.tpr \
+    -ct md_fit.xtc \
+    -ci index.ndx \
+    -cg Receptor Ligando \
+    -cp topol.top \
+    -cr reference.pdb \
+    -nogui
+~~~
+
+Con MPI:
+
+~~~bash
+mpirun -np 4 gmx_MMPBSA -O \
+    -i mmpbsa_gb.in \
+    -cs md.tpr \
+    -ct md_fit.xtc \
+    -ci index.ndx \
+    -cg Receptor Ligando \
+    -cp topol.top \
+    -cr reference.pdb \
+    -nogui
+~~~
+
+No use **gmx_mpi** dentro de esta ejecución MPI. La documentación indica usar **gmx**, porque las herramientas auxiliares de GROMACS no se benefician del MPI de **mdrun** y pueden entrar en conflicto con **mpirun**.
+
+El escalamiento deja de mejorar cuando el número de procesos se aproxima al número de marcos o domina la carga de topologías.
+
+### 25. Análisis gráfico
+
+~~~bash
+gmx_MMPBSA_ana \
+    -f FINAL_RESULTS_MMPBSA.dat
+~~~
+
+El analizador permite revisar términos, evolución temporal, descomposición y exportar gráficos. En HPC use los archivos DAT y CSV, y abra el analizador en una estación con entorno gráfico.
+
+Conserve:
+
+~~~text
+FINAL_RESULTS_MMPBSA.dat
+FINAL_RESULTS_MMPBSA.csv
+FINAL_DECOMP_MMPBSA.dat
+FINAL_DECOMP_MMPBSA.csv
+gmx_MMPBSA.log
+mmpbsa.in
+~~~
+
+No conserve únicamente una captura del valor final.
+
+### 26. Unidades
+
+Las salidas heredadas de AmberTools suelen expresarse en kcal·mol⁻¹. Verifique siempre el encabezado del archivo.
+
+\[
+1\ \mathrm{kcal\,mol^{-1}}
+=
+4.184\ \mathrm{kJ\,mol^{-1}}
+\]
+
+Ejemplo:
+
+\[
+-28.6\ \mathrm{kcal\,mol^{-1}}
+=
+-119.7\ \mathrm{kJ\,mol^{-1}}
+\]
+
+No mezcle resultados antiguos de **g_mmpbsa**, que normalmente se informaban en kJ·mol⁻¹, con resultados de **gmx_MMPBSA** sin convertir unidades.
+
+En parámetros PB y GB aparecen además:
+
+- concentración y fuerza iónica en mol·L⁻¹;
+- radios y distancias en Å;
+- tensión superficial en kcal·mol⁻¹·Å⁻².
+
+### 27. Relación con afinidad experimental
+
+Bajo estados estándar compatibles:
+
+\[
+\Delta G^\circ_{\mathrm{bind}}
+=
+RT\ln K_d
+=
+-RT\ln K_a
+\]
+
+A 298.15 K:
+
+\[
+RT=2.47896\ \mathrm{kJ\,mol^{-1}}
+=0.59248\ \mathrm{kcal\,mol^{-1}}
+\]
+
+Entonces:
+
+\[
+K_d=
+\exp
+\left(
+\frac{\Delta G^\circ_{\mathrm{bind}}}{RT}
+\right)
+\]
+
+Esta conversión solo es válida para una energía libre estándar completa. No convierta directamente un MM/GBSA sin entropía ni correcciones en un \(K_d\) “predicho”.
+
+Para rankings, compare correlación y error frente a datos experimentales usando la misma serie química y protocolo.
+
+### 28. Muestreo de marcos
+
+Más marcos muy correlacionados aportan menos información que marcos separados por encima del tiempo de autocorrelación.
+
+Evalúe:
+
+- distancia temporal entre marcos;
+- estabilidad del ligando;
+- cambios de pose;
+- RMSD del sitio;
+- bloques tempranos y tardíos;
+- réplicas independientes.
+
+Ejemplo conceptual:
+
+~~~text
+0–20 ns
+20–40 ns
+40–60 ns
+60–80 ns
+80–100 ns
+~~~
+
+Calcule MM/PBSA por bloque. Una media estable con bloques discrepantes no implica convergencia.
+
+La incertidumbre entre réplicas suele ser más informativa que el error interno calculado sobre marcos correlacionados.
+
+### 29. Sensibilidad del protocolo
+
+Repita una fracción representativa cambiando una variable por vez:
+
+- PB frente a GB;
+- conjunto de radios;
+- dieléctrico interno;
+- fuerza iónica;
+- inclusión de agua explícita estructural;
+- selección temporal;
+- intervalo entre marcos;
+- estado de protonación.
+
+Si el ranking cambia completamente ante modificaciones pequeñas y razonables, el resultado no es robusto.
+
+No elija retrospectivamente los parámetros que maximizan correlación sin validación externa: eso equivale a ajustar el método al conjunto.
+
+### 30. Agua estructural
+
+El protocolo estándar elimina agua explícita antes de evaluar el solvente implícito. Algunas aguas del sitio pueden mediar la unión y formar parte del receptor efectivo.
+
+La versión actual incluye ejemplos de ST MM/GBSA con aguas explícitas del receptor. Si se conservan:
+
+- seleccione aguas con criterios reproducibles;
+- mantenga identidades o sitios coherentes;
+- compruebe ocupación;
+- evite incluir aguas transitorias arbitrarias;
+- documente si pertenecen al receptor o al solvente.
+
+Una selección fija basada solo en una instantánea puede sesgar el resultado.
+
+### 31. Interpretación de componentes
+
+Una salida típica contiene:
+
+- **VDWAALS**: Lennard-Jones;
+- **EEL**: electrostática molecular;
+- **EGB** o **EPB**: solvatación polar;
+- **ESURF/ENPOLAR/EDISPER**: términos no polares según el modelo;
+- **GGAS**: contribución molecular;
+- **GSOLV**: contribución de solvatación;
+- **TOTAL**: suma reportada.
+
+No interprete cada componente como una magnitud experimental separable. Electrostatica molecular y solvatación polar suelen compensarse fuertemente.
+
+En algunos modos PB, la documentación advierte que la partición entre **GGAS** y **GSOLV** no conserva la interpretación habitual aunque **TOTAL** siga siendo válido. Lea el log antes de interpretar columnas.
+
+### 32. Comparación entre ligandos
+
+Para comparar una serie:
+
+- mismo receptor y estado de protonación;
+- mismo campo de fuerza;
+- mismo modelo PB/GB;
+- mismas opciones y radios;
+- temperatura equivalente;
+- ventanas temporales comparables;
+- número de réplicas similar;
+- mismo tratamiento de aguas;
+- misma definición del receptor.
+
+Reporte:
+
+\[
+\Delta\Delta G_i
+=
+\Delta G_i-
+\Delta G_{\mathrm{referencia}}
+\]
+
+Las diferencias relativas suelen ser más útiles que valores absolutos, pero no eliminan sesgos específicos de cada grupo funcional.
+
+### 33. Errores frecuentes
+
+- Confundir g_mmpbsa con gmx_MMPBSA.
+- Descargar ejecutables antiguos y copiar **pbsa.py**.
+- Usar **pbsa.mdp** con la interfaz nueva.
+- Describir MM/PBSA como FEP con λ.
+- Afirmar que umbrella sampling es obligatorio.
+- Omitir **-cp topol.top** en la versión actual.
+- Usar un PDB sin parámetros para el ligando.
+- Seleccionar grupos solapados o equivocados.
+- Copiar números de grupo de otro sistema.
+- Analizar una trayectoria rota por PBC.
+- Permitir que el ligando quede lejos del receptor.
+- Mezclar topología y TPR con distinto orden atómico.
+- Suponer compatibilidad automática de cualquier topología CHARMM.
+- Tratar concentración de sal como fuerza iónica para sales multivalentes.
+- Elegir dieléctricos para reproducir un resultado esperado.
+- Interpretar TOTAL sin conocer sus unidades.
+- Convertir un resultado sin entropía directamente en \(K_d\).
+- Tratar marcos correlacionados como réplicas.
+- Usar descomposición como prueba causal.
+- Paralelizar NMODE hasta agotar memoria.
+- Usar **gmx_mpi** bajo **mpirun** con gmx_MMPBSA.
+- Informar muchos decimales sin incertidumbre entre réplicas.
+
+### 34. Controles mínimos
+
+Antes de aceptar el resultado:
+
+- instalación verificada;
+- topología convertida sin errores;
+- ligando parametrizado;
+- grupos comprobados;
+- referencia con cadenas correctas;
+- trayectoria entera y ajustada;
+- marcos posteriores a la equilibración;
+- resultado estable por bloques;
+- réplicas compatibles;
+- sensibilidad a PB/GB o dieléctricos evaluada;
+- entropía incluida o ausencia declarada;
+- unidades confirmadas;
+- componentes interpretados con cautela.
+
+### 35. Información mínima para reproducibilidad
+
+Informe:
+
+- versión de gmx_MMPBSA;
+- versiones de GROMACS, AmberTools y ParmEd;
+- sistema operativo o entorno;
+- campo de fuerza y modelo de agua;
+- parametrización del ligando;
+- archivos y grupos usados;
+- protocolo ST o MT;
+- cantidad y separación temporal de marcos;
+- bloques namelist completos;
+- radios, dieléctricos y fuerza iónica;
+- método entrópico;
+- número de procesos;
+- réplicas;
+- unidades;
+- criterio de incertidumbre;
+- tratamiento de aguas y membranas.
+
+### Fuentes
+
+1. [Inicio y requisitos de gmx_MMPBSA](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/getting-started/)
+2. [Instalación actual](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/installation/)
+3. [Funcionamiento y preparación de topologías](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/howworks/)
+4. [Interfaz de línea de comandos](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/gmx_MMPBSA_command-line/)
+5. [Ejemplos oficiales](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/examples/)
+6. [Ejemplo proteína–ligando ST](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/examples/Protein_ligand/ST/)
+7. [Ejemplo de descomposición](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/examples/Decomposition_analysis/)
+8. [Ejemplo de Interaction Entropy](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/examples/Entropy_calculations/Interaction_Entropy/)
+9. [Artículo original de gmx_MMPBSA](https://pubs.acs.org/doi/10.1021/acs.jctc.1c00645)
+
 
 Interacción energética lineal (Linear Interaction Energy)
 
