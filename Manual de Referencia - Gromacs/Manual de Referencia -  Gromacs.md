@@ -2310,301 +2310,679 @@ Para una proteína monomérica formada exclusivamente por aminoácidos estándar
 4. [Referencia de gmx solvate](https://manual.gromacs.org/current/onlinehelp/gmx-solvate.html)
 5. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
 
-Sistema bifásico
+## Sistema bifásico
 
-Modelo de dos solventes: octanol-agua
+### Modelo de dos solventes: 1-octanol–agua
 
-El empleo de moléculas que no están hechas de residuos estándar hace que debamos crear los archivos de topología a mano.
+Un sistema bifásico permite estudiar la distribución de moléculas entre dos medios líquidos, la estructura de la interfaz, la penetración mutua de los solventes y, con un protocolo específico, propiedades como el coeficiente de partición. El sistema no debe tratarse como una caja acuosa convencional: contiene dos fases condensadas, dos interfaces por las condiciones periódicas de contorno y una composición que cambia durante la equilibración.
 
-Diseño de la molécula de 1-octanol en Chimera con SMILES CCCCCCCCOH.
+Este ejemplo describe la construcción de una capa de 1-octanol en contacto con agua. Los nombres de archivos, residuos y tipos atómicos son ejemplos; deben coincidir exactamente con la parametrización utilizada.
 
+El flujo recomendado es:
 
-Creación del MOL2 y parametrización con SwissParam. Nos deja los siguientes archivos.
+~~~text
+parametrización del 1-octanol
+    ↓
+validación de una molécula aislada
+    ↓
+construcción del líquido de 1-octanol
+    ↓
+EM y equilibración del líquido puro
+    ↓
+ampliación de la caja en z
+    ↓
+incorporación del agua
+    ↓
+EM → NVT → NPT o NVT de interfaz
+    ↓
+producción y perfiles a lo largo de z
+~~~
 
-octanol.pdb
+### 1. Decidir qué sistema físico se quiere representar
 
-MODEL        1
+Antes de construir la caja, defina:
 
-ATOM      1  C1  OCT     1       1.781   6.660   7.966  1.00  0.00      OCT
+- temperatura y presión;
+- campo de fuerza y modelo de agua;
+- dimensiones laterales de la interfaz;
+- espesor mínimo de cada fase;
+- composición inicial;
+- presencia de solutos, iones o contraiones;
+- duración de la equilibración;
+- observable que se calculará.
 
-ATOM      2  C2  OCT     1       2.415   6.424   6.605  1.00  0.00      OCT
+El sistema inicial puede contener 1-octanol puro y agua pura, pero las fases de equilibrio no serán químicamente puras: parte del agua ingresará en la región rica en octanol y parte del octanol ingresará en la región acuosa. Para estudios de partición conviene considerar fases previamente saturadas o equilibrar el sistema durante un tiempo suficiente. Una configuración visualmente separada no demuestra que se haya alcanzado el equilibrio composicional.
 
-ATOM      3  C3  OCT     1       2.320   4.955   6.192  1.00  0.00      OCT
+Debido a la periodicidad, una lámina de octanol rodeada por agua genera normalmente dos interfaces aproximadamente paralelas al plano xy. El tamaño de la caja en z debe evitar que ambas interfaces interactúen de manera artificial.
 
-...
+### 2. Parametrización del 1-octanol
 
-...
+El 1-octanol no es un residuo proteico estándar y no debe procesarse con **gmx pdb2gmx** como si fuera un aminoácido. Se necesitan:
 
-...
+- coordenadas tridimensionales;
+- topología molecular;
+- tipos atómicos;
+- cargas parciales;
+- parámetros enlazados;
+- parámetros de Lennard-Jones compatibles con el campo de fuerza;
+- reglas de combinación coherentes con el resto del sistema.
 
-ATOM     26  H17 OCT     1       3.589   1.893   0.514  1.00  0.00      OCT
+SMILES del 1-octanol:
 
-ATOM     27  H18 OCT     1       3.960   0.225   1.009  1.00  0.00      OCT
+~~~text
+CCCCCCCCO
+~~~
 
-TER      28      OCT      1
+La fórmula **CCCCCCCCOH** puede ser interpretada por algunos programas, pero el SMILES convencional es **CCCCCCCCO**; el hidrógeno del grupo hidroxilo se agrega según la valencia.
 
-ENDMDL
+SwissParam genera parámetros compatibles con la familia CHARMM y puede ser útil para una prueba inicial. No convierte automáticamente esos parámetros en una parametrización validada para propiedades de partición o de interfaz. Para un trabajo cuantitativo deben comprobarse, al menos:
 
-octanol.itp:
+- carga total igual a cero;
+- geometría y conformaciones;
+- densidad del líquido;
+- entalpía de vaporización, si corresponde;
+- solubilidad mutua con agua;
+- distribución de cargas;
+- compatibilidad exacta con la versión del campo de fuerza.
 
-; ----
+No mezcle una topología generada para CHARMM con un campo AMBER, GROMOS u OPLS. Tampoco copie bloques **[ atomtypes ]** sin comprobar si los nombres ya existen: dos tipos con el mismo nombre y parámetros diferentes invalidan la topología.
 
-; Built itp for octanol.mol2
+Una organización sencilla es:
 
-;    by user vzoete
+~~~text
+00_parametros/
+    octanol.gro
+    octanol.itp
+    octanol_atomtypes.itp
+01_octanol_liquido/
+02_interfaz/
+03_em/
+04_nvt/
+05_npt/
+06_md/
+07_analisis/
+topol.top
+~~~
 
-; ----
+### 3. Revisar la topología molecular
 
-;
+El archivo **octanol.itp** debe contener un único **[ moleculetype ]** y las secciones moleculares correspondientes:
 
-[ atomtypes ]
-
-; name at.num  mass   charge  ptype    sigma            epsilon
-
-CR      6   12.0110  0.0  A         0.387541    0.230120
-
-…
-
-…
-
-…
-
+~~~ini
 [ moleculetype ]
-
-; Name nrexcl
-
-OCT 3
+; nombre    nrexcl
+OCT         3
 
 [ atoms ]
+; nr  tipo  resnr  residuo  átomo  cgnr  carga  masa
+; ...
 
-; nr type resnr resid atom cgnr charge mass
+[ bonds ]
+; ...
 
-`   `1 CR   1  OCT C1      1  0.0000  12.0110
+[ pairs ]
+; ...
 
-…
+[ angles ]
+; ...
 
-topol.top (creado a mano):
+[ dihedrals ]
+; ...
+~~~
 
-; Include forcefield parameters
+Si el generador entrega tipos atómicos nuevos, colóquelos en un archivo separado que se incluya inmediatamente después del campo de fuerza y antes de **octanol.itp**:
 
-#include "charmm27.ff/forcefield.itp"
+~~~ini
+#include "campo_de_fuerza.ff/forcefield.itp"
+#include "00_parametros/octanol_atomtypes.itp"
+#include "00_parametros/octanol.itp"
+~~~
 
-[ atomtypes ]
+No coloque **[ atomtypes ]** después de haber comenzado una definición **[ moleculetype ]**. El preprocesador de topologías exige un orden específico de directivas.
 
-; name at.num  mass   charge  ptype    sigma            epsilon
+Compruebe que la coordenada de una molécula aislada tenga exactamente los mismos átomos, nombres y orden que la sección **[ atoms ]**:
 
-CR      6   12.0110  0.0  A         0.387541    0.230120
+~~~bash
+gmx check -f 00_parametros/octanol.gro
+~~~
 
-…
+Para inspeccionar la topología expandida:
 
-`   `9 1 1000 1000 1000
+~~~bash
+gmx grompp \
+    -f em_single.mdp \
+    -c 00_parametros/octanol.gro \
+    -p topol_single.top \
+    -o octanol_single.tpr \
+    -pp octanol_single_processed.top
+~~~
 
-#endif
+No use **-maxwarn** para ocultar incompatibilidades.
 
-; Include water topology
+### 4. Calcular el número inicial de moléculas
 
-#include "charmm27.ff/tip3p.itp"
+El número de moléculas no debe elegirse de manera arbitraria. A partir de una densidad objetivo:
+
+\[
+N = \frac{\rho V N_\mathrm{A}}{M}
+\]
+
+donde:
+
+- \(N\) es el número de moléculas;
+- \(\rho\) es la densidad;
+- \(V\) es el volumen;
+- \(N_\mathrm{A}\) es la constante de Avogadro;
+- \(M\) es la masa molar.
+
+Para usar \(\rho\) en g·cm⁻³, \(V\) en nm³ y \(M\) en g·mol⁻¹:
+
+\[
+N = \frac{\rho\,V\,10^{-21}\,N_\mathrm{A}}{M}
+\]
+
+porque:
+
+\[
+1\ \mathrm{nm^3}=10^{-21}\ \mathrm{cm^3}
+\]
+
+Para 1-octanol, \(M = 130.23\ \mathrm{g\,mol^{-1}}\). Usando como ejemplo \(\rho \approx 0.827\ \mathrm{g\,cm^{-3}}\) y una caja de 5 × 5 × 5 nm:
+
+\[
+V=125\ \mathrm{nm^3}
+\]
+
+\[
+N \approx 478\ \text{moléculas}
+\]
+
+Por lo tanto, 500 moléculas son razonables como punto de partida para una caja cercana a 5 nm por lado. En cambio, 500 moléculas en 10 × 10 × 10 nm corresponden aproximadamente a:
+
+\[
+\rho \approx 0.108\ \mathrm{g\,cm^{-3}}
+\]
+
+Ese sistema está muy subdensificado y contiene grandes huecos. La presión NPT inicial puede ser extrema y la caja tendría que contraerse de manera drástica.
+
+La densidad experimental utilizada debe corresponder a la temperatura del protocolo. El valor inicial solo aproxima el volumen; la caja debe equilibrarse con el modelo molecular elegido.
+
+### 5. Construir el líquido de 1-octanol
+
+Centre una molécula y asegúrese de que las coordenadas estén expresadas en nanómetros:
+
+~~~bash
+gmx editconf \
+    -f 00_parametros/octanol.gro \
+    -o 00_parametros/octanol_centered.gro \
+    -center 0 0 0
+~~~
+
+Inserte las moléculas en una caja inicial de 5 × 5 × 5 nm:
+
+~~~bash
+mkdir -p 01_octanol_liquido
+
+gmx insert-molecules \
+    -ci 00_parametros/octanol_centered.gro \
+    -nmol 500 \
+    -box 5 5 5 \
+    -try 500 \
+    -seed 2026 \
+    -o 01_octanol_liquido/octanol_box.gro
+~~~
+
+**gmx insert-molecules** evita solapamientos mediante radios atómicos, pero no garantiza que el número solicitado pueda insertarse. Revise la línea final y use el número realmente añadido en **[ molecules ]**.
+
+Si no logra insertar todas las moléculas:
+
+- aumente moderadamente la caja;
+- incremente **-try**;
+- revise radios y nombres atómicos;
+- inserte una cantidad menor y comprima durante una equilibración controlada;
+- no reduzca agresivamente **-scale** sin inspeccionar los contactos creados.
+
+No use una semilla aleatoria indefinida si desea reproducibilidad.
+
+Topología inicial:
+
+~~~ini
+#include "campo_de_fuerza.ff/forcefield.itp"
+#include "00_parametros/octanol_atomtypes.itp"
+#include "00_parametros/octanol.itp"
 
 [ system ]
-
-; Name
-
-Octanol en agua
+1-octanol líquido
 
 [ molecules ]
+; molécula    cantidad
+OCT           500
+~~~
+
+El nombre **OCT** debe ser idéntico al definido en **[ moleculetype ]**.
+
+### 6. Minimizar el líquido de 1-octanol
+
+Archivo **em_octanol.mdp**:
+
+~~~ini
+title           = Minimización del líquido de 1-octanol
+integrator      = steep
+nsteps          = 50000
+emtol           = 1000.0
+emstep          = 0.01
+
+cutoff-scheme   = Verlet
+nstlist         = 20
+rlist           = 1.2
+coulombtype     = PME
+rcoulomb        = 1.2
+vdwtype         = Cut-off
+rvdw            = 1.2
+pbc             = xyz
+~~~
+
+Los cortes son ejemplos. Deben reemplazarse por los valores recomendados para el campo de fuerza seleccionado.
+
+~~~bash
+mkdir -p 03_em
+
+gmx grompp \
+    -f em_octanol.mdp \
+    -c 01_octanol_liquido/octanol_box.gro \
+    -p topol.top \
+    -o 03_em/octanol_em.tpr \
+    -pp 03_em/octanol_processed.top
+
+gmx mdrun \
+    -deffnm 03_em/octanol_em \
+    -v
+~~~
+
+Revise energía potencial, fuerza máxima, contactos anómalos y valores NaN. La convergencia numérica de la minimización no demuestra que la densidad o la estructura del líquido sean correctas.
+
+### 7. Equilibrar primero la fase de 1-octanol
+
+Una trayectoria de 1 ps es insuficiente para equilibrar un líquido construido por inserción aleatoria. Use primero NVT para estabilizar la temperatura y luego NPT para ajustar densidad y volumen.
+
+Ejemplo NVT:
+
+~~~ini
+title           = NVT del 1-octanol
+integrator      = md
+dt              = 0.002
+nsteps          = 250000
+continuation    = no
+gen-vel         = yes
+gen-temp        = 300
+gen-seed        = 2026
+
+constraints     = h-bonds
+tcoupl          = V-rescale
+tc-grps         = System
+tau-t           = 1.0
+ref-t           = 300
 
-; Compound        #mols
+pcoupl          = no
+pbc             = xyz
+~~~
+
+Con 250000 pasos de 0.002 ps se simulan 500 ps.
+
+~~~bash
+mkdir -p 04_nvt
 
-OCT                500
+gmx grompp \
+    -f nvt_octanol.mdp \
+    -c 03_em/octanol_em.gro \
+    -p topol.top \
+    -o 04_nvt/octanol_nvt.tpr
 
-Insertar 500 moléculas en un box de 10x10x10 nm (Esto fue adrede!!!). Verificar que realmente estén insertadas.
+gmx mdrun \
+    -deffnm 04_nvt/octanol_nvt \
+    -v
+~~~
 
-| gmx insert-molecules -ci octanol.pdb -nmol 500 -box 10 10 10 -o octanol\_box.pdb |
-| -------------------------------------------------------------------------------- |
+Ejemplo NPT isotrópico:
+
+~~~ini
+title            = NPT del 1-octanol
+integrator       = md
+dt               = 0.002
+nsteps           = 2500000
+continuation     = yes
+gen-vel          = no
+
+constraints      = h-bonds
+tcoupl           = V-rescale
+tc-grps          = System
+tau-t            = 1.0
+ref-t            = 300
 
-Try 692 success (now 13500 atoms)!
+pcoupl            = C-rescale
+pcoupltype        = isotropic
+tau-p             = 5.0
+ref-p             = 1.0
+compressibility   = 8.0e-5
 
-Added 500 molecules (out of 500 requested)
+pbc              = xyz
+~~~
 
-Writing generated configuration to octanol\_box.pdb
+Aquí se simulan 5 ns. La compresibilidad es un valor inicial ilustrativo y debe reemplazarse por un valor justificado para el líquido y las condiciones elegidas.
 
-Back Off! I just backed up octanol\_box.pdb to ./#octanol\_box.pdb.1#
+~~~bash
+mkdir -p 05_npt
 
-Output configuration contains 13500 atoms in 500 residues
+gmx grompp \
+    -f npt_octanol.mdp \
+    -c 04_nvt/octanol_nvt.gro \
+    -t 04_nvt/octanol_nvt.cpt \
+    -p topol.top \
+    -o 05_npt/octanol_npt.tpr
 
-Minimización
+gmx mdrun \
+    -deffnm 05_npt/octanol_npt \
+    -v
+~~~
 
-| gmx grompp -f em.mdp -c octanol\_box.pdb -p topol.top -o em.tpr<br><br>gmx mdrun -v -deffnm em |
-| ---------------------------------------------------------------------------------------------- |
+Controle densidad, volumen, presión y energía:
 
-Da
+~~~bash
+(echo Density; echo Volume; echo Pressure; echo Potential; echo 0) | \
+gmx energy \
+    -f 05_npt/octanol_npt.edr \
+    -o 07_analisis/octanol_bulk_properties.xvg
+~~~
 
-Step=  454, Dmax= 9.7e-04 nm, Epot= -2.81080e+04 Fmax= 5.22059e+02, atom= 90
+La presión instantánea tiene fluctuaciones grandes. Compare promedios por bloques y compruebe que densidad y volumen hayan alcanzado una región estacionaria.
 
-Step=  456, Dmax= 5.8e-04 nm, Epot= -2.81090e+04 Fmax= 8.10068e+01, atom= 90
+### 8. Preparar la lámina de 1-octanol
 
-writing lowest energy coordinates.
+Use la última configuración equilibrada, no un PDB extraído arbitrariamente de una trayectoria. El formato GRO conserva la caja con precisión suficiente y evita pérdidas innecesarias de información.
 
-Steepest Descents converged to Fmax < 100 in 457 steps
+Primero consulte las dimensiones finales:
 
-Potential Energy  = -2.8108963e+04
+~~~bash
+gmx check -f 05_npt/octanol_npt.gro
+~~~
 
-Maximum force     =  8.1006821e+01 on atom 90
+Supóngase, solo como ejemplo, que la caja equilibrada mide aproximadamente 5 × 5 × 5 nm. Amplíe únicamente z para crear espacio para el agua:
 
-Norm of force     =  4.3152623e+00
+~~~bash
+mkdir -p 02_interfaz
 
-Equilibrado NVT
+gmx editconf \
+    -f 05_npt/octanol_npt.gro \
+    -o 02_interfaz/octanol_slab_box.gro \
+    -box 5 5 12 \
+    -center 2.5 2.5 6.0
+~~~
 
-| gmx grompp -f nvt.mdp -c em.gro -p topol.top -o nvt.tpr |
-| ------------------------------------------------------- |
+Use los valores reales de \(L_x\) y \(L_y\) de la fase equilibrada. Cambiarlos en este paso impone una deformación lateral. La región vacía debe quedar distribuida a ambos lados de la lámina para generar dos interfaces equivalentes.
 
-Calculating fourier grid dimensions for X Y Z
+Compruebe visualmente:
 
-Using a fourier grid of 84x84x84, spacing 0.119 0.119 0.119
+- que el octanol forme una única lámina continua;
+- que no quede dividido por una representación incorrecta de PBC;
+- que exista espacio suficiente para el agua;
+- que los grupos hidroxilo no hayan sido orientados artificialmente de forma uniforme.
 
-Estimate for the relative computational load of the PME mesh part: 0.46
+### 9. Incorporar el agua
 
-This run will generate roughly 4 Mb of data
+Incluya la topología de agua compatible con el campo de fuerza antes de la sección **[ system ]**:
 
-Y
+~~~ini
+#include "campo_de_fuerza.ff/forcefield.itp"
+#include "00_parametros/octanol_atomtypes.itp"
+#include "00_parametros/octanol.itp"
+#include "campo_de_fuerza.ff/modelo_de_agua.itp"
 
-| gmx mdrun -v -deffnm nvt |
-| ------------------------ |
+[ system ]
+Interfaz 1-octanol–agua
 
-500 steps,      1.0 ps.
+[ molecules ]
+; molécula    cantidad
+OCT           500
+~~~
 
-step 400, remaining wall clock time:     1 s
+Solvate usando explícitamente una caja de agua:
 
-Writing final coordinates.
+~~~bash
+gmx solvate \
+    -cp 02_interfaz/octanol_slab_box.gro \
+    -cs spc216.gro \
+    -o 02_interfaz/octanol_water.gro \
+    -p topol.top
+~~~
 
-step 500, remaining wall clock time:     0 s
+**spc216.gro** aporta una configuración geométrica de agua de tres sitios; la interacción efectiva queda definida por la topología incluida. Verifique que el modelo de agua sea el recomendado para el campo de fuerza.
 
-`               `Core t (s)   Wall t (s)        (%)
+**gmx solvate** elimina moléculas que solapan con el octanol y actualiza el número de agua en **[ molecules ]**. La salida final debe quedar, por ejemplo:
 
-`       `Time:       34.562        9.782      353.3
+~~~ini
+[ molecules ]
+; molécula    cantidad
+OCT           500
+SOL           4442
+~~~
 
-`                 `(ns/day)    (hour/ns)
+El valor 4442 no es universal. Depende de las dimensiones finales, la densidad de la lámina y los criterios geométricos de solvatación. Use el número informado por su propia ejecución.
 
-Performance:        8.850        2.712
+Revise el orden: las coordenadas contienen primero OCT y después SOL, por lo que **[ molecules ]** debe seguir el mismo orden.
 
-Equilibrado NPT
+Compruebe el sistema:
 
-| gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -p topol.top -o npt.tpr<br><br>gmx mdrun -v -deffnm npt |
-| --------------------------------------------------------------------------------------------------- |
+~~~bash
+gmx check -f 02_interfaz/octanol_water.gro
+~~~
 
-da
+### 10. Minimización y equilibración de la interfaz
 
-500 steps,      1.0 ps.
+La interfaz recién construida contiene contactos y una distribución no equilibrada de ambos líquidos. Ejecute nuevamente EM, NVT y una equilibración apropiada de volumen o área.
 
-step 400, remaining wall clock time:     2 s
+~~~bash
+gmx grompp \
+    -f em_interface.mdp \
+    -c 02_interfaz/octanol_water.gro \
+    -p topol.top \
+    -o 03_em/interface_em.tpr \
+    -pp 03_em/interface_processed.top
 
-Writing final coordinates.
+gmx mdrun \
+    -deffnm 03_em/interface_em \
+    -v
+~~~
 
-step 500, remaining wall clock time:     0 s
+NVT:
 
-`               `Core t (s)   Wall t (s)        (%)
+~~~bash
+gmx grompp \
+    -f nvt_interface.mdp \
+    -c 03_em/interface_em.gro \
+    -p topol.top \
+    -o 04_nvt/interface_nvt.tpr
 
-`       `Time:       39.250       11.431      343.4
+gmx mdrun \
+    -deffnm 04_nvt/interface_nvt \
+    -v
+~~~
 
-`                 `(ns/day)    (hour/ns)
+Para una interfaz plana existen dos estrategias principales:
 
-Performance:        7.573        3.169
+| Estrategia | Ventaja | Limitación |
+|---|---|---|
+| NPT semiisotrópico | Permite ajustar por separado el plano xy y el eje z. | Las fluctuaciones del área pueden modificar la interfaz. |
+| NVT con caja previamente equilibrada | Mantiene fija el área interfacial. | Requiere haber determinado antes dimensiones y densidades adecuadas. |
 
-Corrida MD
+Ejemplo NPT semiisotrópico:
 
-| gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md.tpr<br><br>gmx mdrun -v -deffnm md |
-| ------------------------------------------------------------------------------------------------ |
+~~~ini
+pcoupl            = C-rescale
+pcoupltype        = semiisotropic
+tau-p             = 5.0
+ref-p             = 1.0 1.0
+compressibility   = 4.5e-5 4.5e-5
+~~~
 
-Da
+Los dos valores corresponden al plano xy y al eje z. No copie automáticamente la compresibilidad del agua para todo el sistema: debe justificarse según el protocolo y comprobarse que la caja no derive o colapse.
 
-step 0
+El acoplamiento por tensión superficial también existe, pero no debe utilizarse solo porque el sistema tenga una interfaz. Requiere una tensión objetivo y una interpretación consistente del ensamble.
 
-Writing final coordinates.
+Para producción, continúe desde el checkpoint:
 
-step 100, remaining wall clock time:     0 s
+~~~bash
+gmx grompp \
+    -f md_interface.mdp \
+    -c 05_npt/interface_npt.gro \
+    -t 05_npt/interface_npt.cpt \
+    -p topol.top \
+    -o 06_md/interface_md.tpr
 
-`               `Core t (s)   Wall t (s)        (%)
+gmx mdrun \
+    -deffnm 06_md/interface_md \
+    -v
+~~~
 
-`       `Time:       10.625        3.623      293.3
+### 11. Controles mínimos de la trayectoria
 
-`                 `(ns/day)    (hour/ns)
+Corrija únicamente la representación periódica necesaria para visualizar. No centre el sistema de una manera que desplace la interfaz entre fotogramas sin documentarlo.
 
-Performance:        4.817        4.982
+Extraiga una configuración:
 
-Extraigo el PDB de la MD
+~~~bash
+echo System | \
+gmx trjconv \
+    -s 06_md/interface_md.tpr \
+    -f 06_md/interface_md.xtc \
+    -o 07_analisis/interface_last.gro \
+    -dump 100000
+~~~
 
-| gmx trjconv -s md.tpr -f md.xtc -o OCT\_md.pdb -pbc whole -sep |
-| -------------------------------------------------------------- |
+El tiempo de **-dump** se expresa en ps. En este ejemplo, 100000 ps equivalen a 100 ns.
 
-Con esto logramos crear la fase de octanol y estabilizarla en “la conformación más natural”, ahora hay que poner el agua.
+Perfil de densidad de masa a lo largo de z:
 
-Solvatar
+~~~bash
+gmx density \
+    -s 06_md/interface_md.tpr \
+    -f 06_md/interface_md.xtc \
+    -n index.ndx \
+    -d Z \
+    -sl 200 \
+    -dens mass \
+    -o 07_analisis/density_z.xvg
+~~~
 
-Incremento el volumen en el eje z y coloco el centro en la mitad de la capa.
+Cree grupos separados para OCT y SOL y analice ambos perfiles. Un sistema bifásico equilibrado debe mostrar:
 
-| gmx editconf -f OCT\_md.pdb -o OCT\_newbox.pdb -box 10 10 20 -center 5 5 5 |
-| -------------------------------------------------------------------------- |
+- una región rica en agua;
+- una región rica en octanol;
+- dos zonas interfaciales;
+- densidades aproximadamente constantes en el centro de cada fase, si el espesor es suficiente;
+- ausencia de deriva sistemática del espesor o de la posición de la lámina.
 
-Da
+La anchura de la interfaz depende del binning. Repita el cálculo con distintos valores de **-sl** para verificar que la conclusión no sea un artefacto de discretización.
 
-Read 13500 atoms
+### 12. Propiedades y análisis adicionales
 
-Volume: 1006.16 nm^3, corresponds to roughly 452700 electrons
+#### Penetración mutua de los solventes
 
-No velocities found
+Los perfiles de densidad de OCT y SOL permiten estimar la presencia de agua en la fase rica en octanol y de octanol en la fase acuosa. Descarte la etapa transitoria y compare bloques temporales independientes.
 
-`    `system size : 11.314 11.315 11.702 (nm)
+#### Orientación del 1-octanol
 
-`    `center      :  5.177  5.077  5.076 (nm)
+Puede analizarse el ángulo entre el vector C1–O del 1-octanol y el eje z:
 
-`    `box vectors : 10.021 10.021 10.021 (nm)
+~~~bash
+gmx gangle \
+    -s 06_md/interface_md.tpr \
+    -f 06_md/interface_md.xtc \
+    -n index.ndx \
+    -g1 vector \
+    -group1 'vector connecting atomnr START END' \
+    -g2 z \
+    -oav 07_analisis/octanol_orientation.xvg
+~~~
 
-`    `box angles  :  90.00  90.00  90.00 (degrees)
+La selección debe adaptarse a los índices reales. Para obtener una distribución molecular completa puede ser necesario definir pares equivalentes para todas las moléculas.
 
-`    `box volume  :1006.16               (nm^3)
+#### Tensión interfacial
 
-`    `shift       : -2.677 -2.577 -2.576 (nm)
+Para una lámina con dos interfaces planas normales a z:
 
-new center      :  2.500  2.500  2.500 (nm)
+\[
+\gamma =
+\frac{L_z}{2}
+\left[
+P_{zz}-
+\frac{P_{xx}+P_{yy}}{2}
+\right]
+\]
 
-new box vectors :  5.000  5.000 10.000 (nm)
+El factor 1/2 aparece porque la caja periódica contiene dos interfaces. \(P_{xx}\), \(P_{yy}\) y \(P_{zz}\) son los componentes diagonales del tensor de presión.
 
-new box angles  :  90.00  90.00  90.00 (degrees)
+Extraiga los componentes con **gmx energy**:
 
-new box volume  : 250.00               (nm^3)
+~~~bash
+(echo Pres-XX; echo Pres-YY; echo Pres-ZZ; echo Box-Z; echo 0) | \
+gmx energy \
+    -f 06_md/interface_md.edr \
+    -o 07_analisis/pressure_tensor.xvg
+~~~
 
-Y
+La tensión interfacial converge lentamente porque el tensor de presión es ruidoso. Deben usarse trayectorias suficientemente largas, promedios por bloques y unidades consistentes. En GROMACS, presión se informa en bar y longitud en nm; el resultado no queda automáticamente en mN·m⁻¹ sin conversión.
 
-| gmx solvate -cp OCT\_newbox.pdb -p topol.top -o OCT\_solv.pdb |
-| ------------------------------------------------------------- |
+La equivalencia útil es:
 
-Found 1 molecule type:
+\[
+1\ \mathrm{bar\,nm}=0.1\ \mathrm{mN\,m^{-1}}
+\]
 
-`    `SOL (   3 atoms):  4442 residues
+#### Coeficiente de partición
 
-Generated solvent containing 13326 atoms in 4442 residues
+Contar espontáneamente un soluto en cada fase puede servir si ocurren muchas transiciones reversibles. Para moléculas con barreras altas, una única trayectoria suele quedar atrapada en una fase y no permite estimar un coeficiente de partición confiable. En esos casos se requieren métodos de energía libre y réplicas, no solo una caja bifásica más larga.
 
-Writing generated configuration to OCT\_solv.pdb
+### 13. Errores frecuentes
 
-Back Off! I just backed up OCT\_solv.pdb to ./#OCT\_solv.pdb.1#
+- Usar 500 moléculas en una caja de 10 nm por lado sin calcular la densidad.
+- Parametrizar octanol con un campo de fuerza y combinarlo con otro.
+- Duplicar tipos atómicos con nombres iguales.
+- Confundir el solvente de coordenadas **spc216.gro** con el modelo definido en la topología.
+- Conservar el número de moléculas solicitado cuando **insert-molecules** insertó menos.
+- Escribir **[ molecules ]** en un orden distinto al archivo de coordenadas.
+- Extraer un PDB intermedio y perder precisión de caja o velocidades sin necesidad.
+- Equilibrar solo 1 ps.
+- Interpretar separación visual como equilibrio termodinámico.
+- Calcular promedios incluyendo la construcción y relajación inicial.
+- Aplicar un barostato isotrópico a una interfaz sin evaluar la deformación del área.
+- Interpretar ausencia de cruces del soluto como evidencia de partición estable.
 
-Output configuration contains 26826 atoms in 4942 residues
+### 14. Criterios para iniciar la producción
 
-Volume                 :         250 (nm^3)
+Continúe únicamente cuando:
 
-Density                :      964.03 (g/l)
+- la carga y los tipos atómicos sean correctos;
+- la topología expandida no contenga conflictos;
+- el número y orden de moléculas coincidan con las coordenadas;
+- no existan huecos ni solapamientos graves;
+- el octanol puro reproduzca razonablemente la densidad objetivo;
+- temperatura, energía y dimensiones de caja sean estacionarias;
+- se hayan formado dos regiones de densidad definidas;
+- la fase rica en cada solvente tenga espesor suficiente;
+- las advertencias de **gmx grompp** estén comprendidas y resueltas;
+- el protocolo de producción y los análisis se hayan definido de antemano.
 
-Number of SOL molecules:   4442
+### Fuentes
 
-Processing topology
+1. [Preparación de sistemas en GROMACS 2026.3](https://manual.gromacs.org/current/user-guide/system-preparation.html)
+2. [Referencia de gmx insert-molecules](https://manual.gromacs.org/current/onlinehelp/gmx-insert-molecules.html)
+3. [Referencia de gmx solvate](https://manual.gromacs.org/current/onlinehelp/gmx-solvate.html)
+4. [Referencia de gmx editconf](https://manual.gromacs.org/current/onlinehelp/gmx-editconf.html)
+5. [Referencia de gmx trjconv](https://manual.gromacs.org/current/onlinehelp/gmx-trjconv.html)
+6. [Unidades de GROMACS](https://manual.gromacs.org/current/reference-manual/definitions.html)
+7. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
 
-Back Off! I just backed up temp.topIzLXjf to ./#temp.topIzLXjf.1#
 
-Removing line #448 'SOL             28275' from topology file (topol.top)
-
-Adding line for 4442 solvent molecules to topology file (topol.top)
-
-![ref4]Proceder en forma usual
 
 Proteína de membrana. Construcción de una bicapa e inserción de una acuaporina
 
