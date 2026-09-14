@@ -5,35 +5,33 @@
 Versión 2023.21.10.9.44
 
 > The greatest obstacle to discovery is not ignorance -- it is the illusion of knowledge.
-> 
+>
 > Never tell people how to do things. Tell them what to do and they will surprise you with their ingenuity.
-> 
+>
 > General George S. Patton
-> 
-> Desordené 
-> átomos tuyos 
-> para hacerte aparecer. 
-> 
+>
+> Desordené
+> átomos tuyos
+> para hacerte aparecer.
+>
 > Puente - Gustavo Cerati
-> 
+>
 > Jerry, just remember, it's not a lie if you believe it.
-> 
+>
 > George Costanza
-> 
+>
 > Sometimes
 > Only sometimes
 > I question everything
-> 
+>
 > Sometimes - Depeche Mode
-> 
+>
 > The laughter penetrates my silence
 > As drunken men find flaws in science
-> 
+>
 > Set The Fire To The Third Bar - Snow Patrol
-> 
+>
 # Estrategia para la simulación
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.003.png)
 
 
 # Instalación de GROMACS
@@ -1231,7 +1229,6 @@ NOTA: un caso más complejo se explica más adelante. Tal vez convenga leer las 
 
 Consideremos a la proteína 1OKE que consiste en dos cadenas, A y B, que están acompañadas por ocho moléculas, de las cuales dos son BOG unidas al sitio correspondiente a cada cadena. Ambas moléculas son idénticas, esto es, los BOG poseen los mismos tipos de átomos pero diferente conformación y posición.
 
-![https://cdn.rcsb.org/images/rutgers/ok/1oke/1oke.pdb1-500.jpg](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.021.jpeg)![https://cdn.rcsb.org/etl/ligand/img/B/BOG/BOG-large.png](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.022.png)
 
 Esto nos plante la pregunta: ¿las moléculas son idénticas? Sí. Son las mismas clases de átomos en ambas, sólo varían dónde están. Para generar la topología de ambas moléculas, puedo usar el MOL2 de cualquiera de ellas y emplear SwissParam para obtener el ITP y el PDB. Sin embargo, el ITP va a contener los mismos parámetros. Esto es clave[^39].
 
@@ -1437,7 +1434,7 @@ Editamos topol.top
 
 Edito el nvt.mdp
 
-define      = -DPOSRES  
+define      = -DPOSRES
 
 …
 
@@ -1451,7 +1448,7 @@ A continuación, un ejemplo con múltiples cadenas y dos moléculas del ligando
 
 Influenza A M2 transmembrane domain bound to amantadine
 
-6BKK. 
+6BKK.
 
 DOI: 10.2210/pdb6BKK/pdb
 
@@ -1459,15 +1456,12 @@ Classification: MEMBRANE PROTEIN
 
 Organism(s): Influenza A virus (strain A/Udorn/1972 H3N2)
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.023.png)
 
 La molécula cristalizada posee un catión y dos moléculas idénticas de amadantina.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.024.png)
 
 La estructura en 3D de cada cadena y ligando es,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.025.png)
 
 Extraigo ambas moléculas, las salvo en formato PDB desde Chimera. Separo las moléculas con un editor de texto y las transformo en MOL2 a través de Openbabel. Se obtienen los PDB e ITP correspondientes a ambas moléculas. Los ITP para ambas deberán contener la misma información, ya que son moléculas idénticas.
 
@@ -1550,7 +1544,7 @@ Agregado de las coordenadas de cada ligando al archivo protein-complex.pdb. Debe
 
 ATOM   3255  OT1 LEU H  46      58.573  24.017  55.778  1.00  0.00           O
 
-ATOM   3256  OT2 LEU H  46      58.474  24.287  55.844  1.00  0.00            
+ATOM   3256  OT2 LEU H  46      58.474  24.287  55.844  1.00  0.00
 
 TER
 
@@ -1835,11 +1829,11 @@ starting mdrun 'MATRIX PROTEIN 2 in water'
 
 20000 steps,     40.0 ps.
 
-step 19900, remaining wall clock time:     4 s          
+step 19900, remaining wall clock time:     4 s
 
 Writing final coordinates.
 
-step 20000, remaining wall clock time:     0 s          
+step 20000, remaining wall clock time:     0 s
 
 `               `Core t (s)   Wall t (s)        (%)
 
@@ -1862,14 +1856,12 @@ Van a figurar ambos en el mismo gráfico
 | gmx rms -s md.tpr -f md.xtc -o md\_rmsd.xvg |
 | ------------------------------------------- |
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.026.png)
 
 RMSD de la proteína, todas las cadenas juntas
 
 | gmx rms -s md.tpr -f md.xtc -o md\_rmsd-prot.xvg |
 | ------------------------------------------------ |
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.027.png)
 
 Dinámica de una proteína en agua
 
@@ -1960,7 +1952,7 @@ Proteina
 
 ; Compound        #mols
 
-Protein\_A           1     
+Protein\_A           1
 
 | #Creación de la caja (en este caso, puse un cubo)<br><br>gmx editconf -f protein\_proc.pdb -o protein\_newbox.pdb -c -d 1.0 -bt cubic<br><br>#Solvatar<br><br>gmx solvate -cp protein\_newbox.pdb -cs spc216.gro -o protein\_solv.pdb -p topol.top<br><br>#Neutralización<br><br>gmx grompp -f em.mdp -c protein\_solv.pdb -p topol.top -o ions.tpr<br><br>gmx genion -s ions.tpr -o protein\_neutral.pdb -p topol.top -pname NA -nname CL -neutral |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1977,13 +1969,12 @@ El empleo de moléculas que no están hechas de residuos estándar hace que deba
 
 Diseño de la molécula de 1-octanol en Chimera con SMILES CCCCCCCCOH.
 
-![Resultado de imagen para octanol](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.029.png)
 
 Creación del MOL2 y parametrización con SwissParam. Nos deja los siguientes archivos.
 
 octanol.pdb
 
-MODEL        1                  
+MODEL        1
 
 ATOM      1  C1  OCT     1       1.781   6.660   7.966  1.00  0.00      OCT
 
@@ -2011,7 +2002,7 @@ octanol.itp:
 
 ; Built itp for octanol.mol2
 
-;    by user vzoete     
+;    by user vzoete
 
 ; ----
 
@@ -2021,7 +2012,7 @@ octanol.itp:
 
 ; name at.num  mass   charge  ptype    sigma            epsilon
 
-CR      6   12.0110  0.0  A         0.387541    0.230120  
+CR      6   12.0110  0.0  A         0.387541    0.230120
 
 …
 
@@ -2053,7 +2044,7 @@ topol.top (creado a mano):
 
 ; name at.num  mass   charge  ptype    sigma            epsilon
 
-CR      6   12.0110  0.0  A         0.387541    0.230120  
+CR      6   12.0110  0.0  A         0.387541    0.230120
 
 …
 
@@ -2276,7 +2267,6 @@ Dado que las membranas biológicas son mezclas complicadas que son muy difícile
 
 Las bicapas lipídicas son bloques de construcción esenciales para las membranas biológicas . Ha habido un gran interés en sondear las membranas celulares ya que forman la estructura de los orgánulos celulares y sirven como una barrera para el transporte de materiales biológicos al citoplasma. Para las membranas lipídicas sin colesterol (o esteroles en general), existen tres fases principales que pueden existir: fluida (o líquido-cristalina) (Lα), ondulación (Pβ) y gel (Lβ). Líquido o líquido desordenado (con mezclas que contienen esteroles) es la fase más común en biología en la que las cadenas de ácidos grasos están completamente desordenadas. Esta fase se puede ver a altas temperaturas dependiendo del lípido en la membrana y las características de esta fase son la alta movilidad de los lípidos y la flexibilidad de la cadena. La fase L α ha sido ampliamente estudiada utilizando diversas técnicas experimentales y computacionales. Sin embargo, el enfoque de este artículo son las fases condensadas de una bicapa lipídica, es decir, P β y L β . El Lβ La fase se ve a temperaturas más bajas definidas por una temperatura de transición del gel. Las cadenas de acilo están más ordenadas y se componen de casi todas en la configuración trans.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.031.png)
 
 Entre la fase L α y L β puede existir una fase de pre transición que se cree que consiste en una configuración ondulada denominada fase P β , que no existe para todos los lípidos, como los que tienen colas insaturadas [ 7 ]. . Entre todos los lípidos, que tienen fase P β , 1,2-dimiristoil- sn -glicero-3-fosfocolina (DMPC) y 1,2-dipalmitoil- sn -glicero-fosfocolina (DPPC) son los lípidos más comunes, en los que P Se ha estudiado la β [ [8] , [9] , [10] ]. La formación de P β se puede obtener calentando la L βfase con cadenas inclinadas o enfriamiento de la fase L α [ 11 ]. Para la fase P β , se puede encontrar una región gruesa y delgada, que se definen principalmente en la literatura como un brazo mayor y menor ( Fig. 1 ), respectivamente [ 8 ]. La región de torcedura con cadenas de ácidos grasos interdigitadas podría existir entre los dominios del brazo mayor y del brazo menor. Se conoce la existencia de estos dos brazos, pero los detalles sobre la configuración precisa de los grupos de cabezas de lípidos y las colas de lípidos y cómo se diferencian entre las regiones se desconocen o se están debatiendo. Se ha investigado y sugerido la coexistencia tanto de L α como de L β en P β [ 12], es decir, el brazo mayor representa principalmente el L β y hay una pequeña región desordenada en la membrana que presenta la fase L α (brazo menor).
 
@@ -2289,17 +2279,13 @@ Entre la fase L α y L β puede existir una fase de pre transición que se cree 
 | di-14: 0    | 287\.15 a 297.15         |
 | di-16: 0    | 308,45 a 314,55          |
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.032.png)
 
 Desde su primer lanzamiento en 2007, CHARMM-GUI Membrane Builder, una herramienta basada en la web disponible públicamente ( <http://www.charmm-gui.org/input/membrane> ), ha facilitado enormemente la generación de sistemas de membranas complejos. Su primera implementación permitió a los usuarios construir un sistema complejo de proteína-membrana con tres tipos de lípidos. Después de un desarrollo y actualización continuos, Membrane Builder ahora admite bicapas heterogéneas, con o sin proteínas, utilizando más de 400 tipos de lípidos, incluidos fosfolípidos, fosfoinosítidos, cardiolipina, esfingolípidos, lípidos bacterianos, esteroles, ácidos grasos y detergentes, lo que permite a los usuarios construir biológicamente sistemas de membranas realistas y experimentalmente comparables. Es importante destacar que Membrane Builder también proporciona entradas de simulación bien validadas para varios programas de MD, como CHARMM, NAMD, GROMACS y AMBER permitiendo a los usuarios realizar una simulación de MD con su herramienta familiar.
 
 Ir a <https://www.charmm-gui.org/>
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.033.png)
-
-Por supuesto, podremos acceder a los tutoriales y papers que describen el funcionamiento. En realidad, recomiendo eso antes que este tutorial. Por qué? Tratan el funcionamiento completo del software, sus aplicaciones y sus limitaciones. 
+Por supuesto, podremos acceder a los tutoriales y papers que describen el funcionamiento. En realidad, recomiendo eso antes que este tutorial. Por qué? Tratan el funcionamiento completo del software, sus aplicaciones y sus limitaciones.
 
 Nuestro objetivo será crear un sistema compuesto por una proteína y una bicapa lipídica. Luego, ese sistema lo usaremos para correr una simulación de dinámica molecular. El mismo sistema será creado para dos tipos de simulaciones: all-atom y coarse grain.
 
@@ -2307,103 +2293,51 @@ All-Atom
 
 A la izquierda vamos a Input Generator
 
-![Interfaz de usuario gráfica
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.034.png)
 
 Inmediatamente, nos aparece una ventana de login. Se requiere un registro gratuito en el servidor.
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.035.png)
 
 El registro requiere una cuenta de mail académica. Parece que cualquier cosa .edu funciona. Después del registro entramos en el servidor.
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.036.png)
 
 Vamos a Membrane Builder. Obviamente, podríamos ir a Solution Builder y construir un sistema en solventes pero queremos algo más complejo.
 
-![Tabla
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.037.png)
 
 En Bilayer Builder encontraremos
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.038.png)
 
 Es importante leer la descripción que figura acá. Despeja bastantes dudas. Abajo del texto vemos,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.039.png)
+Podemos subir un archivo propio o usar el PDB ID que queramos. Voy a usar una proteína pequeña. Un barril β
 
-Podemos subir un archivo propio o usar el PDB ID que queramos. Voy a usar una proteína pequeña. Un barril β 
-
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.040.png)
-
-![Un dibujo de una persona
-
-Descripción generada automáticamente con confianza baja](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.041.jpeg)
 
 Entonces,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Chat o mensaje de texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.042.png)
 
 Cambiamos a source RCSB porque el código es del Protein Data Bank. Lo siguiente es
 
-![Texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.043.png)
 
 Cada vez que apretamos Next Step, puede aparecer una ventana superpuesta que nos muestra qué es lo que está haciendo el servidor. Cuanto más complejo es, más tiempo va a tardar.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.044.png)
 
 Bilayer Builder
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.045.png)
 
 Hay datos importantes. JOB ID nos permite recuperar el trabajo si pasa algo malo con el servidor o nuestra conexión de internet (lo segundo es más probable por cuestiones obvias, tales como vivir en Argentina). Se puede leer uno o más modelos. Esto dependerá de cómo están hechos los PDB. Después figura la información de cuáles son las moléculas que existen. En este caso, tenemos moléculas de sulfatos, el agua y dos cadenas. Figura la extensión de cada cadena. El nombre va a depender de cómo están en el archivo original. A veces nos conviene editar el PDB antes, así que tendríamos que usar el cargador del archivo y no el código PDB.
 
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.046.png)
 
 Sólo nos interesa la proteína. Podemos ignorar el resto. Si tiene residuos modificados y los necesitamos, hay que seleccionarlos. Siguiente,
 
-![Interfaz de usuario gráfica, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.047.png)
 
 Esta sección nos permite manipular el archivo, por ejemplo, con fosforilaciones o glicosilaciones. Una cuestión que tal vez sea relevante es el estado de protonación del aminoácido N y C terminal. Para cosas “comunes” podría decir que estas opciones serían las mejores.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.048.png)
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.049.png)
 
 Es la parte que nos permite orientar la proteína. Puede que esto lo quiera o no. Por ejemplo, si quiero estudiar la forma en la cual se puede orientar la molécula (en simulaciones largas que estudien plegamiento) me daría igual e ignoraría esta parte. Sin embargo, las proteínas de membrana TIENEN una orientación predecible y está dado por las alfa hélices o las beta plegadas en forma de barril. Si ya está previamente orientada, está perfecto. Si no, hay varias estrategias que se usan. Para proteínas de membrana “sencillas” podemos usar ciegamente alguna de las opciones,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.050.png)
 
 Usar orientación PDB Esta opción se sugiere para una estructura orientada de <http://opm.phar.umich.edu>
 
@@ -2415,197 +2349,103 @@ Usar servidor PPM Esta opción envía una estructura de entrada en <http://opm.p
 
 Voy a usar la última opción, porque no tengo idea cómo viene la proteína ni la conozco bien.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.051.png)
 
 También podemos hacer otras cosas, como rotarla.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.052.png)
-
-Siguiente, 
+Siguiente,
 
 Acá veremos algo así:
 
-![Gráfico, Gráfico de líneas
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.053.png)
 
 Este gráfico nos sirve para ver cómo se ubicó la molécula según el servidor. Se ve algo raro. Muy raro. Si la proteína es un canal, y debe estar paralelo a los lípidos de membrana, debería cruzar de lado a lado. Sin embargo, eso no pasa. Vamos a mirar qué pudo haber pasado,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.054.png)
 
 Y encontramos que,
 
-![Un dibujo de una persona
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.055.png)
 
 No tiene el mínimo sentido. En qué nos equivocamos? El canal es sólo una molécula, enviamos DOS moléculas mal orientadas al servidor. Soluciones? Hay que editar bien lo que pasó antes. Voy a aprovechar el JOB ID
 
-![Interfaz de usuario gráfica, Texto
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.056.png)
-
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.057.png) y ![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.058.png)
+ y
 
 Y así,
 
-![Texto
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.059.png)
 
 Es el paso 3 en el cual orientamos, pero es el paso 1 en el cual editamos el PDB. Vamos a elegir la Cadena A, porque quiero. Pero para elegir bien deberíamos CONOCER MUY BIEN la estructura de la proteína a simular.
 
-![Interfaz de usuario gráfica, Texto
-
-Descripción generada automáticamente con confianza media](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.060.png)
 
 Así repetimos los pasos anteriores pero con esta cadena solamente.
 
-![Gráfico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.061.png)
 
 Bueno, esto tampoco funcionó. Un desastre.
 
 Voy a cambiar de proteína y usar una clásica que tiene α hélices. La AQP0, 2B6P
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.062.png)
 
 Así que, (JOB ID 1945476414)
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.063.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.064.png)
 
 Ven? CUIDADO con lo que pasó acá‼! Las AQP son homotetrámeros, así que sólo vemos una cadena, pero son 4 en el ensamblado biológico. Con esto en cuenta, queda como,
 
-![Imagen que contiene Gráfico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.065.png)
 
 Ahora sí, con las otras opciones,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.066.png)
 
 Opciones
 
-![Texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.067.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.068.png)
 
 La altura del agua sobre y debajo de la membrana. Influye si tenemos proteínas que se insertan en el solvente.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.069.png)
 
 La parte de la longitud en la extensión XY. Es simétrico, dando origen a un cuadrado. Abajo figuran los lípidos con que se pueden construir la bicapa. Se pueden cambiar las proporciones
 
-![Imagen que contiene Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.070.png)
 
 Vamos a elegir el POPC
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.071.png)
 
 1 y 1 significa: 100% de moléculas de lípido son POPC en la capa superior y en la capa inferior. Elijo una extensión XY de 50 y luego
 
-![Texto
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.072.png)
 
 Al apretar Show the system info,
 
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.073.png)
 
 Puedo empezar a adivinar cuál es el número XY que necesito o me fijo en las propiedades de la proteína,
 
-![Texto
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.074.png)
+Si X va de -20 a 34 e Y va de -21 a 29, entonces X = 54 e Y = 50. La dimensión más grande es 54. Así que cualquier valor será mayor a esto. Si uso 90,
 
-Si X va de -20 a 34 e Y va de -21 a 29, entonces X = 54 e Y = 50. La dimensión más grande es 54. Así que cualquier valor será mayor a esto. Si uso 90, 
-
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.075.png)
 
 Y no hay error. Depende qué quiero estudiar, debemos elegir la extensión adecuada.
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.076.png)
 
 Si visualizamos, queda algo más lindo
 
-![Código QR
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.077.png)
 
 Los límites del sistema están marcados por los cuadrados de colores. Las esferas representan las cabezas de los lípidos. La otra parte que podemos/debemos editar es el equilibrado electrostático. Para esto se emplea una solución de NaCl, KCl, CaCl2 o MgCl2,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.078.png)
 
 0\.15 M es una solución isotónica. Si sólo quiero neutralizar, usaremos la opción de Add neutralizing ions. Es muy probable que los siguientes pasos tarden mucho en correrse.
 
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.079.png)
 
 Entonces,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.080.png)
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación, Correo electrónico
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.081.png)
 
 Podemos ver las estructuras finales,
 
-![Gráfico, Gráfico de dispersión
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.082.png)
 
 Siguiente,
 
-![Interfaz de usuario gráfica, Texto, Aplicación
 
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.083.png)
+Se pueden armar los archivos para correr con el software que usemos. Nosotros empleamos GROMACS y el FF CHARMM36m. Si mi sistema tiene problemas luego, entonces conviene poner más pasos de minimización.
 
-Se pueden armar los archivos para correr con el software que usemos. Nosotros empleamos GROMACS y el FF CHARMM36m. Si mi sistema tiene problemas luego, entonces conviene poner más pasos de minimización. 
+El equilibrado es otra parte importante. En general, una simulación implicará un NPT (pero podemos agregar o quitar pasos si el sistema es complicado o colapsa en la producción).
 
-El equilibrado es otra parte importante. En general, una simulación implicará un NPT (pero podemos agregar o quitar pasos si el sistema es complicado o colapsa en la producción). 
-
-![Interfaz de usuario gráfica, Texto, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.084.png)
 
 La temperatura se puede dejar como está, predeterminada en 303.15 K o cambiarla a la que deseemos. Una tabla con valores comunes es:
 
@@ -2623,33 +2463,18 @@ La temperatura se puede dejar como está, predeterminada en 303.15 K o cambiarla
 
 De nuevo, después de este paso va a tardar bastante. Así, el sistema queda
 
-![Tabla
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.085.png)
 
 Esto debe descargarse en forma de archivo comprimido. No es un ZIP sino un archivo caracterísitco de Linux TGZ, pero se puede abrir en Windows de ser necesario (por ejemplo con 7zip),
 
-![Imagen que contiene Interfaz de usuario gráfica
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.086.png)
 
 El tamaño va a depender de la estructura y la cantidad de moléculas. Unas vez descargado podemos descomprimirlo y veremos,
 
-![Interfaz de usuario gráfica, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.087.png)
 
 Esta carpeta contiene muchos archivos pero, en nuestro caso, nos interesa otra carpeta interna, “gromacs”
 
-![Forma
-
-Descripción generada automáticamente con confianza baja](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.088.png)
 
 Adentro están todos los archivos que necesitamos para lanzar la simulación
 
-![Interfaz de usuario gráfica, Aplicación
-
-Descripción generada automáticamente](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.089.png)
 
 Resumen (traducción LITERAL, perdón por tan poco)
 
@@ -2716,19 +2541,11 @@ Para las bicapas que consisten en un único componente lipídico, el área prome
 
 Área por lípido El área por lípido, APL, es un parámetro esencial para describir el estado del empaquetamiento molecular dentro de una bicapa lipídica. En una simulación de MD, se calcula dividiendo el área total de la caja de simulación en el plano x-y por el número total de moléculas de lípidos en un prospecto de la bicapa.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.090.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.091.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.092.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.093.png)
 
 Mean Square Displacement
 
 Este desplazamiento cuadrado medio y DADA son calculados por el programa gmx msd. Normalmente se usa un archivo de índice que contiene números de átomos y el MSD se promedia sobre estos átomos. Para las moléculas que consisten en más de un átomo, el riri puede tomarse como el centro de las posiciones de masa de las moléculas. En ese caso, debe usar un archivo de índice con números de moléculas. Sin embargo, los resultados serán casi idénticos al promedio de los átomos. El programa gmx msd también se puede usar para calcular la difusión en una o dos dimensiones. Esto es útil para estudiar la difusión lateral en las interfaces.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.094.png)
 
 | gmx msd -f run.xtc -s topol.tpr  -beginfit 1000 -endfit 10000 -trestart 10000 -lateral z |
 | ---------------------------------------------------------------------------------------- |
@@ -2800,11 +2617,9 @@ Modelo: energía de desolvatación del formaldehído
 
 La energía de desolvatación se puede ver como la energía libre de la molécula cuando pasa del vacío a rodearse con agua. ¿Por qué quiero calcular esta energía?[^43],[^44]
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.095.png)
 
 Este problema se resuelve tomando en cuenta que puede haber estados intermedios en los cuales la molécula va apareciendo en el agua y se evalúa la perturbación que eso le crea al sistema. El parámetro que controla el avance de los cálculos de “no existe la molécula” a “está la molécula” es λ[^45] que lo podríamos entender como:
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.096.png)
 
 Donde la energía libre de solvatación dependerá de la evolución de en los diferentes estados λ. El truco será elegir la mayor cantidad de estados intermedios para hacer los cálculos.
 
@@ -2820,11 +2635,11 @@ Tengo formaldehído en MOL2. Pasa a SwissParam y tenemos for.pdb y for.itp. Gene
 
 ; name at.num  mass   charge  ptype    sigma            epsilon
 
-C=O     6   12.0110  0.0  A         0.356359    0.460240  
+C=O     6   12.0110  0.0  A         0.356359    0.460240
 
-O=C     8   15.9994  0.0  A         0.302905    0.502080  
+O=C     8   15.9994  0.0  A         0.302905    0.502080
 
-HCMM    1    1.0079  0.0  A         0.235197    0.092048  
+HCMM    1    1.0079  0.0  A         0.235197    0.092048
 
 [ pairtypes ]
 
@@ -3110,13 +2925,13 @@ couple-moltype           = FOR ;el nombre de la molécula
 
 sc-power                 = 1    ; número entero. Siempre. Ni siquiera con 1.0
 
-sc-sigma                 = 0.3  
+sc-sigma                 = 0.3
 
-sc-alpha                 = 1.0          
+sc-alpha                 = 1.0
 
 ; we still want the molecule to interact with itself at lambda=0
 
-couple-intramol          = no   
+couple-intramol          = no
 
 couple-lambda1           = vdwq
 
@@ -3167,7 +2982,6 @@ Performance:       55.229        0.435
 
 Se generará un archivo XVG llamado run.xvg. Si lo abrimos veremos algo como
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.097.png)
 
 Lo mismo en cada directorio de lambda\_NN. En el directorio superior a estos, ejecutamos el comando que recupera información de los archivos XVG que se generan.
 
@@ -3286,7 +3100,6 @@ La alternativa a este método implica el uso de las capacidades del programa APB
 
 Se descarga de <http://rashmikumari.github.io/g_mmpbsa/Download-and-Installation.html>
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.098.png)
 
 La descarga nos da un archivo comprimido con los ejecutables para Linux. Esos los vamos a usar en la carpeta con los archivos de las simulaciones. Hay alternativas más útiles para correr los programas sin necesidad de copiar los ejecutables. Recordar el concepto y utilidad de la variable PATH.
 
@@ -3578,11 +3391,9 @@ Se nos pedirá elegir dos grupos, si necesitamos estudiar grupos especiales, ent
 
 La pantalla que aparecerá, luego de la selección de grupos,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.099.png)
 
 A medida que pasa el tiempo se realizan cálculos en diferentes instancias, las cuales se pueden controlar a través del archivo pbsa.mdp.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.100.png)
 
 El cálculo numérico de la energía de interacción se realiza con el script pbsa.py en forma automática o a través de la lectura de los archivos de salida anterior.
 
@@ -3633,13 +3444,10 @@ El código de pbsa.py es,
 
 Interacción energética lineal (Linear Interaction Energy)
 
-Otra forma de aproximar la energía de unión, es aprovechando la información de los archivos EDR, los mismos que usamos para estudiar la variación de energía en el tiempo. LIE utiliza la información de la MD del complejo y del ligando por separado. 
+Otra forma de aproximar la energía de unión, es aprovechando la información de los archivos EDR, los mismos que usamos para estudiar la variación de energía en el tiempo. LIE utiliza la información de la MD del complejo y del ligando por separado.
 
 La energía libre de unión según el método LIE es la diferencia de las energías libres de solvatación del ligando libre, ΔGsol(libre), y el ligando unido a la proteína, ΔGsol(proteína). Los cálculos de estas dos energías libres de solvatación para una pose dada, i , se pueden calcular de acuerdo con,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.101.png)
-
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.102.png)
 
 Según el manual de  Gromacs,
 
@@ -3707,23 +3515,23 @@ Para utilizar gmx lie correctamente, se requieren dos simulaciones: una con la m
 
 `              `Name of the ligand in the energy file
 
-El cálculo de una energía de interacción se realiza mediante la palabra clave energygrps en el archivo .mdp. A pesar de ser una palabra clave .mdp, los cálculos de energía de interacción no deben considerarse parte de una simulación normal. 
+El cálculo de una energía de interacción se realiza mediante la palabra clave energygrps en el archivo .mdp. A pesar de ser una palabra clave .mdp, los cálculos de energía de interacción no deben considerarse parte de una simulación normal.
 
-La descomposición de las energías de corto alcance es incompatible con la ejecución en una GPU y también ralentiza el cálculo innecesariamente. 
+La descomposición de las energías de corto alcance es incompatible con la ejecución en una GPU y también ralentiza el cálculo innecesariamente.
 
 El módulo mdrun no necesita realizar este trabajo adicional para realizar una simulación válida. Como tal, solo calcule las energías de interacción como parte de su análisis, no su dinámica.
 
-Cree un nuevo archivo .tpr a partir de un archivo .mdp que tenga energygrps = Protein LIG definido, como este: 
+Cree un nuevo archivo .tpr a partir de un archivo .mdp que tenga energygrps = Protein LIG definido, como este:
 
 | gmx grompp -f ie.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx -o ie.tpr |
 | ------------------------------------------------------------------------------ |
 
-Luego, invoque mdrun con la opción -rerun para recalcular energías de la trayectoria de simulación existente: 
+Luego, invoque mdrun con la opción -rerun para recalcular energías de la trayectoria de simulación existente:
 
 | gmx mdrun -deffnm ie -rerun md\_0\_10.xtc -nb cpu |
 | ------------------------------------------------- |
 
-Note el uso de -deffnm para leer ie.tpr y escribir todo archivos de salida a ie. \* como sus nombres de archivo. La opción -rerun toma el nombre de la trayectoria para la que desea volver a calcular las energías, y -nb cpu le dice a mdrun que solo intente ejecutarse en el hardware de la CPU e ignore cualquier GPU que pueda estar disponible. Como se indicó anteriormente, este tipo de cálculo no se puede realizar en una GPU. La repetición debe ser muy rápida, y se completará en solo unos minutos. Extraiga los términos de energía de interés a través del módulo de energía. 
+Note el uso de -deffnm para leer ie.tpr y escribir todo archivos de salida a ie. \* como sus nombres de archivo. La opción -rerun toma el nombre de la trayectoria para la que desea volver a calcular las energías, y -nb cpu le dice a mdrun que solo intente ejecutarse en el hardware de la CPU e ignore cualquier GPU que pueda estar disponible. Como se indicó anteriormente, este tipo de cálculo no se puede realizar en una GPU. La repetición debe ser muy rápida, y se completará en solo unos minutos. Extraiga los términos de energía de interés a través del módulo de energía.
 
 Los términos que nos interesan son Coul-SR: Protein-LIG y LJ-SR: Protein-LIG.
 
@@ -3732,7 +3540,6 @@ Los términos que nos interesan son Coul-SR: Protein-LIG y LJ-SR: Protein-LIG.
 
 Tomemos la siguiente molécula ya estudiada,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.103.png)
 
 Al haber sido estudiada como ligando, se tiene preparado el ITP y el PDB ya formateado con la estructura necesaria. Asi, se creará un sistema nuevo a través del protocolo empleado en el caso de la simulación de una molécula en agua. La secuencia de cálculos para la molécula del ligando es:
 
@@ -3770,7 +3577,7 @@ End your selection with an empty line or a zero.
 
 37  Pres-YX         38  Pres-YY         39  Pres-YZ         40  Pres-ZX
 
-41  Pres-ZY         42  Pres-ZZ         43  #Surf\*SurfTen   44  Box-Vel-XX 
+41  Pres-ZY         42  Pres-ZZ         43  #Surf\*SurfTen   44  Box-Vel-XX
 
 45  Box-Vel-YY                          46  Box-Vel-ZZ
 
@@ -3826,7 +3633,6 @@ DGbind = -10.330 (9.163)
 
 La energía será de -10.330 kJ/mol. El gráfico obtenido,
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.104.png)
 
 Vemos que la energía se estabiliza a partir de los 45 ns, entonces podríamos recalcular,
 
@@ -3909,7 +3715,7 @@ TOPOL.TOP
 
 ; The force field files to be included
 
-#include "rt41c5.itp"    
+#include "rt41c5.itp"
 
 [ moleculetype ]
 
@@ -3921,7 +3727,7 @@ Urea         3
 
 ;   nr    type   resnr  residu    atom    cgnr  charge
 
-`     `1       C       1    UREA      C1       1     0.683    
+`     `1       C       1    UREA      C1       1     0.683
 
 `     `2       O       1    UREA      O2       1    -0.683
 
@@ -4043,7 +3849,6 @@ SOL    1000
 
 Manual de trabajo con el cluster TUPAC
 
-![https://lh6.googleusercontent.com/xU8ByzRfiVsBAzbPVUoYokEwCMJ816P7-205WzYQG3XBkRl5n8UJcCUCGnwPrpO_8u3ooONBjyDI2xZlPcq7tMI_N1XU9o6vrpCJulxZwQV9LZg0br6xBaQlPs82aGEMYn_VuYGb](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.105.png)
 
 Ene. 2020
 
@@ -4091,7 +3896,6 @@ Por favor utilizar h2.tupac.conicet.gov.ar para conectarse a TUPAC.
 
 Cambiar a h2.tupac.conicet.gov.ar
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.106.png)
 
 Como todo será dentro de la consola, no tendremos interfaz gráfica.
 
@@ -4099,7 +3903,6 @@ Una aclaración muy importante es que no estarán disponibles las herramientas q
 
 Si quiero ver el contenido de la carpeta personal, empleo el comando ls -l
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.107.png)
 
 El ejecutable de GROMACS se deberá compilar especialmente para el cluster.
 
@@ -4117,13 +3920,11 @@ El protocolo de trabajo que emplearemos es el SFTP, que implica una transferenci
 
 Allí agregaremos un nuevo servidor “Nuevo sitio”, que yo lo llamé TUPAC
 
-![https://lh4.googleusercontent.com/cZQ66LxTDf0ddkklKkarZ2kYVEkHS8bgsmhrnpkLPw_lFIFFEAtlRR9AA2FUBK5QorjYRdu0XfR_NhruCm7meSY7yK7OadvHOEW2nlO4-RsgKMaNrXH_xr9c5gkEbk9ksjoVD6Oa](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.110.png)
 
 El protocolo deberá ser SFTP y el resto de las opciones se pueden dejar como están.
 
 Una vez hecho esto se puede apretar “Conectar” y del lado derecho de la ventana de Filezilla nos aparecerán las carpetas del servidor.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.111.png)
 
 Acá se pueden hacer todas las cosas que haríamos con el navegador de archivos de cualquier sistema operativo:
 
@@ -4141,14 +3942,12 @@ editar archivos, con ciertas limitaciones
 
 O sea, todo lo que no implica la ejecución del software. Todos estos procesos llevan más tiempo del que estamos acostumbrados, ya que implican la transferencia de las órdenes a través de la red.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.112.png)
 
 | <p>NOTA: Un mensaje del tipo</p><p></p><p>Respuesta:    fzSftp started, protocol\_version=8</p><p>Comando:    open "jcasal@h1.tupac.conicet.gov.ar" 22</p><p>Error:    Connection timed out after 20 seconds of inactivity</p><p>Error:    No se pudo conectar al servidor</p><p>Estado:    Desconectado del servidor</p><p></p><p>Significa que el cluster no está disponible.</p> |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
 Cuando se hacen modificaciones y procesos, la información aparece en la sección inferior.
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.113.png)
 
 Manejo de las colas del cluster
 
@@ -4208,7 +4007,7 @@ Cuántas CPU van a usar
 #SBATCH --propagate
 Opciones que modifican el manejo de los procesos.
 
-#SBATCH -o slurm.%N.%j.out # STDOUT 
+#SBATCH -o slurm.%N.%j.out # STDOUT
 #SBATCH -e slurm.%N.%j.err # STDERR
 Los archivos de salida de información de la corrida.
 
@@ -4280,7 +4079,6 @@ scancel [ID del trabajo]
 
 Manejo básico de una terminal de UNIX
 
-![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.114.png)
 
 De “Linux Command-Line Cheat Sheet” By Benjamin Mako Hill and Jono Bacon
 Computerworld | AUG 14, 2007
@@ -4495,12 +4293,12 @@ If you need to pass the output of one command so that it goes to the input of th
     Ayuda a mejorar la simulación porque continúa a partir de la anterior
     Zafar, Ayesha, and Jóhannes Reynisson. “Hydration Free Energy as a Molecular Descriptor in Drug Design: A Feasibility Study.” Molecular Informatics 35, no. 5 (May 2016): 207–14. doi:10.1002/minf.201501035.
     Laboratory Journal – Business Web for Users in Science and Industry
-    
+
     Wiley-VCH Verlag GmbH & Co. KGaA - http://www.laboratory-journal.com/science/pharma-drug-discovery/computational-drug-discovery-hydration-behavior-de-novo-designed-pharm
     Klimovich, Pavel V., Michael R. Shirts, and David L. Mobley. “Guidelines for the Analysis of Free Energy Calculations.” Journal of Computer-Aided Molecular Design 29, no. 5 (May 2015): 397–411. doi:10.1007/s10822-015-9840-9.
     No sé si es necesario hacerlo así
     g\_mmpbsa—A GROMACS Tool for High-Throughput MM-PBSA Calculations
-    
+
     Rashmi Kumari-Rajendra Kumar-Andrew Lynn- - Journal of Chemical Information and Modeling - 2014
     Primer intento, papu
     Vosmeer CR, Kooi DP, Capoferri L, Terpstra MM, Vermeulen NPE, Geerke DP. Improving the iterative Linear Interaction Energy approach using automated recognition of configurational transitions. Journal of Molecular Modeling. 2016;22:31. doi:10.1007/s00894-015-2883-y.
