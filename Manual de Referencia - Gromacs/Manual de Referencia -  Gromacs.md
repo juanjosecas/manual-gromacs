@@ -2984,359 +2984,1078 @@ Continúe únicamente cuando:
 
 
 
-Proteína de membrana. Construcción de una bicapa e inserción de una acuaporina
+## Proteína de membrana: construcción de una bicapa e inserción de una acuaporina
 
-Introducción
+### Introducción
 
-Las membranas biológicas son entidades complicadas que contienen mezclas autoensambladas de diferentes lípidos y proteínas. Entre todos estos lípidos, el colesterol juega un papel muy especial debido a su papel en la creación de balsas de membrana. Las cuestiones relacionadas con la naturaleza y organización de las balsas en membranas naturales están lejos de estar aclaradas y consensuadas, aunque existe una definición de lo que es una balsa. Según el Simposio Keystone sobre balsas lipídicas y función celular en 2006, “las balsas de membrana son dominios pequeños (10-200 nm) heterogéneos, altamente dinámicos, enriquecidos con esterol y esfingolípidos que compartimentan los procesos celulares”. Para comprender por qué el enriquecimiento de colesterol está presente en los dominios de la balsa, debemos comprender en detalle el carácter de las interacciones específicas entre el colesterol y los lípidos y esta es la razón por la que se estudia tan intensamente.
+Las proteínas de membrana no deben simularse como proteínas solubles rodeadas únicamente por agua. La bicapa aporta un entorno anisotrópico, ejerce presión lateral, establece interfaces polares y apolares, modula la conformación de la proteína y puede ocupar sitios de unión específicos. La composición lipídica, la orientación, el ensamblado oligomérico y el protocolo de equilibración forman parte del modelo físico.
 
-Dado que las membranas biológicas son mezclas complicadas que son muy difíciles de analizar, muchas investigaciones se realizan en membranas modelo que contienen componentes puros o mezclas bien controladas de dos o tres componentes. Especialmente interesantes son las membranas sintéticas que contienen tres componentes: fosfolípidos saturados , fosfolípidos insaturados y colesterol. En estas membranas modelo se pueden observar dominios en forma de balsa mejorados con colesterol y fosfolípidos saturados, dominios que varían en tamaño desde nanoescala a microescala. El estudio de las interacciones entre el colesterol y los lípidos en estas membranas modelo también puede arrojar luz sobre la naturaleza de las balsas lipídicas en las biomembranas.
+CHARMM-GUI Membrane Builder automatiza gran parte de esta preparación: lectura y reparación de la estructura, orientación, construcción de bicapas homogéneas o heterogéneas, agua en cavidades, solvatación, incorporación de iones y generación de archivos para GROMACS. La automatización reduce errores mecánicos, pero no decide qué unidad biológica, estado de protonación, composición de membrana o ensamble experimental son correctos.
 
-Las bicapas lipídicas son bloques de construcción esenciales para las membranas biológicas . Ha habido un gran interés en sondear las membranas celulares ya que forman la estructura de los orgánulos celulares y sirven como una barrera para el transporte de materiales biológicos al citoplasma. Para las membranas lipídicas sin colesterol (o esteroles en general), existen tres fases principales que pueden existir: fluida (o líquido-cristalina) (Lα), ondulación (Pβ) y gel (Lβ). Líquido o líquido desordenado (con mezclas que contienen esteroles) es la fase más común en biología en la que las cadenas de ácidos grasos están completamente desordenadas. Esta fase se puede ver a altas temperaturas dependiendo del lípido en la membrana y las características de esta fase son la alta movilidad de los lípidos y la flexibilidad de la cadena. La fase L α ha sido ampliamente estudiada utilizando diversas técnicas experimentales y computacionales. Sin embargo, el enfoque de este artículo son las fases condensadas de una bicapa lipídica, es decir, P β y L β . El Lβ La fase se ve a temperaturas más bajas definidas por una temperatura de transición del gel. Las cadenas de acilo están más ordenadas y se componen de casi todas en la configuración trans.
+Este tutorial usa una acuaporina como caso principal y contempla dos resoluciones:
 
+- **all-atom:** proteína, lípidos, agua e iones representados átomo por átomo;
+- **coarse-grained (CG):** varios átomos se agrupan en partículas efectivas.
 
-Entre la fase L α y L β puede existir una fase de pre transición que se cree que consiste en una configuración ondulada denominada fase P β , que no existe para todos los lípidos, como los que tienen colas insaturadas [ 7 ]. . Entre todos los lípidos, que tienen fase P β , 1,2-dimiristoil- sn -glicero-3-fosfocolina (DMPC) y 1,2-dipalmitoil- sn -glicero-fosfocolina (DPPC) son los lípidos más comunes, en los que P Se ha estudiado la β [ [8] , [9] , [10] ]. La formación de P β se puede obtener calentando la L βfase con cadenas inclinadas o enfriamiento de la fase L α [ 11 ]. Para la fase P β , se puede encontrar una región gruesa y delgada, que se definen principalmente en la literatura como un brazo mayor y menor ( Fig. 1 ), respectivamente [ 8 ]. La región de torcedura con cadenas de ácidos grasos interdigitadas podría existir entre los dominios del brazo mayor y del brazo menor. Se conoce la existencia de estos dos brazos, pero los detalles sobre la configuración precisa de los grupos de cabezas de lípidos y las colas de lípidos y cómo se diferencian entre las regiones se desconocen o se están debatiendo. Se ha investigado y sugerido la coexistencia tanto de L α como de L β en P β [ 12], es decir, el brazo mayor representa principalmente el L β y hay una pequeña región desordenada en la membrana que presenta la fase L α (brazo menor).
+Ambos modelos responden preguntas diferentes. No deben mezclarse archivos de fuerza, topologías ni pasos de integración entre CHARMM36 y Martini.
 
-| Lípidos PC  | Rango de temperatura (K) |
-| ----------- | ------------------------ |
-| di-18: 0    | 321,65 a 330,15          |
-| 18: 0,16: 0 | 306,25 a 319,75          |
-| 16: 0,18: 0 | 311,25 al 321,55         |
-| 18: 0,14: 0 | 290,85 a 305,35          |
-| di-14: 0    | 287\.15 a 297.15         |
-| di-16: 0    | 308,45 a 314,55          |
+Flujo general:
 
+~~~text
+estructura y pregunta biológica
+    ↓
+unidad biológica y protonación
+    ↓
+orientación respecto de la membrana
+    ↓
+composición y tamaño de la bicapa
+    ↓
+construcción en CHARMM-GUI
+    ↓
+inspección de topología y coordenadas
+    ↓
+EM y equilibración con restricciones decrecientes
+    ↓
+producción
+    ↓
+control de proteína, bicapa, agua, iones y poro
+~~~
 
-Desde su primer lanzamiento en 2007, CHARMM-GUI Membrane Builder, una herramienta basada en la web disponible públicamente ( <http://www.charmm-gui.org/input/membrane> ), ha facilitado enormemente la generación de sistemas de membranas complejos. Su primera implementación permitió a los usuarios construir un sistema complejo de proteína-membrana con tres tipos de lípidos. Después de un desarrollo y actualización continuos, Membrane Builder ahora admite bicapas heterogéneas, con o sin proteínas, utilizando más de 400 tipos de lípidos, incluidos fosfolípidos, fosfoinosítidos, cardiolipina, esfingolípidos, lípidos bacterianos, esteroles, ácidos grasos y detergentes, lo que permite a los usuarios construir biológicamente sistemas de membranas realistas y experimentalmente comparables. Es importante destacar que Membrane Builder también proporciona entradas de simulación bien validadas para varios programas de MD, como CHARMM, NAMD, GROMACS y AMBER permitiendo a los usuarios realizar una simulación de MD con su herramienta familiar.
+### 1. Definir el objetivo antes de construir el sistema
 
-Ir a <https://www.charmm-gui.org/>
+Registre antes de usar Membrane Builder:
 
+- especie, tejido y membrana de origen;
+- isoforma y secuencia exacta;
+- ensamblado oligomérico;
+- estructura experimental o modelo utilizado;
+- residuos faltantes, mutaciones y modificaciones;
+- ligandos, cofactores, iones o lípidos estructurales;
+- orientación y topología transmembrana;
+- composición de cada monocapa;
+- pH, temperatura, presión y fuerza iónica;
+- variable principal que se analizará;
+- número de réplicas y duración prevista.
 
-Por supuesto, podremos acceder a los tutoriales y papers que describen el funcionamiento. En realidad, recomiendo eso antes que este tutorial. Por qué? Tratan el funcionamiento completo del software, sus aplicaciones y sus limitaciones.
+Una bicapa de POPC puro puede ser un modelo controlado útil, pero no representa de forma universal una membrana plasmática, bacteriana, mitocondrial o del cristalino. La composición lipídica puede modificar estabilidad, inclinación, oligomerización y función de una proteína de membrana.
 
-Nuestro objetivo será crear un sistema compuesto por una proteína y una bicapa lipídica. Luego, ese sistema lo usaremos para correr una simulación de dinámica molecular. El mismo sistema será creado para dos tipos de simulaciones: all-atom y coarse grain.
+### 2. Particularidades de las acuaporinas
 
-All-Atom
+Las acuaporinas suelen organizarse como homotetrámeros. Cada monómero contiene su propio poro acuoso; el eje central del tetrámero no equivale necesariamente a un quinto canal de agua funcional. La simulación de un monómero aislado elimina contactos entre subunidades y expone superficies que en el ensamblado biológico contactan con otros monómeros.
 
-A la izquierda vamos a Input Generator
+Antes de construir el sistema:
 
+- obtenga la unidad biológica, no solo la unidad asimétrica del PDB;
+- compruebe que estén presentes los cuatro monómeros cuando el objetivo sea el tetrámero;
+- revise los dos motivos NPA de cada monómero;
+- revise el filtro ar/R y los residuos que determinan selectividad;
+- identifique lípidos, metales u otras moléculas resueltas;
+- verifique que las hélices transmembrana estén completas;
+- decida si colas N- o C-terminales faltantes se modelarán o se dejarán truncadas.
 
-Inmediatamente, nos aparece una ventana de login. Se requiere un registro gratuito en el servidor.
+CHARMM-GUI puede aplicar operaciones de simetría si la información está disponible, pero el resultado debe compararse con el ensamblado biológico informado por la fuente estructural.
 
+### 3. Preparación de la estructura
 
-El registro requiere una cuenta de mail académica. Parece que cualquier cosa .edu funciona. Después del registro entramos en el servidor.
+Conserve el archivo original:
 
+~~~bash
+mkdir -p 00_entrada 01_charmmgui 02_em 03_equilibracion 04_md 05_analisis
+cp aquaporin_input.pdb 00_entrada/aquaporin_original.pdb
+~~~
 
-Vamos a Membrane Builder. Obviamente, podríamos ir a Solution Builder y construir un sistema en solventes pero queremos algo más complejo.
+Revise:
 
+- cadenas y segmentos que se conservarán;
+- conformaciones alternativas;
+- residuos faltantes;
+- enlaces disulfuro;
+- terminales;
+- histidinas y otros grupos titulables;
+- aguas estructurales dentro del canal;
+- moléculas de cristalización que deben eliminarse;
+- ligandos o cofactores que necesitan parámetros.
 
-En Bilayer Builder encontraremos
+No elimine automáticamente todas las aguas cristalográficas. Una cadena de agua bien resuelta dentro de una acuaporina puede aportar una configuración inicial razonable, aunque no debe conservarse si solapa con el procedimiento de generación de agua del poro.
 
+CHARMM-GUI puede modelar segmentos faltantes cortos. Las regiones largas o poco determinadas requieren validación adicional; una geometría generada por el servidor no constituye evidencia estructural.
 
-Es importante leer la descripción que figura acá. Despeja bastantes dudas. Abajo del texto vemos,
+### 4. Orientación respecto de la bicapa
 
+En Membrane Builder:
 
-Podemos subir un archivo propio o usar el PDB ID que queramos. Voy a usar una proteína pequeña. Un barril β
+- el plano de la membrana es **xy**;
+- la normal de la bicapa es el eje **z**;
+- el centro hidrofóbico se sitúa aproximadamente en \(z=0\).
 
+Una estructura obtenida de OPM o PPM puede usarse como orientación inicial. Una estructura descargada directamente de RCSB no está necesariamente orientada respecto de una membrana.
 
-Entonces,
+Las opciones basadas en ejes principales o en un vector son aproximaciones geométricas. Pueden fallar cuando:
 
+- existen dominios extramembrana grandes;
+- la proteína es irregular;
+- se cargó un oligómero incompleto;
+- el eje principal no coincide con el poro;
+- hay hélices anfipáticas o reentrantes;
+- la proteína es un barril beta asimétrico.
 
-Cambiamos a source RCSB porque el código es del Protein Data Bank. Lo siguiente es
+La orientación debe validarse visualmente y estructuralmente. Compruebe que:
 
+- la región hidrofóbica contacte con las colas;
+- los residuos cargados no queden enterrados sin justificación;
+- los dominios citosólicos y extracelulares estén del lado correcto;
+- el poro atraviese la bicapa en la dirección esperada;
+- no haya subunidades invertidas;
+- el centro del filtro selectivo quede cerca de la región prevista.
 
-Cada vez que apretamos Next Step, puede aparecer una ventana superpuesta que nos muestra qué es lo que está haciendo el servidor. Cuanto más complejo es, más tiempo va a tardar.
+Para una acuaporina, la orientación del tetrámero debe evaluarse como conjunto. Orientar una sola cadena y reconstruir después el tetrámero puede introducir una geometría inconsistente.
 
+### 5. Agua del poro
 
-Bilayer Builder
+Membrane Builder puede generar agua dentro de poros y cavidades. Este paso es particularmente relevante para acuaporinas, canales, porinas y transportadores.
 
+Revise que:
 
-Hay datos importantes. JOB ID nos permite recuperar el trabajo si pasa algo malo con el servidor o nuestra conexión de internet (lo segundo es más probable por cuestiones obvias, tales como vivir en Argentina). Se puede leer uno o más modelos. Esto dependerá de cómo están hechos los PDB. Después figura la información de cuáles son las moléculas que existen. En este caso, tenemos moléculas de sulfatos, el agua y dos cadenas. Figura la extensión de cada cadena. El nombre va a depender de cómo están en el archivo original. A veces nos conviene editar el PDB antes, así que tendríamos que usar el cargador del archivo y no el código PDB.
+- los cuatro poros monoméricos estén hidratados;
+- no haya agua aislada dentro de la región hidrofóbica fuera del canal;
+- no queden huecos extensos producidos por una mala construcción;
+- las aguas no solapen con ligandos o residuos;
+- la hidratación central del tetrámero no se confunda con permeación monomérica.
 
+La ocupación inicial no debe interpretarse como un resultado. El patrón de agua debe reequilibrarse durante la dinámica.
 
-Sólo nos interesa la proteína. Podemos ignorar el resto. Si tiene residuos modificados y los necesitamos, hay que seleccionarlos. Siguiente,
+### 6. Selección de la composición lipídica
 
+Elija la composición a partir del organismo y del compartimiento celular. Si no existe información suficiente, declare explícitamente que se utiliza una membrana modelo.
 
-Esta sección nos permite manipular el archivo, por ejemplo, con fosforilaciones o glicosilaciones. Una cuestión que tal vez sea relevante es el estado de protonación del aminoácido N y C terminal. Para cosas “comunes” podría decir que estas opciones serían las mejores.
+Ejemplos de decisiones justificables:
 
+| Objetivo | Modelo posible | Limitación |
+|---|---|---|
+| Estabilidad general de una acuaporina | POPC puro | No reproduce asimetría ni diversidad celular. |
+| Influencia del colesterol | POPC/colesterol | La proporción debe justificarse experimentalmente. |
+| Membrana bacteriana interna | Mezcla PE/PG/cardiolipina | Depende de especie y condición de crecimiento. |
+| Membrana externa Gram negativa | Monocapa externa con LPS y monocapa interna fosfolipídica | Requiere parámetros, iones y equilibración más exigentes. |
+| Comparación entre isoformas | Misma bicapa controlada | Aumenta comparabilidad, pero reduce realismo fisiológico. |
 
-Siguiente,
+En mezclas asimétricas, las dos monocapas pueden contener números y áreas moleculares diferentes. CHARMM-GUI permite ajustar proporciones y luego refinar el número de cada especie. No fuerce la misma cantidad de lípidos en ambas monocapas si sus composiciones o áreas efectivas son diferentes.
 
+### 7. Tamaño del sistema
 
-Es la parte que nos permite orientar la proteína. Puede que esto lo quiera o no. Por ejemplo, si quiero estudiar la forma en la cual se puede orientar la molécula (en simulaciones largas que estudien plegamiento) me daría igual e ignoraría esta parte. Sin embargo, las proteínas de membrana TIENEN una orientación predecible y está dado por las alfa hélices o las beta plegadas en forma de barril. Si ya está previamente orientada, está perfecto. Si no, hay varias estrategias que se usan. Para proteínas de membrana “sencillas” podemos usar ciegamente alguna de las opciones,
+La caja debe contener suficientes lípidos alrededor de la proteína para reducir la interacción con sus imágenes periódicas. La extensión lateral no debe calcularse solo como el rango máximo de coordenadas de la proteína.
 
+Como criterio inicial:
 
-Usar orientación PDB Esta opción se sugiere para una estructura orientada de <http://opm.phar.umich.edu>
+\[
+L_x \gtrsim d_x + 2b
+\]
 
-Alinear el primer eje principal a lo largo de Z Esta opción se sugiere para paquetes helicoidales pequeños u homo-oligómeros.
+\[
+L_y \gtrsim d_y + 2b
+\]
 
-Alinear un vector (dos átomos) a lo largo de Z Esta opción se sugiere para un heterooligómero irregular.
+donde \(d_x\) y \(d_y\) son las dimensiones proyectadas de la proteína y \(b\) es el espesor del anillo lipídico deseado. Para una proteína que pueda inclinarse o cambiar de conformación, debe añadirse margen adicional.
 
-Usar servidor PPM Esta opción envía una estructura de entrada en <http://opm.phar.umich.edu/ppm_server> Puede llevar algunos minutos dependiendo del tamaño de la proteína.
+La cantidad aproximada de lípidos de una monocapa homogénea puede estimarse como:
 
-Voy a usar la última opción, porque no tengo idea cómo viene la proteína ni la conozco bien.
+\[
+N_{\mathrm{lip}} \approx
+\frac{A_{xy}-A_{\mathrm{prot}}}
+     {a_{\mathrm{lip}}}
+\]
 
+donde:
 
-También podemos hacer otras cosas, como rotarla.
+- \(A_{xy}=L_xL_y\);
+- \(A_{\mathrm{prot}}\) es el área proyectada ocupada por la proteína;
+- \(a_{\mathrm{lip}}\) es el área por lípido esperada en esas condiciones.
 
+La ecuación es orientativa. En una mezcla lipídica, alrededor de una proteína irregular o en una membrana asimétrica no existe una única área por lípido que resuelva el empaquetamiento.
 
-Siguiente,
+La altura de agua debe evitar contactos periódicos entre dominios extramembrana. CHARMM-GUI expresa normalmente estas dimensiones en Å:
 
-Acá veremos algo así:
+\[
+10\ \text{Å}=1\ \text{nm}
+\]
 
+GROMACS utiliza nanómetros en coordenadas y parámetros espaciales.
 
-Este gráfico nos sirve para ver cómo se ubicó la molécula según el servidor. Se ve algo raro. Muy raro. Si la proteína es un canal, y debe estar paralelo a los lípidos de membrana, debería cruzar de lado a lado. Sin embargo, eso no pasa. Vamos a mirar qué pudo haber pasado,
+### 8. Temperatura y estado de fase
 
+La temperatura no debe elegirse solo por el valor predeterminado del servidor. Debe ser compatible con:
 
-Y encontramos que,
+- la condición experimental;
+- el estado de fase esperado de los lípidos;
+- la parametrización;
+- la estabilidad de la proteína;
+- la pregunta biológica.
 
+Conversión:
 
-No tiene el mínimo sentido. En qué nos equivocamos? El canal es sólo una molécula, enviamos DOS moléculas mal orientadas al servidor. Soluciones? Hay que editar bien lo que pasó antes. Voy a aprovechar el JOB ID
+\[
+T(\mathrm{K})=T(^{\circ}\mathrm{C})+273.15
+\]
 
+| °C | K |
+|---:|---:|
+| 20 | 293.15 |
+| 25 | 298.15 |
+| 30 | 303.15 |
+| 37 | 310.15 |
 
- y
+Una bicapa destinada a representar una fase fluida debe simularse por encima de la transición pertinente de la mezcla. En mezclas complejas, la transición no puede inferirse únicamente a partir de un lípido aislado.
 
-Y así,
+### 9. Iones y concentración
 
+CHARMM-GUI puede neutralizar el sistema y agregar NaCl, KCl u otras sales. Distinga:
 
-Es el paso 3 en el cual orientamos, pero es el paso 1 en el cual editamos el PDB. Vamos a elegir la Cadena A, porque quiero. Pero para elegir bien deberíamos CONOCER MUY BIEN la estructura de la proteína a simular.
+- **neutralización:** cantidad mínima de contraiones para carga neta cero;
+- **concentración salina nominal:** pares iónicos adicionales según el volumen accesible;
+- **fuerza iónica:** depende de carga y concentración de todas las especies.
 
+\[
+I=\frac{1}{2}\sum_i c_i z_i^2
+\]
 
-Así repetimos los pasos anteriores pero con esta cadena solamente.
+donde \(c_i\) es la concentración molar y \(z_i\) la carga del ion.
 
+Una solución 0.15 M de NaCl se usa frecuentemente como aproximación fisiológica, pero “0.15 M” e “isotónica” no son sinónimos generales. MgCl₂ o CaCl₂ producen otra fuerza iónica y otra osmolaridad. Los iones divalentes también pueden interactuar fuertemente con lípidos aniónicos.
 
-Bueno, esto tampoco funcionó. Un desastre.
+No sustituya un ion estructural o catalítico por un contraion difusible.
 
-Voy a cambiar de proteína y usar una clásica que tiene α hélices. La AQP0, 2B6P
+### 10. Construcción en CHARMM-GUI Membrane Builder
 
+Secuencia conceptual de la interfaz:
 
-Así que, (JOB ID 1945476414)
+1. Seleccionar **Input Generator → Membrane Builder**.
+2. Elegir un sistema proteína/membrana.
+3. Cargar un PDB propio o recuperar una estructura.
+4. Seleccionar modelo, cadenas, ligandos y componentes.
+5. Aplicar terminales, protonación, enlaces disulfuro y reparaciones justificadas.
+6. Orientar la proteína.
+7. Generar y revisar agua del poro.
+8. Definir forma y dimensiones de caja.
+9. Elegir composición de ambas monocapas.
+10. Seleccionar agua, iones, concentración y método de colocación.
+11. Ensamblar y revisar el sistema.
+12. Generar entradas para GROMACS con el campo de fuerza seleccionado.
+13. Descargar el archivo TGZ y conservar el identificador del trabajo.
 
+La disponibilidad exacta de lípidos y opciones cambia con la versión del servidor. Registre la fecha, el identificador del trabajo, el campo de fuerza y las opciones elegidas.
 
-Ven? CUIDADO con lo que pasó acá‼! Las AQP son homotetrámeros, así que sólo vemos una cadena, pero son 4 en el ensamblado biológico. Con esto en cuenta, queda como,
+### 11. Inspección del archivo descargado
 
+Descomprima sin modificar el original:
 
-Ahora sí, con las otras opciones,
+~~~bash
+mkdir -p 01_charmmgui
+tar -xzf charmm-gui.tgz -C 01_charmmgui
+cd 01_charmmgui
+~~~
 
+Localice la carpeta de GROMACS:
 
-Opciones
+~~~bash
+find . -maxdepth 3 -type f \
+    \( -name 'topol.top' -o -name 'index.ndx' -o -name '*.mdp' -o -name 'README*' \) \
+    -print
+~~~
 
+Los nombres pueden variar entre trabajos. Una salida típica contiene:
 
-La altura del agua sobre y debajo de la membrana. Influye si tenemos proteínas que se insertan en el solvente.
+~~~text
+topol.top
+index.ndx
+step5_input.gro o step5_charmm2gmx.pdb
+step6.0_minimization.mdp
+step6.1_equilibration.mdp
+...
+step6.6_equilibration.mdp
+step7_production.mdp
+archivos .itp
+directorio del campo de fuerza
+README o script de ejecución
+~~~
 
+No regenere la topología con **pdb2gmx**. CHARMM-GUI ya produjo una topología consistente con la proteína, los lípidos, el agua y los iones. Ejecutar **pdb2gmx** sobre el sistema ensamblado elimina esa coherencia.
 
-La parte de la longitud en la extensión XY. Es simétrico, dando origen a un cuadrado. Abajo figuran los lípidos con que se pueden construir la bicapa. Se pueden cambiar las proporciones
+Antes de correr:
 
+~~~bash
+gmx --version
+head -n 80 topol.top
+grep -R "^define\|^integrator\|^dt\|^nsteps\|^tcoupl\|^pcoupl\|^pcoupltype" ./*.mdp
+~~~
 
-Vamos a elegir el POPC
+Compruebe:
 
+- campo de fuerza esperado;
+- nombres y cantidades en **[ molecules ]**;
+- existencia de todos los archivos incluidos;
+- grupos de **index.ndx**;
+- temperatura;
+- paso de integración;
+- duración de cada etapa;
+- esquema de cortes;
+- termostato y barostato;
+- macros de restricciones;
+- frecuencia de salida;
+- tratamiento de dispersión y PME.
 
-1 y 1 significa: 100% de moléculas de lípido son POPC en la capa superior y en la capa inferior. Elijo una extensión XY de 50 y luego
+No reemplace parámetros del MDP por un archivo genérico. Los cortes y modificadores de Lennard-Jones deben ser compatibles con CHARMM36 y con la versión concreta usada por el servidor.
 
+### 12. CSH no es un requisito
 
-Al apretar Show the system info,
+Los archivos generados pueden incluir un script C shell. GROMACS no depende de CSH: el script solo encadena llamadas a **gmx grompp** y **gmx mdrun**. Puede ejecutar cada etapa manualmente o usar Bash/POSIX shell.
 
+No ejecute el script sin leerlo. Los nombres de archivos y el número de etapas pueden cambiar.
 
-Puedo empezar a adivinar cuál es el número XY que necesito o me fijo en las propiedades de la proteína,
+### 13. Minimización manual
 
+Adapte **step5_input.gro** al nombre real del archivo descargado:
 
-Si X va de -20 a 34 e Y va de -21 a 29, entonces X = 54 e Y = 50. La dimensión más grande es 54. Así que cualquier valor será mayor a esto. Si uso 90,
+~~~bash
+gmx grompp \
+    -f step6.0_minimization.mdp \
+    -c step5_input.gro \
+    -r step5_input.gro \
+    -n index.ndx \
+    -p topol.top \
+    -o step6.0_minimization.tpr \
+    -pp step6.0_processed.top
 
+gmx mdrun \
+    -deffnm step6.0_minimization \
+    -v
+~~~
 
-Y no hay error. Depende qué quiero estudiar, debemos elegir la extensión adecuada.
+La opción **-r** proporciona las coordenadas de referencia para las restricciones posicionales. Si el MDP o la topología usan esas restricciones y **-r** se omite, **grompp** puede fallar o aplicar una referencia incorrecta.
 
-Siguiente,
+Revise:
 
+~~~bash
+gmx check -f step6.0_minimization.gro
 
-Si visualizamos, queda algo más lindo
+(echo Potential; echo 0) | \
+gmx energy \
+    -f step6.0_minimization.edr \
+    -o ../05_analisis/em_potential.xvg
+~~~
 
+### 14. Equilibración escalonada sin CSH
 
-Los límites del sistema están marcados por los cuadrados de colores. Las esferas representan las cabezas de los lípidos. La otra parte que podemos/debemos editar es el equilibrado electrostático. Para esto se emplea una solución de NaCl, KCl, CaCl2 o MgCl2,
+CHARMM-GUI suele generar varias etapas que reducen gradualmente restricciones sobre proteína, lípidos, agua y componentes internos. No combine las seis etapas en una sola sin comparar sus MDP.
 
+Script Bash, versión 4 o superior:
 
-0\.15 M es una solución isotónica. Si sólo quiero neutralizar, usaremos la opción de Add neutralizing ions. Es muy probable que los siguientes pasos tarden mucho en correrse.
+~~~bash
+#!/usr/bin/env bash
+set -euo pipefail
 
+GMX_COMMAND="${GMX_COMMAND:-gmx}"
+REFERENCE="step5_input.gro"
+PREVIOUS="step6.0_minimization"
 
-Entonces,
+for STEP in 1 2 3 4 5 6
+do
+    NAME="step6.${STEP}_equilibration"
+    MDP="${NAME}.mdp"
 
+    if [[ ! -f "${MDP}" ]]; then
+        printf 'Falta %s\n' "${MDP}" >&2
+        exit 1
+    fi
 
-Siguiente,
+    COMMAND=(
+        "${GMX_COMMAND}" grompp
+        -f "${MDP}"
+        -c "${PREVIOUS}.gro"
+        -r "${REFERENCE}"
+        -n index.ndx
+        -p topol.top
+        -o "${NAME}.tpr"
+    )
 
+    if [[ "${STEP}" -gt 1 && -f "${PREVIOUS}.cpt" ]]; then
+        COMMAND+=(-t "${PREVIOUS}.cpt")
+    fi
 
-Podemos ver las estructuras finales,
+    "${COMMAND[@]}"
 
+    "${GMX_COMMAND}" mdrun \
+        -deffnm "${NAME}" \
+        -v
 
-Siguiente,
+    PREVIOUS="${NAME}"
+done
+~~~
 
+Guárdelo como **run_equilibration.sh** y ejecute:
 
-Se pueden armar los archivos para correr con el software que usemos. Nosotros empleamos GROMACS y el FF CHARMM36m. Si mi sistema tiene problemas luego, entonces conviene poner más pasos de minimización.
+~~~bash
+chmod +x run_equilibration.sh
+./run_equilibration.sh
+~~~
 
-El equilibrado es otra parte importante. En general, una simulación implicará un NPT (pero podemos agregar o quitar pasos si el sistema es complicado o colapsa en la producción).
+El script usa arreglos de Bash para preservar correctamente cada argumento. No es compatible con un intérprete POSIX mínimo como **dash**; debe ejecutarse con Bash.
 
+Si el archivo inicial se llama **step5_charmm2gmx.pdb**, cambie **REFERENCE**. Si CHARMM-GUI genera más o menos etapas, modifique la lista.
 
-La temperatura se puede dejar como está, predeterminada en 303.15 K o cambiarla a la que deseemos. Una tabla con valores comunes es:
+Para revisar sin ejecutar:
 
-| Temperatura (ºC) | Temperatura (K) |
-| ---------------- | --------------- |
-| 0                | 273\.15         |
-| 10               | 283\.15         |
-| 15               | 288\.15         |
-| 20               | 293\.15         |
-| 25               | 298\.15         |
-| 30               | 303\.15         |
-| 37               | 310\.15         |
-| 50               | 323\.15         |
-| 100              | 373\.15         |
+~~~bash
+bash -n run_equilibration.sh
+~~~
 
-De nuevo, después de este paso va a tardar bastante. Así, el sistema queda
+### 15. Qué cambia entre las etapas de equilibración
 
+Inspeccione las diferencias:
 
-Esto debe descargarse en forma de archivo comprimido. No es un ZIP sino un archivo caracterísitco de Linux TGZ, pero se puede abrir en Windows de ser necesario (por ejemplo con 7zip),
+~~~bash
+diff -u step6.1_equilibration.mdp step6.2_equilibration.mdp
+diff -u step6.5_equilibration.mdp step6.6_equilibration.mdp
+~~~
 
+Normalmente cambian una o más de estas variables:
 
-El tamaño va a depender de la estructura y la cantidad de moléculas. Unas vez descargado podemos descomprimirlo y veremos,
+- constantes de restricciones;
+- paso de integración;
+- temperatura;
+- acoplamiento de presión;
+- duración;
+- tratamiento de grupos;
+- frecuencias de salida.
 
+Una etapa corta puede ser suficiente para resolver contactos, pero no demuestra equilibrio de la bicapa. Extienda una etapa si persisten:
 
-Esta carpeta contiene muchos archivos pero, en nuestro caso, nos interesa otra carpeta interna, “gromacs”
+- huecos alrededor de la proteína;
+- deformación fuerte de la bicapa;
+- densidad no estacionaria;
+- área xy con deriva;
+- agua dentro del núcleo hidrofóbico fuera del poro;
+- errores LINCS;
+- proteína que se desplaza o inclina bruscamente;
+- contactos periódicos.
 
+### 16. Acoplamiento de presión en membranas
 
-Adentro están todos los archivos que necesitamos para lanzar la simulación
+Para una bicapa en el plano xy se utiliza habitualmente acoplamiento semiisotrópico:
 
+~~~ini
+pcoupltype       = semiisotropic
+ref-p            = 1.0 1.0
+compressibility  = 4.5e-5 4.5e-5
+~~~
 
-Resumen (traducción LITERAL, perdón por tan poco)
+El primer valor corresponde conjuntamente a x/y y el segundo a z. El acoplamiento isotrópico obliga a que todas las dimensiones respondan de la misma manera y no suele ser apropiado para una bicapa plana.
 
-Una breve explicación de cada paso:
+**C-rescale** es adecuado para equilibración. **Parrinello-Rahman** suele reservarse para producción una vez estabilizado el sistema. Mantenga inicialmente los valores generados por CHARMM-GUI y documente cualquier cambio.
 
-PASO 1: Leer las coordenadas de las proteínas
+No interprete fluctuaciones instantáneas de presión como fallo. Evalúe deriva, densidad, área, espesor y promedios por bloques.
 
-El usuario puede descargar las coordenadas desde RCSB (sitio web PDB) o OPM (http://opm.phar.umich.edu). OPM proporciona proteínas preorientadas coordiantes con respecto a la membrana normal. El usuario puede cargar las coordenadas del formato PDB (o CHARMM) desde la máquina local del usuario, una vez que oriente correctamente la proteína en las membranas.
+### 17. Producción segmentada sin CSH
 
-PASO 2: Oriente la proteína
+Dividir una producción en segmentos no cambia por sí mismo la física. Facilita checkpoints, colas HPC, copias de seguridad y reanudación. El tiempo total es:
 
-Si las coordenadas PDB son de RCSB, es necesario orientar adecuadamente la proteína con respecto a las membranas. Hay dos opciones para hacer esto. Es el paso en el que se calcula y se muestra el área de la sección transversal de la proteína a lo largo del eje Z. Las áreas máxima superior (10 <Z <20) e inferior (-20 <Z <-10) se utilizan para determinar el tamaño del sistema en XY.
+\[
+t_{\mathrm{total}} =
+N_{\mathrm{segmentos}}\,
+n_{\mathrm{steps}}\,
+\Delta t
+\]
 
-Para ver un ejemplo detallado que muestra cómo orientar su estructura, vea esta demostración en video, particularmente la parte que comienza a las 2:00.
+Si cada segmento contiene 5000000 pasos con \(\Delta t=0.002\ \mathrm{ps}\):
 
-PASO 3: Determine el tamaño del sistema
+\[
+t_{\mathrm{segmento}}=10\ \mathrm{ns}
+\]
 
-Para determinar el tamaño del sistema en XY, hay tres opciones, en el caso de la generación de bicapas homogéneas, basadas en (1) el número de capas de lípidos alrededor de la proteína, (2) el número específico de moléculas de lípidos en la parte superior e inferior y (3) ) tamaño específico del sistema a lo largo de X e Y. El tamaño del sistema a lo largo de Z está determinado por la extensión del agua desde la parte superior e inferior de la proteína. Por ahora, están disponibles dos tipos de formas de sistema en XY (rectangular y hexagonal).
+Diez segmentos suman 100 ns.
 
-En el caso de la generación de bicapas heterogéneas, hay dos opciones para determinar el tamaño del sistema: (1) la proporción de tipos de lípidos que se utilizarán y el tamaño inicial (conjetura) del sistema a lo largo de X e Y (2) número específico de moléculas de lípidos y Relación del tamaño del sistema a lo largo de X e Y El tamaño del sistema a lo largo de Z está determinado por la extensión del agua desde la parte superior e inferior de la proteína. Si se desea, el número de hidratación (número de moléculas de agua por molécula de lípido) se puede utilizar para este propósito.
+Script Bash:
 
-PASO 4: Construya los componentes
+~~~bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-Basado en el tamaño del sistema determinado en el paso anterior, este paso construye piezas individuales como (1) la bicapa lipídica alrededor de la proteína, (2) moléculas de agua adicionales para solvatar completamente la proteína y (3) iones (con muestreo de Monte Carlo o algoritmo basado en la distancia) para una concentración determinada.
+GMX_COMMAND="${GMX_COMMAND:-gmx}"
+FIRST_SEGMENT="${FIRST_SEGMENT:-1}"
+LAST_SEGMENT="${LAST_SEGMENT:-10}"
+REFERENCE="step5_input.gro"
 
-PASO 5: Ensamble los componentes
+for SEGMENT in $(seq "${FIRST_SEGMENT}" "${LAST_SEGMENT}")
+do
+    NAME="step7_${SEGMENT}"
 
-Todas las piezas (proteína, bicapa lipídica, agua adicional e iones) se ensamblan en este paso.
+    if [[ "${SEGMENT}" -eq 1 ]]; then
+        PREVIOUS="step6.6_equilibration"
+    else
+        PREVIOUS="step7_$((SEGMENT - 1))"
+    fi
 
-PASO 6: Equilibre el sistema
+    if [[ ! -f "${NAME}.tpr" ]]; then
+        gmx grompp \
+            -f step7_production.mdp \
+            -c "${PREVIOUS}.gro" \
+            -t "${PREVIOUS}.cpt" \
+            -r "${REFERENCE}" \
+            -n index.ndx \
+            -p topol.top \
+            -o "${NAME}.tpr"
+    fi
 
-Debido a su tiempo de cálculo, solo se proporcionan los archivos de entrada para seis pasos de equilibrio "sugeridos". Sin embargo, el usuario puede encontrar coordenadas equilibradas para algunas proteínas de membranas del archivo.
+    if [[ -f "${NAME}.cpt" ]]; then
+        "${GMX_COMMAND}" mdrun \
+            -deffnm "${NAME}" \
+            -cpi "${NAME}.cpt" \
+            -append \
+            -v
+    else
+        "${GMX_COMMAND}" mdrun \
+            -deffnm "${NAME}" \
+            -v
+    fi
+done
+~~~
 
-Ahí están todos los archivos que necesitamos para correr el programa. Existe uno muy importante que se llama README. Básicamente, README es un script de CSH[^40] que tiene los pasos a ejecutar con Gromacs en nuestra PC.
+Guárdelo como **run_production.sh**:
 
-El problema que aparece, normalmente, es que no está instalado CSH en nuestro sistema. Se deberá, por lo tanto, instalar usando el método específico de la distribución. Otro problema es que no conviene ejecutar ciegamente el script, sino abrirlo y analizarlo. Así sabremos qué está haciendo o, también, podremos anticiparnos a los posibles errores que surjan. A esta altura del manual, podremos ver el script y predecir qué es lo que va a fallar. La ejecución es idéntica a la de un .SH, siendo el comando a usar,
+~~~bash
+chmod +x run_production.sh
+bash -n run_production.sh
+./run_production.sh
+~~~
 
-csh script.csh
+Para ejecutar solo los segmentos 4 a 7:
 
-Minimización energética del sistema
+~~~bash
+FIRST_SEGMENT=4 LAST_SEGMENT=7 ./run_production.sh
+~~~
 
-| gmx grompp -f step6.0\_minimization.mdp -o step6.0\_minimization.tpr -c step5\_charmm2gmx.pdb -r step5\_charmm2gmx.pdb -p topol.top<br><br>gmx mdrun -v -deffnm step6.0\_minimization |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+Si la producción no usa restricciones, **-r** puede ser innecesario, pero conservarlo no reemplaza la revisión del MDP y de las macros activas.
 
-Equilibrado
+En un clúster, el script debe ejecutarse dentro del sistema de colas. No lance múltiples segmentos dependientes al mismo tiempo: cada uno necesita el checkpoint final del anterior.
 
-Es un proceso que se repite unas 6 veces, así que lo pondremos en un script (también de CSH) pero más pequeño, así sabremos qué pasa. En un editor,
+### 18. Reanudar una ejecución interrumpida
 
-| <p>#!/bin/csh</p><p></p><p># Equilibration</p><p>set cnt    = 1</p><p>set cntmax = 6</p><p></p><p>while ( ${cnt} <= ${cntmax} )</p><p>`    `@ pcnt = ${cnt} - 1</p><p>`    `if ( ${cnt} == 1 ) then</p><p>`        `gmx grompp -f step6.{$cnt}\_equilibration.mdp -o step6.{$cnt}\_equilibration.tpr -c step6.{$pcnt}\_minimization.gro -r step5\_charmm2gmx.pdb -n index.ndx -p topol.top</p><p>`        `gmx mdrun -v -deffnm step6.{$cnt}\_equilibration</p><p>`    `else</p><p>`        `gmx grompp -f step6.{$cnt}\_equilibration.mdp -o step6.{$cnt}\_equilibration.tpr -c step6.{$pcnt}\_equilibration.gro -r step5\_charmm2gmx.pdb -n index.ndx -p topol.top</p><p>`        `gmx mdrun -v -deffnm step6.{$cnt}\_equilibration</p><p>`    `endif</p><p>`    `@ cnt += 1</p><p>end</p><p></p> |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+Si existe un checkpoint del mismo segmento:
 
-Corrida de producción
+~~~bash
+gmx mdrun \
+    -deffnm step7_4 \
+    -cpi step7_4.cpt \
+    -append \
+    -v
+~~~
 
-Se repite 10 veces (no sé por qué[^41], ya viene así configurado. Debería estudiar el manual[^42])
+No vuelva a ejecutar **grompp** desde la última estructura si el objetivo es continuar exactamente el mismo segmento. El checkpoint conserva estado del integrador, velocidades y otra información necesaria para una continuación reproducible.
 
-| <p>#!/bin/csh</p><p></p><p># Production</p><p>set cnt    = 1</p><p>set cntmax = 10</p><p></p><p></p><p>while ( ${cnt} <= ${cntmax} )</p><p>`    `if ( ${cnt} == 1 ) then</p><p>`        `gmx grompp -f step7\_production.mdp -o step7\_${cnt}.tpr -c step6.6\_equilibration.gro -n index.ndx -p topol.top</p><p>`        `gmx mdrun -v -deffnm step7\_${cnt}</p><p>`    `else</p><p>`        `@ pcnt = ${cnt} - 1</p><p>`        `gmx grompp -f step7\_production.mdp -o step7\_${cnt}.tpr -c step7\_${pcnt}.gro -t step7\_${pcnt}.cpt -n index.ndx -p topol.top</p><p>`        `gmx mdrun -v -deffnm step7\_${cnt}</p><p>`    `endif</p><p>`    `@ cnt += 1</p><p>end</p><p></p> |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+### 19. Preparación de la trayectoria para análisis
 
-Análisis del comportamiento de las moléculas en una membrana
+Conserve siempre la trayectoria original. Genere derivados para visualización y análisis.
 
-Hay diferentes tipos de análisis, en membranas se puede encontrar la fluidez y el empaquetamiento.
+Primero haga moléculas enteras y centre la proteína:
 
-Para las bicapas que consisten en un único componente lipídico, el área promedio por molécula a es una cantidad central porque es la medida más simple de organización lateral. Dada una simulación de una bicapa que consiste en un solo lípido, el área promedio por lípido es obviamente solo el área simulada total dividida por el número de lípidos en cada monocapa, aunque cualquier lípido en particular puede tener más o menos que el área promedio, especialmente en fases fluidas desordenadas y fluctuantes. El grosor de la membrana es una medida de la organización transversal, pero se pueden definir muchos grosores (p. Ej., Hidrófobos, estéricos, del grupo de cabeza o de la superficie de Luzzati / Gibbs). El área A, por supuesto, está relacionada con el grosor como dos factores del volumen V, por lo que A también es una medida relevante para la información transversal, y tiene la ventaja de ser única. Sin embargo, la simplicidad inherente del área A para las bicapas homogéneas se cuestiona cuando las bicapas consisten en mezclas heterogéneas de lípidos y / o proteínas.
+~~~bash
+(echo Protein; echo System) | \
+gmx trjconv \
+    -s step7_1.tpr \
+    -f md_all.xtc \
+    -o 05_analisis/md_center.xtc \
+    -pbc mol \
+    -center \
+    -ur compact
+~~~
 
-Área por lípido El área por lípido, APL, es un parámetro esencial para describir el estado del empaquetamiento molecular dentro de una bicapa lipídica. En una simulación de MD, se calcula dividiendo el área total de la caja de simulación en el plano x-y por el número total de moléculas de lípidos en un prospecto de la bicapa.
+Luego ajuste la proteína si el análisis requiere eliminar traslación y rotación:
 
+~~~bash
+(echo Backbone; echo System) | \
+gmx trjconv \
+    -s step7_1.tpr \
+    -f 05_analisis/md_center.xtc \
+    -o 05_analisis/md_fit.xtc \
+    -fit rot+trans
+~~~
 
-Mean Square Displacement
+No use una trayectoria ajustada para difusión lateral de lípidos ni para fluctuaciones de caja. El ajuste cambia las coordenadas colectivas que esos análisis necesitan.
 
-Este desplazamiento cuadrado medio y DADA son calculados por el programa gmx msd. Normalmente se usa un archivo de índice que contiene números de átomos y el MSD se promedia sobre estos átomos. Para las moléculas que consisten en más de un átomo, el riri puede tomarse como el centro de las posiciones de masa de las moléculas. En ese caso, debe usar un archivo de índice con números de moléculas. Sin embargo, los resultados serán casi idénticos al promedio de los átomos. El programa gmx msd también se puede usar para calcular la difusión en una o dos dimensiones. Esto es útil para estudiar la difusión lateral en las interfaces.
+Si la producción está segmentada:
 
+~~~bash
+gmx trjcat \
+    -f step7_1.xtc step7_2.xtc step7_3.xtc step7_4.xtc \
+    -o md_all.xtc \
+    -cat
+~~~
 
-| gmx msd -f run.xtc -s topol.tpr  -beginfit 1000 -endfit 10000 -trestart 10000 -lateral z |
-| ---------------------------------------------------------------------------------------- |
+Compruebe continuidad temporal y descarte marcos duplicados si los segmentos se solapan.
 
-Algunos fundamentos
+### 20. Controles estructurales de la proteína
 
-VMD adoptó una filosofía de representación: para cualquier conjunto de átomos / moléculas / cadenas de proteínas que queramos mostrar o analizar, debemos seleccionar este conjunto a través de una "representación" definida por palabras clave relacionadas con este conjunto (algo similar a make\_ndx ). VMD viene con palabras clave implementadas para sistemas de todos los átomos ("proteína", "cadena", "hidrógeno", "disolvente", etc.). Se implementan palabras clave más generales para poder mostrar sistemas no clásicos (los sistemas CG son parte de esta segunda categoría); puede encontrarlos en el manual VMD:
+RMSD del backbone:
 
-http://www.ks.uiuc.edu/Research/vmd/current/ug/
+~~~bash
+(echo Backbone; echo Backbone) | \
+gmx rms \
+    -s step7_1.tpr \
+    -f 05_analisis/md_fit.xtc \
+    -o 05_analisis/rmsd_backbone.xvg \
+    -tu ns
+~~~
 
-A continuación se enumeran algunos ejemplos:
+RMSF por residuo:
 
-`    `Para seleccionar solo lípidos: renombrar POPC, o solo parte de cada lípido: renombrar POPC y nombrar "C. \*. A" "C. \*. \*. B" "D. \*. A" "D. \*. B" para colas de lípidos (C1A, C1B, etc.) y renombrar POPC y nombrar NC3 PO4 "GL. \*" para cabezas.
+~~~bash
+echo C-alpha | \
+gmx rmsf \
+    -s step7_1.tpr \
+    -f 05_analisis/md_fit.xtc \
+    -o 05_analisis/rmsf_calpha.xvg \
+    -res
+~~~
 
-`    `Para seleccionar sólo perlas de la columna vertebral de una proteína: nombre BB (use "BB. \*" O BAS para versiones antiguas de scripts de FG a CG).
+Para una acuaporina tetramérica, calcule además:
 
-`    `Para eliminar el disolvente (agua / perlas de iones): no cambie el nombre de W WF ION o WP en caso de agua polarizable.
+- RMSD de cada monómero;
+- RMSD del tetrámero completo;
+- distancias entre centros de masa de subunidades;
+- contactos interfaciales entre monómeros;
+- inclinación del eje de cada poro respecto de z;
+- estabilidad de los motivos NPA;
+- geometría del filtro ar/R.
 
-`    `Para mostrar solo residuos cargados positivamente (en Martini): resname LYS ARG.
+Un RMSD estable del tetrámero puede ocultar que un monómero se deforma; cuatro RMSD monoméricos estables pueden ocultar una reorganización cuaternaria.
 
-`    `Para mostrar la capa de agua alrededor de residuos específicos: dentro de 7.0 de (índice 531 a 538).
+### 21. Área de la membrana
 
-`    `Para mostrar todos los lípidos (excluyendo DPPC) cuyas cabezas interactúan con los mismos residuos específicos: mismo residuo que ((dentro de 7.0 de (índice 531 a 538)) y nombre NC3 PO4 "GL. \*") Y no renombrar DPPC.
+El área instantánea proyectada es:
 
-Como puede ver en los ejemplos, todas estas palabras clave se pueden mezclar con los enlaces lógicos: y, o, no, etc. para producir cualquier representación. ¡Inténtalo tú mismo! VMD es realmente exigente en términos de memoria; Un truco fácil para disminuir la cantidad que necesita VMD es cargar estructuras / trayectorias que contengan solo perlas necesarias para su análisis; esto se puede hacer fácilmente procesando previamente la trayectoria usando trjconv . Y como estamos simulando sistemas cada vez más grandes en los que se involucran más y más cuentas, el truco anterior se puede adaptar para aumentar la velocidad de visualización / búsqueda de las trayectorias escribiendo representaciones que muestren solo las cuentas necesarias para la visualización (grupos de cabezas de una bicapa para ejemplo). Tenga en cuenta que puede guardar el estado de visualización de su sistema cuando lo desee guardando un state.vmd archivo . Este archivo contiene los comandos Tcl necesarios para obtener la pantalla actual; las listas de enlaces y dibujos (cilindros) no se guardan, pero puede abrir este .vmd archivo y agregar manualmente las líneas que escribió para generarlas en la parte inferior.
+\[
+A_{xy}(t)=L_x(t)L_y(t)
+\]
 
-Enlaces / restricciones CG y redes elásticas
+Extraiga las dimensiones:
 
-Cuando se abre una estructura / trayectoria CG con VMD, el programa construye una red de enlaces usando un criterio de distancia y una biblioteca atomística de posibles longitudes de enlace (de nido por el campo de fuerza namd, desarrollado por el mismo grupo); Las perlas CG, unidas con enlaces con una longitud media de 0,35 nm, no se definen mediante este algoritmo automático. VMD inevitablemente termina mostrando una nube de puntos, que son difíciles (¿imposibles?) De visualizar correctamente con ojos humanos no biónicos. Un script Tcl que lee los enlaces y restricciones de los CG archivos .itp / .tpr y reescribe la red de enlaces CG está disponible en el sitio web de Martini.
+~~~bash
+(echo Box-X; echo Box-Y; echo Box-Z; echo Volume; echo 0) | \
+gmx energy \
+    -f step7_1.edr \
+    -o 05_analisis/box_dimensions.xvg
+~~~
 
-Primero, asegúrese de que su sistema sepa dónde encontrar el script:
+Para una bicapa homogénea, simétrica y sin proteína:
 
-source /wherever/cg\_bonds.tcl
+\[
+APL(t)=\frac{A_{xy}(t)}{N_{\mathrm{lip,leaflet}}}
+\]
 
-Este script ahora se puede usar desde la ventana de línea de comandos de VMD de la siguiente manera:
+Con una proteína:
 
-cg\_bonds -top system.top -topoltype "elastic"
+\[
+APL_{\mathrm{aprox}}(t)=
+\frac{A_{xy}(t)-A_{\mathrm{prot}}(t)}
+     {N_{\mathrm{lip,leaflet}}}
+\]
 
-en caso de que tenga un .top disponible, pero no gromacs. Alternativamente, si gromacs está instalado en la máquina que está utilizando, puede usar un .tpr su en lugar:
+La corrección depende de cómo se defina el área proyectada de la proteína. En bicapas mixtas no existe una única APL rigurosa para todas las especies. Para análisis local conviene usar una partición de Voronoi u otra herramienta específica.
 
-cg\_bonds -gmx /wherever/gmxdump -tpr dyn.tpr -net "elastic" -cutoff
-` `12.0 -color "orange"
+No divida por el número total de lípidos de las dos monocapas: el denominador es el número de una monocapa.
 
--mat "AOChalky" -res 12 -rad 0.1
+### 22. Compresibilidad areal
 
-La última línea dibujará la red ElNeDyn con las opciones (cuto? Ff, color, material, resolución y radio) especificadas extrayendo los enlaces del dyn.tpr archivo (ahí es donde el entra gmxdump ). Tenga en cuenta que debe especificar una versión de my gromacs compatible con el dyn.tpr archivo .
+En un ensamble apropiado puede estimarse:
 
-Visualización de estructura secundaria
+\[
+K_A=
+\frac{k_\mathrm{B}T\langle A\rangle}
+     {\langle A^2\rangle-\langle A\rangle^2}
+\]
 
-Después de poder dibujar enlaces y restricciones definidas por el campo de fuerza CG, el siguiente paso es ver la estructura secundaria de la proteína. Actualmente estamos desarrollando un guión gráfico que dibuja una representación similar a una caricatura en vmd. Este conjunto de rutinas aún está en desarrollo y debe mejorarse. . . por sus comentarios?
+donde \(A=L_xL_y\). La estimación es sensible a:
 
-El proporciona dos rutinas principales cg\_secondary\_structure.tcl script : cg\_helix y cg\_sheet.
+- duración de la trayectoria;
+- barostato;
+- correlación temporal;
+- tamaño del sistema;
+- presencia de proteína;
+- mezcla y asimetría de lípidos.
 
-Utilice estos dos comandos de la misma manera:
+Use promedios por bloques y no compare directamente valores obtenidos con ensambles diferentes.
 
-cg\_whatever {list of terminig} [-graphical options]
+### 23. Espesor y perfiles de densidad
 
-O, en un ejemplo:
+Calcule perfiles a lo largo de z:
 
-cg\_helix {{5 48} {120 146}} -hlxmethod "cylinder" -hlxcolor "red" -hlxrad 2.5
+~~~bash
+gmx density \
+    -s step7_1.tpr \
+    -f md_all.xtc \
+    -n index.ndx \
+    -d Z \
+    -sl 200 \
+    -dens number \
+    -o 05_analisis/density_z.xvg
+~~~
 
-que dibujará dos hélices, del residuo etiquetado como 5 al residuo etiquetado como 48 y del residuo etiquetado como 120 al residuo etiquetado como 146, como un cilindro rojo de radio de 0.25 nm. Consulte la ayuda que se muestra cuando se obtiene el script o el sitio web para obtener una lista exhaustiva de opciones y valores predeterminados. Para definir la lista de termini, se implementan dos opciones: i) proporcionar la lista usted mismo (como en el ejemplo que se muestra arriba), ii) leer / analizar un archivo generado por do\_dssp . En el segundo caso, no necesita proporcionar ningún término, pero la lista de términos aún debe escribirse en la línea de comando como una lista vacía: {}.
+Cree grupos para:
 
-Tenga en cuenta que, debido a la cantidad restringida de información estructural contenida en una estructura CG, la belleza y exactitud de estas representaciones gráficas son limitadas. . .
+- fósforos o grupos cabeza;
+- colas lipídicas;
+- agua;
+- proteína;
+- iones;
+- cada especie lipídica relevante.
+
+Una definición simple del espesor entre cabezas es la distancia entre los máximos de densidad de fósforo de ambas monocapas:
+
+\[
+d_{PP}=z_{P,\mathrm{sup}}-z_{P,\mathrm{inf}}
+\]
+
+Es una definición global. Una membrana deformada alrededor de la proteína requiere mapas locales de espesor.
+
+### 24. Orden de las cadenas lipídicas
+
+El parámetro de orden deuterio se expresa como:
+
+\[
+S_{CD}=
+\frac{1}{2}
+\left\langle 3\cos^2\theta-1 \right\rangle
+\]
+
+donde \(\theta\) es el ángulo entre un enlace de la cadena y la normal de la membrana.
+
+Consulte primero la sintaxis disponible:
+
+~~~bash
+gmx order -h
+~~~
+
+Ejemplo general:
+
+~~~bash
+gmx order \
+    -s step7_1.tpr \
+    -f md_all.xtc \
+    -n lipid_chains.ndx \
+    -d z \
+    -od 05_analisis/order_parameter.xvg
+~~~
+
+El archivo de índice debe definir los átomos de cadena en el orden requerido. No mezcle carbonos de especies lipídicas diferentes en una misma curva sin justificarlo.
+
+### 25. Difusión lateral de lípidos
+
+Para difusión bidimensional:
+
+\[
+MSD_{xy}(t)=
+\left\langle
+[x(t)-x(0)]^2+[y(t)-y(0)]^2
+\right\rangle
+\]
+
+En el régimen difusivo:
+
+\[
+MSD_{xy}(t)=4D_{xy}t
+\]
+
+Comando:
+
+~~~bash
+gmx msd \
+    -s step7_1.tpr \
+    -f md_all.xtc \
+    -n index.ndx \
+    -sel 'res_com of group "POPC"' \
+    -lateral z \
+    -o 05_analisis/msd_popc_xy.xvg
+~~~
+
+Compruebe la sintaxis con **gmx msd -h**, porque cambió respecto de versiones antiguas. El ajuste no debe incluir el régimen balístico inicial ni una región donde el MSD todavía sea subdifusivo. La difusión lipídica converge lentamente y depende del tamaño del sistema.
+
+### 26. Inclinación de la proteína y del canal
+
+Defina un vector entre centros de masa de dos grupos situados en extremos opuestos del poro y calcule su ángulo con z:
+
+~~~bash
+gmx gangle \
+    -s step7_1.tpr \
+    -f md_all.xtc \
+    -n index.ndx \
+    -g1 vector \
+    -group1 'com of group "Pore_lower" plus com of group "Pore_upper"' \
+    -g2 z \
+    -oav 05_analisis/pore_tilt.xvg
+~~~
+
+La selección debe adaptarse a residuos conservados de la acuaporina. Para el tetrámero, genere una curva por monómero.
+
+### 27. Radio y continuidad del poro
+
+GROMACS no proporciona por sí solo un perfil completo de radio de poro equivalente a herramientas especializadas. Puede:
+
+- medir distancias entre residuos del filtro;
+- calcular densidad de agua a lo largo del eje;
+- usar herramientas externas como HOLE o CHAP;
+- comparar perfiles por monómero y por bloque temporal.
+
+Una disminución local del radio no implica cierre funcional si el agua mantiene una cadena continua. Tampoco una cavidad geométricamente abierta demuestra permeabilidad.
+
+### 28. Puentes de hidrógeno y orientación del agua
+
+Puentes de hidrógeno proteína–agua:
+
+~~~bash
+gmx hbond \
+    -s step7_1.tpr \
+    -f 05_analisis/md_fit.xtc \
+    -n index.ndx \
+    -r 'group "Protein"' \
+    -t 'group "Water"' \
+    -num 05_analisis/protein_water_hbonds.xvg
+~~~
+
+Verifique la sintaxis exacta con:
+
+~~~bash
+gmx hbond -h
+~~~
+
+En acuaporinas importa no solo la ocupación, sino la orientación de las moléculas de agua cerca de los motivos NPA. El cambio de orientación contribuye al mecanismo de exclusión de protones. Este análisis requiere vectores dipolares o enlaces O–H y una coordenada axial referida al poro.
+
+### 29. Conteo de eventos de permeación
+
+Contar moléculas dentro de un cilindro en cada fotograma no equivale a contar permeaciones. Un evento debe exigir una trayectoria completa desde un reservorio hasta el opuesto.
+
+Defina tres estados respecto del centro del canal:
+
+~~~text
+A: z < -z0
+P: -z0 ≤ z ≤ z0 y dentro del radio del poro
+B: z > z0
+~~~
+
+Una permeación A→B requiere la secuencia A→P→B para la misma molécula, sin reiniciar el conteo por fluctuaciones en el límite. Use coordenadas relativas al centro de cada monómero y corrija PBC.
+
+El flujo neto bajo un gradiente puede expresarse como:
+
+\[
+J=\frac{N_{A\rightarrow B}-N_{B\rightarrow A}}{t}
+\]
+
+Una estimación directa de permeabilidad osmótica necesita además el gradiente de concentración:
+
+\[
+P_f=\frac{J}{\Delta c}
+\]
+
+Las unidades dependen de si \(J\) se expresa como moléculas por tiempo, moles por tiempo o volumen por tiempo. En equilibrio, donde no hay flujo neto sostenido, se utilizan formulaciones basadas en fluctuaciones colectivas; no debe aplicarse la ecuación anterior con \(\Delta c=0\).
+
+### 30. Permeabilidad colectiva en equilibrio
+
+Para una coordenada colectiva \(n(t)\) que registra el desplazamiento neto de agua a través del canal:
+
+\[
+\left\langle
+[n(t)-n(0)]^2
+\right\rangle
+\xrightarrow[t\ \mathrm{grande}]{}
+2D_n t
+\]
+
+La permeabilidad osmótica de canal único puede relacionarse con:
+
+\[
+p_f=v_wD_n
+\]
+
+donde \(v_w\) es el volumen molecular del agua y \(D_n\) es el coeficiente de difusión de la coordenada colectiva. La definición exacta de \(n(t)\), el tratamiento de PBC y el intervalo de ajuste deben mantenerse constantes al comparar sistemas.
+
+No calcule una permeabilidad confiable a partir de unos pocos cruces. Use réplicas, intervalos de confianza y análisis por bloques.
+
+### 31. Contactos lípido–proteína
+
+Los contactos persistentes pueden revelar sitios anulares o específicos. Un contacto simple puede definirse por una distancia máxima:
+
+~~~bash
+gmx select \
+    -s step7_1.tpr \
+    -f md_all.xtc \
+    -n index.ndx \
+    -select 'resname POPC and within 0.45 of group "Protein"' \
+    -os 05_analisis/lipid_contacts_size.xvg
+~~~
+
+Este resultado informa cuántos átomos o posiciones cumplen la selección, según la salida elegida; no es automáticamente un número de lípidos únicos. Para residencia lipídica deben seguirse identidades moleculares y tolerar interrupciones cortas.
+
+En una mezcla, analice enriquecimiento relativo:
+
+\[
+E_i=
+\frac{x_i^{\mathrm{contacto}}}
+     {x_i^{\mathrm{membrana}}}
+\]
+
+donde \(E_i>1\) sugiere enriquecimiento de la especie \(i\) alrededor de la proteína. El resultado depende del corte, del área considerada y del muestreo.
+
+### 32. Potencial electrostático y sistemas con voltaje
+
+El potencial promedio a lo largo de z puede calcularse con **gmx potential** a partir de grupos de carga apropiados. Una sola bicapa periódica no crea automáticamente dos reservorios independientes.
+
+Para estudiar flujo iónico bajo potencial sostenido puede utilizarse el protocolo de electrofisiología computacional de GROMACS, que emplea típicamente dos bicapas, dos compartimientos y un desequilibrio de carga:
+
+\[
+\Delta U=\frac{\Delta q}{C_{\mathrm{membrana}}}
+\]
+
+Este montaje no es necesario para permeación de agua en equilibrio y no debe añadirse sin una pregunta electrofisiológica explícita.
+
+### 33. Réplicas, descarte y convergencia
+
+Una trayectoria larga no reemplaza réplicas independientes. Para comparar acuaporinas, mutantes o composiciones:
+
+- use varias semillas de velocidad;
+- mantenga idénticos los parámetros comunes;
+- descarte la etapa transitoria según observables;
+- compare bloques temporales;
+- informe incertidumbre entre réplicas;
+- evite seleccionar la trayectoria “más estable”.
+
+La estabilización del RMSD no demuestra que APL, espesor, difusión lipídica o permeación hayan convergido.
+
+### 34. Simulación coarse-grained
+
+Un modelo CG reduce grados de libertad y permite escalas espaciales o temporales mayores. A cambio, pierde detalle atomístico, modifica la cinética efectiva y puede requerir restricciones estructurales adicionales.
+
+Use un constructor y una versión de Martini compatibles. No convierta simplemente las coordenadas all-atom y reutilice:
+
+- **topol.top** de CHARMM36;
+- archivos ITP atomísticos;
+- modelo de agua atomístico;
+- cortes atomísticos;
+- paso de integración atomístico;
+- parámetros de restricciones atomísticas.
+
+Registre:
+
+- versión de Martini;
+- método de mapeo;
+- modelo de agua;
+- tratamiento electrostático;
+- red elástica;
+- radio y constante de la red;
+- lípidos CG;
+- paso de integración;
+- método de backmapping, si se utiliza.
+
+### 35. Redes elásticas en proteínas CG
+
+Una red elástica ayuda a conservar estructura terciaria o cuaternaria, pero puede suprimir:
+
+- apertura del canal;
+- inclinación helicoidal;
+- movimientos entre dominios;
+- respiración del poro;
+- reorganización oligomérica.
+
+No use una red “porque es el valor predeterminado” si la variable de interés depende del movimiento restringido. Realice análisis de sensibilidad cambiando el corte o la constante, o compare con un modelo sin red cuando sea estable.
+
+La red elástica no reemplaza enlaces covalentes, disulfuros ni una unidad biológica correcta.
+
+### 36. Paso de integración en CG
+
+Los pasos CG suelen ser mayores que en all-atom, pero el máximo estable depende del modelo, el agua, las restricciones y la geometría inicial. Comience con el protocolo recomendado para la versión concreta y revise:
+
+- energía;
+- errores de restricciones;
+- temperatura y presión;
+- estabilidad del poro;
+- comportamiento de los lípidos;
+- sensibilidad al paso de integración.
+
+La aceleración aparente del tiempo en CG no debe interpretarse como una correspondencia universal y exacta con tiempo experimental.
+
+### 37. Visualización CG
+
+VMD y otros visores pueden no inferir correctamente enlaces entre partículas CG porque usan reglas pensadas para geometrías atomísticas. La ausencia visual de enlaces no significa que falten en la topología.
+
+Las representaciones deben basarse en nombres reales de partículas y residuos. Ejemplos habituales en Martini incluyen:
+
+~~~text
+name BB
+resname POPC
+resname W
+resname NA CL
+~~~
+
+Los nombres dependen de la versión y del constructor. Compruébelos en la coordenada y en los ITP.
+
+Para reducir memoria, genere una trayectoria de visualización:
+
+~~~bash
+gmx trjconv \
+    -s cg_md.tpr \
+    -f cg_md.xtc \
+    -o cg_visualization.xtc \
+    -n cg_visualization.ndx \
+    -dt 1000
+~~~
+
+No use la trayectoria reducida para análisis que requieran resolución temporal mayor.
+
+La representación secundaria atomística no puede reconstruirse exactamente a partir de unas pocas partículas por residuo. Una caricatura CG es una interpretación gráfica apoyada en la asignación secundaria, no una observación directa de todos los enlaces y ángulos del esqueleto.
+
+### 38. Errores conceptuales frecuentes
+
+- Simular una sola cadena de una acuaporina tetramérica sin justificarlo.
+- Interpretar el centro del tetrámero como el poro de cada monómero.
+- Orientar por eje principal sin revisar el cinturón hidrofóbico.
+- Usar POPC puro y describirlo como membrana fisiológica.
+- Considerar 0.15 M sinónimo universal de isotonicidad.
+- Regenerar con **pdb2gmx** una topología de CHARMM-GUI.
+- Sustituir los MDP generados por parámetros genéricos.
+- Usar presión isotrópica en una bicapa plana sin validación.
+- Retirar todas las restricciones en una sola etapa.
+- Ejecutar 1 ps y declarar la membrana equilibrada.
+- Ajustar rotación y traslación antes de calcular difusión lipídica.
+- Calcular APL dividiendo por todos los lípidos de ambas monocapas.
+- Contar ocupaciones del poro como eventos completos de permeación.
+- Interpretar una sola trayectoria como estimación convergida de permeabilidad.
+- Usar una red elástica CG que impide el movimiento que se quiere medir.
+- Suponer que CSH es necesario para ejecutar los archivos de CHARMM-GUI.
+
+### 39. Criterios para producción
+
+Inicie la producción cuando:
+
+- el ensamblado oligomérico sea correcto;
+- la proteína esté orientada y centrada de forma razonable;
+- no existan residuos o componentes sin parametrizar;
+- las monocapas tengan la composición y asimetría previstas;
+- topología, coordenadas e índice sean coherentes;
+- los poros estén hidratados sin agua espuria en el núcleo;
+- no existan contactos graves ni errores LINCS;
+- temperatura, volumen, área xy y espesor sean estacionarios;
+- no haya deriva sistemática de la proteína;
+- las restricciones hayan alcanzado la etapa planificada;
+- el intervalo descartado y los análisis se hayan definido;
+- se hayan planificado réplicas independientes.
+
+### Fuentes
+
+1. [Tutorial de CHARMM-GUI para complejos proteína–membrana heterogéneos](https://charmm-gui.org/?doc=tutorial&project=membrane&chapter=membrane_vdac_hetero)
+2. [Preparación de proteínas de membrana con CHARMM-GUI](https://pmc.ncbi.nlm.nih.gov/articles/PMC8158057/)
+3. [Documentación de uso de CHARMM](https://www.charmm-gui.org/charmmdoc/usage.html)
+4. [Opciones MDP de GROMACS 2026.3](https://manual.gromacs.org/current/user-guide/mdp-options.html)
+5. [Referencia de gmx msd](https://manual.gromacs.org/current/onlinehelp/gmx-msd.html)
+6. [Referencia de gmx order](https://manual.gromacs.org/current/onlinehelp/gmx-order.html)
+7. [Electrofisiología computacional en GROMACS](https://manual.gromacs.org/current/reference-manual/special/comp-electrophys.html)
+
+
 
 Energía libre de perturbación (Free Energy Perturbation, FEP)
 
