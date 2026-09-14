@@ -36,75 +36,352 @@ Versión 2023.21.10.9.44
 ![](Aspose.Words.28bd518c-a9c3-4b19-847e-48d6b51a7f0d.003.png)
 
 
-# Instalación de Gromacs
+# Instalación de GROMACS
 
-Dependiendo del sistema operativo, hay diversas formas de instalar Gromacs. Además, esas formas de instalar pueden estar automatizadas y eso conlleva ciertas consecuencias. La más común es que la versión de Gromacs disponible para instalar dependerá de la versión del sistema que tengamos.
+Esta sección corresponde a **GROMACS 2026.3**. Antes de instalar conviene decidir qué se necesita:
 
-## Ubuntu y Fedora
+- **Paquete de la distribución:** instalación rápida para aprendizaje, análisis y pruebas. Puede no ser la versión más reciente ni estar optimizado para el hardware.
+- **Compilación desde código fuente:** recomendada para producción, GPU, clústeres y control preciso de dependencias.
+- **MPI externo:** necesario principalmente para ejecuciones que abarcan varios nodos. Para una sola estación de trabajo, la compilación normal con thread-MPI suele ser suficiente.
+- **gmxapi:** interfaz de Python opcional. Requiere primero una instalación compatible de GROMACS.
 
-En una terminal se escribe
+La guía oficial vigente requiere CMake 3.28 o posterior, un compilador C99 y un compilador C++17. Para GROMACS 2026.3, las versiones mínimas indicadas son GCC 11, Clang 14 o MSVC 2019.
 
-<!-- sudo apt install gromacs #para ubuntu -->
+## Comprobación del sistema
 
-o
+Antes de instalar:
 
-<!-- yum -y install gromacs #para fedora -->
+~~~bash
+uname -a
+cmake --version
+gcc --version
+g++ --version
+python3 --version
+~~~
 
-## WSL
+Si se utilizará una GPU NVIDIA:
 
-Sirve para ejecutar Linux directamente en Windows 10 y se puede instalar según <https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10>. Luego, dentro del WSL de Ubuntu o Fedora, se ejecutan los comandos nativos que ya vimos.
+~~~bash
+nvidia-smi
+nvcc --version
+~~~
 
-## MacOS (Homebrew)
+**nvidia-smi** informa el controlador instalado y la versión máxima de CUDA admitida por ese controlador. **nvcc --version** informa la versión del toolkit usado para compilar. No son la misma cosa.
 
-<!-- brew install gromacs -->
+Según la compatibilidad menor publicada por NVIDIA:
 
-## Compilación de GROMACS 5.1.5-20XX
+| Familia del toolkit | Controlador mínimo |
+|---|---:|
+| CUDA 13.x | 580 |
+| CUDA 12.x | 525 |
+| CUDA 11.x | 450 |
 
-`wget http://ftp.gromacs.org/pub/gromacs/gromacs-<VERSION>.tar.gz
+Un controlador más nuevo puede ejecutar aplicaciones compiladas con una familia CUDA anterior mediante compatibilidad hacia atrás. La tabla es un requisito mínimo general; deben revisarse también las notas de la versión concreta del toolkit y la compatibilidad de la GPU.
 
-tar xfz gromacs-<VERSION>.gz
+## Instalación mediante el gestor de paquetes
 
-cd gromacs-<VERSION>
+### Ubuntu y Debian
+
+~~~bash
+sudo apt update
+sudo apt install gromacs
+~~~
+
+Comprobación:
+
+~~~bash
+gmx --version
+~~~
+
+El paquete disponible depende de la versión de Ubuntu o Debian. Esta vía es adecuada si la versión empaquetada satisface el protocolo. Para simulaciones de producción conviene revisar en la salida de **gmx --version** el soporte SIMD, FFT, MPI y GPU.
+
+### Fedora
+
+~~~bash
+sudo dnf install gromacs
+~~~
+
+Algunas variantes empaquetadas pueden instalar ejecutables o módulos separados para MPI. Compruebe los nombres proporcionados por la versión de Fedora:
+
+~~~bash
+rpm -ql gromacs | grep /bin/
+gmx --version
+~~~
+
+### Arch Linux y Manjaro
+
+~~~bash
+sudo pacman -S gromacs
+gmx --version
+~~~
+
+### macOS con Homebrew
+
+~~~bash
+brew update
+brew install gromacs
+gmx --version
+~~~
+
+La aceleración CUDA no está disponible en macOS. En equipos Apple Silicon, la compilación nativa puede aprovechar SIMD y la GPU solo mediante backends admitidos por la versión de GROMACS y las herramientas disponibles; no debe asumirse que una fórmula de Homebrew incluye aceleración por GPU.
+
+## Windows y WSL2
+
+La ruta más práctica para ejecutar GROMACS en Windows es WSL2 con una distribución Linux. Después de instalar WSL2 y Ubuntu, los comandos de instalación y compilación son los mismos que en Linux.
+
+Desde PowerShell con privilegios de administrador:
+
+~~~powershell
+wsl --install -d Ubuntu
+wsl --update
+~~~
+
+Dentro de Ubuntu:
+
+~~~bash
+sudo apt update
+sudo apt install gromacs
+gmx --version
+~~~
+
+Para usar una GPU NVIDIA dentro de WSL2 se necesita un controlador de Windows compatible con WSL; no debe instalarse un controlador Linux NVIDIA dentro de la distribución WSL. El toolkit CUDA de usuario puede instalarse dentro de WSL cuando sea necesario para compilar. Verifique desde WSL:
+
+~~~bash
+nvidia-smi
+~~~
+
+## Compilación desde código fuente
+
+### Dependencias en Ubuntu o Debian
+
+~~~bash
+sudo apt update
+sudo apt install build-essential cmake git python3     libfftw3-dev libhwloc-dev
+~~~
+
+Para una compilación MPI agregue:
+
+~~~bash
+sudo apt install openmpi-bin libopenmpi-dev
+~~~
+
+### Dependencias en Fedora
+
+~~~bash
+sudo dnf install gcc gcc-c++ cmake make git python3     fftw-devel hwloc-devel
+~~~
+
+Para MPI:
+
+~~~bash
+sudo dnf install openmpi openmpi-devel
+~~~
+
+En Fedora puede ser necesario cargar el entorno de OpenMPI según cómo esté empaquetado:
+
+~~~bash
+module load mpi/openmpi-x86_64
+~~~
+
+Si el comando **module** no existe o el módulo tiene otro nombre, examine los archivos instalados por el paquete OpenMPI.
+
+### Descarga y compilación básica para CPU
+
+Use una carpeta de compilación separada del código fuente. El prefijo bajo **$HOME/opt** evita requerir permisos de administrador durante la instalación.
+
+~~~bash
+wget https://ftp.gromacs.org/gromacs/gromacs-2026.3.tar.gz
+tar xfz gromacs-2026.3.tar.gz
+cd gromacs-2026.3
 
 mkdir build
-
 cd build
 
-cmake .. -DGMX\_BUILD\_OWN\_FFTW=ON -DREGRESSIONTEST\_DOWNLOAD=ON -DCMAKE\_PREFIX\_PATH=/home/user/bin/gromacs-custom
+cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3"
 
-make
+cmake --build . --parallel
+ctest --output-on-failure
+cmake --install .
+~~~
 
-make check
+Active la instalación:
 
-sudo make install
+~~~bash
+source "$HOME/opt/gromacs-2026.3/bin/GMXRC"
+gmx --version
+~~~
 
-source /usr/local/gromacs/bin/GMXRC
+Para cargarla automáticamente al iniciar Bash:
 
--DCMAKE\_C\_COMPILER=xxx equal to the name of the C99 Compiler you wish to use (or the environment variable CC)
+~~~bash
+echo 'source "$HOME/opt/gromacs-2026.3/bin/GMXRC"' >> "$HOME/.bashrc"
+~~~
 
--DCMAKE\_CXX\_COMPILER=xxx equal to the name of the C++98 compiler you wish to use (or the environment variable CXX)
+**GMX_BUILD_OWN_FFTW=ON** descarga y compila FFTW. Si existe una instalación adecuada de FFTW puede omitirse. La FFTW suministrada por GROMACS es una elección simple y reproducible para una estación de trabajo.
 
--DGMX\_MPI=on to build using MPI support
+## Compilación con GPU NVIDIA
 
--DGMX\_GPU=on to build using nvcc to run using NVIDIA native GPU acceleration or an OpenCL GPU
+Primero instale un controlador NVIDIA compatible y el toolkit CUDA siguiendo el método correspondiente a la distribución. No mezcle paquetes CUDA de repositorios incompatibles. Verifique:
 
--DGMX\_USE\_OPENCL=on to build with OpenCL support enabled. GMX\_GPU must also be set.
+~~~bash
+nvidia-smi
+nvcc --version
+~~~
 
--DGMX\_SIMD=xxx to specify the level of SIMD support of the node on which GROMACS will run
+Configure GROMACS con el backend CUDA:
 
--DGMX\_BUILD\_MDRUN\_ONLY=on for building only mdrun, e.g. for compute cluster back-end nodes
+~~~bash
+cd gromacs-2026.3
+mkdir build-cuda
+cd build-cuda
 
--DGMX\_DOUBLE=on to build GROMACS in double precision (slower, and not normally useful)
+cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_GPU=CUDA     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-cuda"
 
--DCMAKE\_PREFIX\_PATH=xxx to add a non-standard location for CMake to search for libraries, headers or programs
+cmake --build . --parallel
+ctest --output-on-failure
+cmake --install .
+~~~
 
--DCMAKE\_INSTALL\_PREFIX=xxx to install GROMACS to a non-standard location (default /usr/local/gromacs)
+Active y compruebe:
 
--DBUILD\_SHARED\_LIBS=off to turn off the building of shared libraries to help with static linking
+~~~bash
+source "$HOME/opt/gromacs-2026.3-cuda/bin/GMXRC"
+gmx --version
+gmx mdrun -version
+~~~
 
--DGMX\_FFT\_LIBRARY=xxx to select whether to use fftw, mkl or fftpack libraries for FFT support
+La salida debe indicar que GROMACS fue compilado con soporte CUDA. Que CUDA aparezca en **nvidia-smi** no demuestra que el ejecutable de GROMACS tenga soporte GPU.
 
--DCMAKE\_BUILD\_TYPE=Debug to build GROMACS in debug mode`
+Para comprobar el acceso real al dispositivo:
+
+~~~bash
+nvidia-smi -L
+~~~
+
+La aceleración efectiva depende del tamaño del sistema, el modelo de GPU, CPU, red, configuración PME y opciones de **gmx mdrun**. No se debe forzar la descarga de todas las tareas a GPU sin medir el rendimiento.
+
+## Compilación con MPI para clústeres
+
+La compilación MPI externa se usa para distribuir una simulación entre varios nodos. Puede coexistir con la instalación normal; el ejecutable suele llamarse **gmx_mpi**.
+
+~~~bash
+cd gromacs-2026.3
+mkdir build-mpi
+cd build-mpi
+
+cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_MPI=ON     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-mpi"
+
+cmake --build . --parallel
+ctest --output-on-failure
+cmake --install .
+~~~
+
+Comprobación:
+
+~~~bash
+source "$HOME/opt/gromacs-2026.3-mpi/bin/GMXRC"
+gmx_mpi --version
+mpirun -np 2 gmx_mpi --version
+~~~
+
+Para combinar MPI y CUDA:
+
+~~~bash
+cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_MPI=ON     -DGMX_GPU=CUDA     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-mpi-cuda"
+~~~
+
+En un clúster deben usarse el lanzador y las variables indicadas por el gestor de trabajos. Un comando local con **mpirun** no sustituye un script de SLURM, PBS u otro planificador.
+
+## Opciones CMake relevantes
+
+| Opción | Uso |
+|---|---|
+| **-DGMX_MPI=ON** | Compila con MPI externo. |
+| **-DGMX_GPU=CUDA** | Activa GPU NVIDIA mediante CUDA. |
+| **-DGMX_GPU=OpenCL** | Activa el backend OpenCL. |
+| **-DGMX_GPU=SYCL** | Activa el backend SYCL. |
+| **-DGMX_SIMD=valor** | Selecciona explícitamente SIMD; normalmente conviene la autodetección. |
+| **-DGMX_DOUBLE=ON** | Compila en doble precisión; es más lento y rara vez necesario para dinámica molecular convencional. |
+| **-DGMX_FFT_LIBRARY=fftw3** | Selecciona la biblioteca FFT. |
+| **-DBUILD_SHARED_LIBS=ON** | Genera bibliotecas compartidas; es necesario para ciertos clientes, incluido gmxapi. |
+| **-DCMAKE_INSTALL_PREFIX=ruta** | Define el directorio de instalación. |
+| **-DCMAKE_BUILD_TYPE=Debug** | Compilación de depuración; no es adecuada para producción. |
+
+Las opciones antiguas **-DGMX_GPU=ON** y **-DGMX_USE_OPENCL=ON** no deben usarse con GROMACS 2026. El backend se selecciona directamente mediante **-DGMX_GPU=CUDA**, **OpenCL** o **SYCL**.
+
+## Instalación de gmxapi para Python
+
+gmxapi requiere una instalación previa de GROMACS compilada con **GMXAPI=ON** y **BUILD_SHARED_LIBS=ON**. Ambas opciones suelen estar activadas por defecto, pero conviene declararlas cuando se prepara una instalación destinada a Python:
+
+~~~bash
+cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMXAPI=ON     -DBUILD_SHARED_LIBS=ON     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3"
+~~~
+
+Después de instalar GROMACS, cree un entorno virtual. gmxapi admite Python 3.9 o posterior.
+
+~~~bash
+python3 -m venv "$HOME/venvs/gmxapi-2026"
+source "$HOME/venvs/gmxapi-2026/bin/activate"
+
+python -m pip install --upgrade pip setuptools wheel cmake pybind11
+source "$HOME/opt/gromacs-2026.3/bin/GMXRC"
+python -m pip install --no-cache-dir gmxapi
+~~~
+
+Si el instalador no encuentra GROMACS:
+
+~~~bash
+gmxapi_ROOT="$HOME/opt/gromacs-2026.3" python -m pip install --no-cache-dir gmxapi
+~~~
+
+Comprobación:
+
+~~~bash
+python -c "import gmxapi; print(gmxapi.__version__)"
+~~~
+
+Después de actualizar o recompilar GROMACS con otro compilador, MPI o precisión, reinstale gmxapi sin usar la caché. Una rueda compilada contra otra instalación puede importar incorrectamente o fallar por símbolos incompatibles.
+
+## Verificación final
+
+~~~bash
+which gmx
+gmx --version
+gmx mdrun -version
+~~~
+
+Compruebe al menos:
+
+- versión exacta de GROMACS;
+- compilador y precisión;
+- SIMD;
+- biblioteca FFT;
+- soporte MPI o thread-MPI;
+- backend GPU;
+- ruta del archivo de datos.
+
+Una prueba mínima del ejecutable no reemplaza los tests:
+
+~~~bash
+gmx help
+gmx check -h
+~~~
+
+Para diagnosticar qué ejecutable se está usando cuando existen varias instalaciones:
+
+~~~bash
+type -a gmx
+echo "$PATH"
+~~~
+
+Si se activa otro entorno, módulo o instalación, ejecute nuevamente el **GMXRC** correspondiente antes de continuar.
+
+## Fuentes
+
+1. [Guía de instalación de GROMACS 2026.3](https://manual.gromacs.org/current/install-guide/index.html)
+2. [Instalación de gmxapi](https://manual.gromacs.org/current/gmxapi/userguide/install.html)
+3. [Compatibilidad entre CUDA Toolkit y controladores NVIDIA](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)
+4. [Guía de instalación de CUDA para Linux](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
 
 # Caso: 1 proteína - 1 ligando
 
