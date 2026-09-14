@@ -4919,9 +4919,7 @@ Para formaldehído acuoso en equilibrio, el último criterio no se cumple si sol
 
 
 
-Energía de unión
-
-## Modelo general: energía de unión mediante gmx_MMPBSA
+## Energía de unión mediante gmx_MMPBSA
 
 ### 1. Qué calcula este método
 
