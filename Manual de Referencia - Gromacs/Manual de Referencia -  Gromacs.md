@@ -4465,7 +4465,6 @@ set -euo pipefail
 
 GMX_COMMAND="${GMX_COMMAND:-gmx}"
 START_STRUCTURE="02_equilibracion/npt.gro"
-START_CHECKPOINT="02_equilibracion/npt.cpt"
 TOPOLOGY="topol.top"
 
 for STATE in $(seq 0 18)
@@ -4484,7 +4483,6 @@ do
     "${GMX_COMMAND}" grompp \
         -f "${DIRECTORY}/equilibration.mdp" \
         -c "${START_STRUCTURE}" \
-        -t "${START_CHECKPOINT}" \
         -p "${TOPOLOGY}" \
         -o "${DIRECTORY}/equilibration.tpr"
 
