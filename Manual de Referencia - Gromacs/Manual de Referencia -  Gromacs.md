@@ -4071,11 +4071,11 @@ G_{\mathrm{soluto,gas}}
 
 Una \(\Delta G_{\mathrm{solv}}<0\) indica que la transferencia al solvente es favorable bajo la convención y los estados estándar especificados. La magnitud depende de la identidad química, el estado de protonación, el solvente, la temperatura, el campo de fuerza, los estados estándar, el tratamiento electrostático, el tamaño de caja y el muestreo.
 
-Este tutorial muestra un cálculo alchemical de una molécula neutra. El formaldehído sirve para ilustrar la mecánica de GROMACS, pero presenta una limitación química crítica: en agua reacciona para formar metanodiol. El resultado obtenido con una topología no reactiva corresponde al formaldehído molecular \(\mathrm{H_2CO}\), no al equilibrio químico completo de una solución de formaldehído.
+Este tutorial muestra un cálculo alquímico de una molécula neutra. El formaldehído sirve para ilustrar la mecánica de GROMACS, pero presenta una limitación química crítica: en agua reacciona para formar metanodiol. El resultado obtenido con una topología no reactiva corresponde al formaldehído molecular \(\mathrm{H_2CO}\), no al equilibrio químico completo de una solución de formaldehído.
 
 ### 1. Fundamento del método
 
-Los estados físicos A y B pueden tener distribuciones configuracionales con poca superposición. Se construye entonces un camino alchemical mediante \(\lambda\):
+Los estados físicos A y B pueden tener distribuciones configuracionales con poca superposición. Se construye entonces un camino alquímico mediante \(\lambda\):
 
 \[
 H(\mathbf{x};\lambda)
@@ -4129,7 +4129,7 @@ d\lambda
 
 TI requiere una grilla que resuelva la curvatura del integrando y una integración numérica apropiada.
 
-BAR combina información en ambas direcciones entre dos estados vecinos. MBAR analiza todos los estados conjuntamente. Ninguno corrige una ruta alchemical mal diseñada ni grados de libertad sin muestrear.
+BAR combina información en ambas direcciones entre dos estados vecinos. MBAR analiza todos los estados conjuntamente. Ninguno corrige una ruta alquímico mal diseñada ni grados de libertad sin muestrear.
 
 Este tutorial utiliza **gmx bar**, incluido en GROMACS.
 
