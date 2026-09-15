@@ -307,6 +307,333 @@ En un clúster deben usarse el lanzador y las variables indicadas por el gestor 
 
 Las opciones antiguas **-DGMX_GPU=ON** y **-DGMX_USE_OPENCL=ON** no deben usarse con GROMACS 2026. El backend se selecciona directamente mediante **-DGMX_GPU=CUDA**, **OpenCL** o **SYCL**.
 
+## Compilación reproducible dentro de Docker
+
+Un contenedor permite fijar la distribución Linux, compiladores, bibliotecas, versión de CUDA de usuario y opciones de CMake. Esto mejora la reproducibilidad del entorno y evita contaminar el sistema anfitrión. No vuelve al ejecutable universal ni garantiza resultados idénticos bit a bit: el kernel, el controlador NVIDIA, la arquitectura CPU, la GPU y la asignación de hilos siguen perteneciendo al anfitrión.
+
+La imagen debe construirse para una versión exacta de GROMACS. No conviene descargar “la última versión” durante cada compilación. Los ejemplos siguientes fijan **GROMACS 2026.3**, verifican el MD5 publicado para el archivo fuente y utilizan una construcción multietapa para que la imagen final no contenga compiladores ni archivos temporales.
+
+### Requisitos del anfitrión
+
+Para CPU sólo se necesitan Docker Engine o Docker Desktop y espacio suficiente para compilar:
+
+~~~bash
+docker version
+docker info
+~~~
+
+En Linux con una GPU NVIDIA se necesitan además:
+
+1. un controlador NVIDIA instalado en el anfitrión;
+2. NVIDIA Container Toolkit;
+3. el runtime de Docker configurado para exponer la GPU.
+
+El controlador se instala únicamente en el anfitrión. La imagen contiene el toolkit y las bibliotecas CUDA de usuario, pero no reemplaza al controlador.
+
+Después de instalar NVIDIA Container Toolkit:
+
+~~~bash
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+~~~
+
+Compruebe el acceso antes de compilar GROMACS:
+
+~~~bash
+docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
+~~~
+
+Si este comando falla, el problema está en Docker, el runtime NVIDIA o el controlador del anfitrión; recompilar GROMACS no lo corrige.
+
+### Imagen CPU portable para x86-64
+
+Cree un archivo llamado **Dockerfile.cpu**:
+
+~~~dockerfile
+FROM ubuntu:24.04 AS builder
+
+ARG GROMACS_VERSION=2026.3
+ARG GROMACS_MD5=7987af0c6ab939ab6e639f32d0dd260f
+ARG GMX_SIMD=SSE2
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    cmake \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp/build
+
+RUN curl -fL \
+    "https://ftp.gromacs.org/gromacs/gromacs-${GROMACS_VERSION}.tar.gz" \
+    -o gromacs.tar.gz \
+    && echo "${GROMACS_MD5}  gromacs.tar.gz" | md5sum -c - \
+    && tar xzf gromacs.tar.gz \
+    && cmake -S "gromacs-${GROMACS_VERSION}" -B gromacs-build \
+        -DGMX_BUILD_OWN_FFTW=ON \
+        -DREGRESSIONTEST_DOWNLOAD=ON \
+        -DGMX_SIMD="${GMX_SIMD}" \
+        -DGMX_GPU=OFF \
+        -DGMX_MPI=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/gromacs \
+    && cmake --build gromacs-build --parallel \
+    && ctest --test-dir gromacs-build --output-on-failure \
+    && cmake --install gromacs-build
+
+FROM ubuntu:24.04 AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/gromacs /opt/gromacs
+
+ENV PATH="/opt/gromacs/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/gromacs/lib:${LD_LIBRARY_PATH}"
+
+WORKDIR /work
+
+ENTRYPOINT ["gmx"]
+CMD ["--version"]
+~~~
+
+Construya la imagen:
+
+~~~bash
+docker build --pull --no-cache \
+  -f Dockerfile.cpu \
+  -t gromacs:2026.3-cpu .
+~~~
+
+El valor **SSE2** se eligió como mínimo común denominador razonable para x86-64. Aumenta la posibilidad de ejecutar la misma imagen en procesadores x86-64 distintos, pero reduce el rendimiento respecto de AVX2 o AVX-512. Para una imagen destinada a un único nodo o a máquinas homogéneas puede compilarse otra variante:
+
+~~~bash
+docker build --pull \
+  --build-arg GMX_SIMD=AVX2_256 \
+  -f Dockerfile.cpu \
+  -t gromacs:2026.3-cpu-avx2 .
+~~~
+
+Esa imagen fallará o no será apropiada en CPU sin AVX2. Una imagen construida para **linux/amd64** tampoco se vuelve compatible automáticamente con ARM64. En ARM debe realizarse una compilación nativa con el SIMD correspondiente; la emulación mediante QEMU sirve para construir o probar, pero no para medir rendimiento de dinámica molecular.
+
+### Imagen con CUDA para GPU NVIDIA
+
+GROMACS 2026.3 requiere CUDA 12.1 o posterior y una GPU con capacidad de cómputo 5.0 o superior. El ejemplo utiliza CUDA 12.6 sobre Ubuntu 24.04, una combinación incluida entre las plataformas de prueba declaradas para esta versión.
+
+Cree **Dockerfile.cuda**:
+
+~~~dockerfile
+FROM nvidia/cuda:12.6.3-devel-ubuntu24.04 AS builder
+
+ARG GROMACS_VERSION=2026.3
+ARG GROMACS_MD5=7987af0c6ab939ab6e639f32d0dd260f
+ARG CUDA_ARCHITECTURES="52;60;61;70;75;80;86;89;90"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    cmake \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp/build
+
+RUN curl -fL \
+    "https://ftp.gromacs.org/gromacs/gromacs-${GROMACS_VERSION}.tar.gz" \
+    -o gromacs.tar.gz \
+    && echo "${GROMACS_MD5}  gromacs.tar.gz" | md5sum -c - \
+    && tar xzf gromacs.tar.gz \
+    && cmake -S "gromacs-${GROMACS_VERSION}" -B gromacs-build \
+        -DGMX_BUILD_OWN_FFTW=ON \
+        -DREGRESSIONTEST_DOWNLOAD=ON \
+        -DGMX_GPU=CUDA \
+        -DCUDAToolkit_ROOT=/usr/local/cuda \
+        -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES}" \
+        -DGMX_MPI=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/gromacs \
+    && cmake --build gromacs-build --parallel \
+    && ctest --test-dir gromacs-build --output-on-failure \
+    && cmake --install gromacs-build
+
+FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04 AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/gromacs /opt/gromacs
+
+ENV PATH="/opt/gromacs/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/gromacs/lib:${LD_LIBRARY_PATH}"
+
+WORKDIR /work
+
+ENTRYPOINT ["gmx"]
+CMD ["--version"]
+~~~
+
+Construya y verifique:
+
+~~~bash
+docker build --pull --no-cache \
+  -f Dockerfile.cuda \
+  -t gromacs:2026.3-cuda12.6 .
+
+docker run --rm --gpus all \
+  gromacs:2026.3-cuda12.6 --version
+
+docker run --rm --gpus all \
+  gromacs:2026.3-cuda12.6 mdrun -version
+~~~
+
+La lista de **CMAKE_CUDA_ARCHITECTURES** genera código para varias generaciones y aumenta el tiempo de compilación y el tamaño de la imagen. Puede reducirse para un parque homogéneo. Por ejemplo, una RTX 3060 utiliza SM 86 y una Tesla P100 utiliza SM 60:
+
+~~~bash
+docker build --pull \
+  --build-arg CUDA_ARCHITECTURES="60;86" \
+  -f Dockerfile.cuda \
+  -t gromacs:2026.3-cuda12.6-sm60-sm86 .
+~~~
+
+No agregue una arquitectura que el toolkit seleccionado ya no admita. Si se busca máxima portabilidad entre GPU NVIDIA, es preferible conservar la lista predeterminada de arquitecturas generada por GROMACS o definir explícitamente todas las GPU reales que deberán ejecutar la imagen.
+
+### Compatibilidad entre la imagen CUDA y el controlador
+
+La versión mostrada por **nvidia-smi** como “CUDA Version” es la versión máxima admitida por el controlador, no el toolkit contenido en la imagen. Para ejecutar una imagen basada en CUDA 12.x, el controlador Linux debe cumplir como mínimo el requisito de esa familia; la tabla general de compatibilidad menor de NVIDIA indica controlador 525 o posterior para CUDA 12.x. Algunas características que combinan PTX, bibliotecas nuevas o hardware reciente pueden exigir un controlador más nuevo.
+
+Verifique ambos lados:
+
+~~~bash
+nvidia-smi
+
+docker run --rm --gpus all \
+  gromacs:2026.3-cuda12.6 mdrun -version
+~~~
+
+La primera orden caracteriza el anfitrión. La segunda confirma cómo fue compilado GROMACS y si el contenedor ve la GPU.
+
+### Ejecutar una simulación conservando los archivos
+
+Los datos no deben quedar únicamente dentro de la capa efímera del contenedor. Monte el directorio actual en **/work** y use el UID y GID del usuario para evitar archivos propiedad de root:
+
+~~~bash
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  --volume "$PWD:/work" \
+  --workdir /work \
+  gromacs:2026.3-cpu \
+  grompp -f md.mdp -c npt.gro -t npt.cpt \
+  -p topol.top -o md.tpr
+~~~
+
+Para producción con NVIDIA:
+
+~~~bash
+docker run --rm -it \
+  --gpus all \
+  --user "$(id -u):$(id -g)" \
+  --volume "$PWD:/work" \
+  --workdir /work \
+  gromacs:2026.3-cuda12.6 \
+  mdrun -deffnm md -ntmpi 1 -ntomp 8
+~~~
+
+Como el Dockerfile define **ENTRYPOINT ["gmx"]**, después del nombre de la imagen se escribe directamente la suborden, por ejemplo **grompp**, **mdrun** o **rms**. El directorio montado conserva TPR, trayectorias, energías, logs y checkpoints cuando se elimina el contenedor.
+
+Si Docker tiene un límite de CPU o memoria, GROMACS sólo podrá usar los recursos asignados. Conviene declararlos de forma explícita cuando se comparan rendimientos:
+
+~~~bash
+docker run --rm \
+  --gpus all \
+  --cpuset-cpus 0-7 \
+  --memory 24g \
+  --user "$(id -u):$(id -g)" \
+  --volume "$PWD:/work" \
+  --workdir /work \
+  gromacs:2026.3-cuda12.6 \
+  mdrun -deffnm md -ntmpi 1 -ntomp 8
+~~~
+
+### Validación mínima de la imagen
+
+La compilación ejecuta **ctest**, pero la imagen GPU se construye normalmente sin acceso a un dispositivo. Debe realizarse una prueba de ejecución en cada clase de hardware de destino.
+
+Registre la configuración:
+
+~~~bash
+docker image inspect gromacs:2026.3-cuda12.6 > image-inspect.json
+
+docker run --rm --gpus all \
+  gromacs:2026.3-cuda12.6 mdrun -version
+~~~
+
+Después ejecute un sistema pequeño y examine el log:
+
+~~~bash
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  --volume "$PWD:/work" \
+  --workdir /work \
+  gromacs:2026.3-cuda12.6 \
+  mdrun -s test.tpr -deffnm test -nsteps 1000
+~~~
+
+Compruebe en **test.log**:
+
+- versión y precisión de GROMACS;
+- SIMD detectado;
+- backend CUDA;
+- GPU seleccionada;
+- número de rangos y de hilos;
+- ausencia de errores LINCS, NaN o fallos del dispositivo;
+- rendimiento coherente con una ejecución nativa equivalente.
+
+Una diferencia numérica pequeña entre hardware, número de hilos o backends no implica por sí sola un error: la dinámica molecular es caótica y las reducciones en coma flotante no son asociativas. La validación debe comparar conservación, distribuciones y propiedades estadísticas, no exigir trayectorias idénticas marco a marco.
+
+### Reproducibilidad de la imagen
+
+Una etiqueta como **ubuntu:24.04** o **nvidia/cuda:12.6.3-runtime-ubuntu24.04** puede apuntar posteriormente a una imagen base reconstruida. Para congelar una imagen publicada se debe registrar y usar su digest:
+
+~~~dockerfile
+FROM ubuntu:24.04@sha256:DIGEST_VERIFICADO AS builder
+~~~
+
+El digest se obtiene del registro utilizado y debe conservarse junto con:
+
+- Dockerfile;
+- versión y suma de comprobación de GROMACS;
+- digest de cada imagen base;
+- salida de **docker version**;
+- salida de **gmx mdrun -version**;
+- controlador y modelo de GPU;
+- comando exacto de construcción y ejecución.
+
+**--no-cache** fuerza una reconstrucción limpia, pero no garantiza reproducibilidad si los repositorios APT cambiaron. Para reconstrucciones archivables se necesitan además repositorios con instantáneas o una imagen ya construida identificada por digest.
+
+### MPI, clústeres y límites prácticos
+
+La imagen propuesta usa thread-MPI, apropiado para una estación de trabajo o un solo nodo. Construir con **GMX_MPI=ON** dentro del contenedor es posible, pero ejecutar eficientemente entre nodos requiere compatibilidad con el MPI, la red de alta velocidad, UCX/OFED y el lanzador del clúster. Encapsular una biblioteca MPI arbitraria puede anular RDMA o generar incompatibilidades con SLURM.
+
+En HPC suele ser más simple construir una imagen OCI validada y ejecutarla mediante Apptainer/Singularity, o compilar GROMACS contra la pila MPI suministrada por el centro. Para multinodo, la portabilidad del contenedor debe validarse con el administrador y con una prueba de escalamiento; que **mpirun** funcione dentro de una computadora no demuestra compatibilidad multinodo.
+
+### Fallos frecuentes
+
+- Instalar el controlador NVIDIA dentro de la imagen.
+- Confundir el toolkit CUDA de la imagen con el controlador del anfitrión.
+- Compilar con AVX2 o AVX-512 y asumir que la imagen funcionará en cualquier CPU.
+- Usar una etiqueta **latest** para GROMACS, Ubuntu o CUDA.
+- No montar el directorio de trabajo y perder los resultados al eliminar el contenedor.
+- Ejecutar como root y dejar archivos sin permisos para el usuario.
+- Omitir **--gpus all** y concluir que GROMACS fue compilado sin CUDA.
+- Probar sólo **gmx --version** sin ejecutar un sistema pequeño.
+- Suponer que Docker elimina las diferencias numéricas entre GPU y CPU.
+- Copiar una imagen CUDA a un nodo cuyo controlador es demasiado antiguo.
+
 ## Instalación de gmxapi para Python
 
 gmxapi requiere una instalación previa de GROMACS compilada con **GMXAPI=ON** y **BUILD_SHARED_LIBS=ON**. Ambas opciones suelen estar activadas por defecto, pero conviene declararlas cuando se prepara una instalación destinada a Python:
