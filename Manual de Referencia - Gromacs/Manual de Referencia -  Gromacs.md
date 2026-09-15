@@ -707,6 +707,10 @@ Si se activa otro entorno, módulo o instalación, ejecute nuevamente el **GMXRC
 2. [Instalación de gmxapi](https://manual.gromacs.org/current/gmxapi/userguide/install.html)
 3. [Compatibilidad entre CUDA Toolkit y controladores NVIDIA](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)
 4. [Guía de instalación de CUDA para Linux](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
+5. [Descarga y suma de comprobación de GROMACS 2026.3](https://manual.gromacs.org/documentation/2026.3/download.html)
+6. [Instalación de NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+7. [Prueba de acceso a GPU desde un contenedor](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html)
+8. [Buenas prácticas para construir imágenes Docker](https://docs.docker.com/build/building/best-practices/)
 
 # Caso: 1 proteína - 1 ligando
 
