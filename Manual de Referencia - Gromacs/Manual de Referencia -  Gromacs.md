@@ -2734,7 +2734,289 @@ gmx dssp -h
 
 Una meseta de RMSD no demuestra convergencia. Compare bloques temporales, réplicas independientes y observables complementarios.
 
-### 15. Proteínas modeladas o inicialmente inestables
+### 15. Diseñar el análisis antes de calcular observables
+
+El análisis debe responder una pregunta física. Acumular RMSD, RMSF, SASA, puentes de hidrógeno y PCA sin definir qué hipótesis evalúa cada uno produce figuras, pero no necesariamente evidencia.
+
+Antes de analizar, defina:
+
+- qué intervalo se considera producción equilibrada;
+- qué átomos representan mejor el fenómeno: Cα, backbone, todos los átomos pesados, sitio activo o dominios;
+- qué estructura se usará como referencia;
+- qué observable se espera que cambie y en qué dirección;
+- cuántas réplicas independientes se compararán;
+- cómo se estimará la incertidumbre.
+
+El descarte inicial no debe elegirse porque “mejora” una curva. Examine temperatura, densidad, energía, RMSD y los observables relevantes por bloques. Si una transición lenta ocurre una sola vez, eliminar la parte anterior puede borrar un estado real en lugar de retirar equilibración.
+
+Divida la producción en bloques temporales comparables. Por ejemplo, para una trayectoria de 100 ns puede contrastar 0–25, 25–50, 50–75 y 75–100 ns, además de repetir los análisis en réplicas independientes. La estabilidad del promedio entre bloques es más informativa que una línea aparentemente plana.
+
+### 16. Exposición al solvente, enlaces y geometría funcional
+
+El área accesible al solvente, SASA, depende de la superficie molecular y de una sonda que representa aproximadamente una molécula de agua. No equivale al área geométrica total ni mide por sí sola desplegamiento.
+
+~~~bash
+gmx sasa \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -surface 'group "Protein"' \
+    -output 'group "Protein"' \
+    -o ../06_analisis/sasa_total.xvg \
+    -or ../06_analisis/sasa_residue.xvg
+~~~
+
+Compruebe la sintaxis de la versión instalada con **gmx sasa -h**. Para interpretar cambios conviene separar, cuando sea pertinente, superficie hidrofóbica e hidrofílica mediante grupos definidos y documentados.
+
+Los puentes de hidrógeno intraproteicos pueden calcularse con:
+
+~~~bash
+gmx hbond \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -r 'group "Protein"' \
+    -t 'group "Protein"' \
+    -num ../06_analisis/hbonds_intraprotein.xvg
+~~~
+
+La interfaz de **gmx hbond** cambió entre versiones. Revise **gmx hbond -h** y registre los cortes geométricos utilizados. Un mayor número de puentes no significa automáticamente una estructura más estable: importa qué interacciones aparecen, su ocupación y si conectan regiones funcionales.
+
+Para una distancia entre dominios, residuos catalíticos o extremos de una compuerta, cree grupos específicos en **index.ndx** y use:
+
+~~~bash
+gmx distance \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -n index.ndx \
+    -select 'com of group "Domain_A" plus com of group "Domain_B"' \
+    -oall ../06_analisis/domain_distance.xvg
+~~~
+
+Una distancia entre centros de masa puede ocultar rotaciones. Cuando la geometría sea funcional, combine distancias, ángulos y contactos definidos a partir de residuos concretos.
+
+### 17. Ángulos diedros, contactos y estructura secundaria
+
+La estabilidad del plegamiento no queda descrita por un RMSD global. Los cambios locales pueden examinarse mediante ángulos φ/ψ, matrices de distancia y evolución de la estructura secundaria.
+
+Diagrama de Ramachandran muestreado durante la trayectoria:
+
+~~~bash
+gmx rama \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -o ../06_analisis/ramachandran.xvg
+~~~
+
+Matriz media de distancias entre residuos:
+
+~~~bash
+echo Protein | \
+gmx mdmat \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -mean ../06_analisis/mean_distance_map.xpm \
+    -frames ../06_analisis/distance_map_frames.xpm
+~~~
+
+La opción **-frames** puede generar archivos grandes; úsela solo cuando se necesite evolución temporal. Para contactos funcionales es preferible definir pares de residuos y calcular ocupaciones con un corte explícito, en lugar de interpretar visualmente toda la matriz.
+
+La estructura secundaria ya puede obtenerse con **gmx dssp**. Resuma la ocupación por residuo y por bloque, no solo una representación coloreada. Una hélice presente el 60 % del tiempo no es equivalente a una transición irreversible de hélice a coil.
+
+### 18. Fundamento de PCA o dinámica esencial
+
+El análisis de componentes principales, PCA, intenta separar movimientos colectivos de gran amplitud de fluctuaciones locales. Después de eliminar traslación y rotación, se construye la matriz de covarianza de las coordenadas:
+
+\[
+C_{ij}=\left\langle
+\left(x_i-\langle x_i\rangle\right)
+\left(x_j-\langle x_j\rangle\right)
+\right\rangle
+\]
+
+Su diagonalización produce autovectores \(\mathbf{v}_k\) y autovalores \(\lambda_k\):
+
+\[
+\mathbf{C}\mathbf{v}_k=\lambda_k\mathbf{v}_k
+\]
+
+- \(\mathbf{v}_k\) define una dirección colectiva en el espacio de coordenadas;
+- \(\lambda_k\) es la varianza a lo largo de esa dirección;
+- los componentes se ordenan de mayor a menor varianza;
+- la fracción de fluctuación explicada por el componente \(k\) es:
+
+\[
+f_k=\frac{\lambda_k}{\sum_j\lambda_j}
+\]
+
+La proyección del fotograma \(t\) sobre el componente \(k\) es:
+
+\[
+p_k(t)=\mathbf{v}_k^{\mathrm{T}}
+\left[\mathbf{x}(t)-\langle\mathbf{x}\rangle\right]
+\]
+
+“Principal” significa mayor varianza, no mayor importancia biológica. PC1 puede representar una relajación inicial, difusión no convergida o un movimiento inducido por una mala preparación. La interpretación funcional requiere localizar qué dominios se mueven, comprobar recurrencia y contrastar réplicas o datos experimentales.
+
+PCA cartesiano depende de la selección atómica y del ajuste. Para dinámica global suele ser razonable usar backbone o Cα. Incluir cadenas laterales e hidrógenos aumenta dimensionalidad y puede hacer que movimientos locales oculten los modos colectivos.
+
+### 19. PCA con gmx covar y gmx anaeig
+
+Use una trayectoria con la proteína entera y sin saltos periódicos. No es necesario ajustar previamente la trayectoria: **gmx covar** realiza un ajuste de mínimos cuadrados usando el primer grupo solicitado. Así se evita ajustar dos veces con criterios diferentes.
+
+Construcción y diagonalización de la matriz de covarianza:
+
+~~~bash
+gmx covar \
+    -s md.tpr \
+    -f md_protein_center.xtc \
+    -o ../06_analisis/pca_eigenval.xvg \
+    -v ../06_analisis/pca_eigenvec.trr \
+    -av ../06_analisis/pca_average.pdb \
+    -l ../06_analisis/pca_covar.log
+~~~
+
+Seleccione **Backbone** para el ajuste y **Backbone** para la matriz. Si se elige otro grupo, debe conservarse exactamente la misma selección en las proyecciones posteriores.
+
+La covarianza cartesiana estándar no está ponderada por masa salvo que se solicite la opción correspondiente. Para Cα la diferencia es irrelevante porque todos los átomos seleccionados son carbonos; para selecciones heterogéneas debe declararse si se utilizó ponderación por masa.
+
+Proyección sobre PC1 y PC2:
+
+~~~bash
+gmx anaeig \
+    -v ../06_analisis/pca_eigenvec.trr \
+    -s md.tpr \
+    -f md_protein_center.xtc \
+    -first 1 \
+    -last 2 \
+    -2d ../06_analisis/pca_pc1_pc2.xvg
+~~~
+
+Evolución temporal de PC1:
+
+~~~bash
+gmx anaeig \
+    -v ../06_analisis/pca_eigenvec.trr \
+    -s md.tpr \
+    -f md_protein_center.xtc \
+    -first 1 \
+    -last 1 \
+    -proj ../06_analisis/pca_pc1_time.xvg
+~~~
+
+Estructuras extremas interpoladas a lo largo de PC1:
+
+~~~bash
+gmx anaeig \
+    -v ../06_analisis/pca_eigenvec.trr \
+    -s md.tpr \
+    -f md_protein_center.xtc \
+    -first 1 \
+    -last 1 \
+    -extr ../06_analisis/pca_pc1_extremes.pdb \
+    -nframes 30
+~~~
+
+Las estructuras intermedias generadas con **-extr** son una interpolación para visualizar el vector. No constituyen una trayectoria física ni prueban que la proteína recorra suavemente ese camino.
+
+### 20. Interpretación y convergencia de PCA
+
+Examine en conjunto:
+
+1. espectro de autovalores;
+2. fracción acumulada de varianza;
+3. proyecciones de cada componente en función del tiempo;
+4. mapa PC1–PC2 coloreado por tiempo o réplica;
+5. movimiento estructural de los primeros componentes;
+6. estabilidad de los autovectores entre bloques y réplicas.
+
+Un mapa PC1–PC2 con varias nubes puede indicar estados conformacionales, pero también muestreo insuficiente. La conexión temporal entre puntos y la revisita de cada región son esenciales. Una trayectoria que avanza una sola vez de izquierda a derecha no demuestra equilibrio entre dos estados.
+
+El contenido coseno ayuda a detectar modos parecidos a una difusión aleatoria finita:
+
+~~~bash
+gmx analyze \
+    -f ../06_analisis/pca_pc1_time.xvg \
+    -cc ../06_analisis/pca_pc1_cosine.xvg
+~~~
+
+Un contenido coseno alto sugiere muestreo insuficiente del modo, pero no demuestra que la dirección carezca de significado físico. Compare además PCA calculados por separado sobre mitades de la trayectoria y sobre réplicas. El solapamiento entre subespacios es más exigente que comparar solamente autovalores.
+
+Para comparar dos sistemas —por ejemplo proteína libre y complejo— no calcule dos PCA independientes y llame “PC1” al mismo movimiento. Los ejes son específicos de cada conjunto. Construya una base común con trayectorias concatenadas o proyecte ambas trayectorias sobre los autovectores obtenidos de un único conjunto de referencia. Los sistemas deben contener los mismos átomos, en el mismo orden, y usar el mismo ajuste.
+
+### 21. Agrupamiento y paisaje conformacional
+
+El agrupamiento busca estructuras representativas; PCA reduce dimensionalidad. No son equivalentes. Un análisis puede agrupar por RMSD, contactos o distancias funcionales, según la pregunta.
+
+Ejemplo de agrupamiento por RMSD del backbone:
+
+~~~bash
+echo Backbone | \
+gmx cluster \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -method gromos \
+    -cutoff 0.20 \
+    -o ../06_analisis/cluster_rmsd.xpm \
+    -g ../06_analisis/cluster.log \
+    -sz ../06_analisis/cluster_sizes.xvg \
+    -cl ../06_analisis/cluster_representatives.pdb
+~~~
+
+El corte de 0.20 nm es solo un punto de partida. Debe evaluarse su sensibilidad: un corte pequeño fragmenta el conjunto y uno grande mezcla estados distintos. Informe selección, métrica, método y corte.
+
+Un paisaje de energía libre aparente en dos coordenadas \(q_1,q_2\) se obtiene de la probabilidad muestreada:
+
+\[
+F(q_1,q_2)=-k_{\mathrm B}T\ln P(q_1,q_2)+C
+\]
+
+Con PC1 y PC2 puede estimarse mediante:
+
+~~~bash
+gmx sham \
+    -f ../06_analisis/pca_pc1_pc2.xvg \
+    -ls ../06_analisis/pca_free_energy.xpm
+~~~
+
+El resultado depende del binning, el muestreo y las coordenadas elegidas. Un mínimo oscuro no es una energía absoluta ni demuestra un estado termodinámico convergido. Regiones no visitadas no tienen probabilidad estimable; no deben interpretarse como barreras cuantificadas.
+
+### 22. Comparación con información experimental
+
+Una simulación gana valor cuando sus observables se conectan con mediciones independientes. Según el sistema pueden compararse:
+
+- estructuras de rayos X o cryo-EM, considerando contactos cristalinos y resolución;
+- factores B, con cautela por desorden estático y efectos del cristal;
+- ensambles de RMN, NOE, parámetros de orden o acoplamientos residuales;
+- datos SAXS, FRET, HDX-MS o mutagénesis;
+- distancias conocidas del sitio activo;
+- estados abiertos y cerrados depositados en PDB.
+
+La relación idealizada entre desplazamiento cuadrático medio isotrópico y factor B es:
+
+\[
+B=\frac{8\pi^2}{3}\langle u^2\rangle
+\]
+
+No compare directamente RMSF de solución con factores B cristalográficos como si fueran la misma magnitud. El factor B incluye contribuciones del cristal, refinamiento y desorden, mientras que RMSF depende del alineamiento, la ventana temporal y el campo de fuerza. Son comparables principalmente como perfiles cualitativos o mediante un modelo explícito.
+
+Para proyectar un conjunto de estructuras experimentales sobre una base PCA deben alinearse, contener una selección atómica común y respetar el mismo orden. La coincidencia parcial indica que la simulación visita movimientos compatibles; la ausencia de coincidencia puede reflejar tiempo insuficiente, ligandos ausentes, condiciones diferentes o sesgo del campo de fuerza.
+
+### 23. Aplicación del esquema a otros tipos de simulación
+
+La lógica general —corregir PBC, seleccionar un marco de referencia, comprobar estabilidad, analizar coordenadas funcionales, estimar incertidumbre y comparar réplicas— se transfiere a otros sistemas. Los comandos no pueden copiarse sin modificar selecciones y significado físico.
+
+| Sistema | Parte reutilizable | Adaptación necesaria |
+|---|---|---|
+| Proteína–ligando | RMSD/RMSF de proteína, PCA, clustering | Ajustar por proteína; analizar pose, contactos y distancias del ligando por separado. |
+| Oligómero | PCA, contactos, distancias y clustering | Decidir si el ajuste usa una subunidad o el ensamblado; separar movimientos internos de reorganización cuaternaria. |
+| Membrana–proteína | Análisis de proteína y modos colectivos | Hacer moléculas enteras; no usar trayectoria ajustada para difusión lipídica, área o fluctuaciones de caja. |
+| Proteína con cofactor | Controles estructurales y PCA | Incluir el cofactor solo si su parametrización y la selección responden a la pregunta; controlar geometría de coordinación. |
+| Coarse-grained | PCA, clustering y contactos | Usar partículas equivalentes, interpretar otra resolución y no comparar amplitudes directamente con all-atom. |
+| Réplicas o variantes | Base PCA común y análisis por bloques | Mantener idénticos átomos, orden, referencia y preprocesamiento; cuantificar variabilidad entre réplicas. |
+
+PCA no debe aplicarse indiscriminadamente a todas las coordenadas del sistema. Incluir agua, iones o lípidos junto con la proteína genera una matriz dominada por difusión y permutación de moléculas equivalentes. Para solvente y membrana son preferibles densidades, difusión, orientación, contactos o variables colectivas específicas.
+
+
+### 24. Proteínas modeladas o inicialmente inestables
 
 Si la estructura proviene de homología, predicción o modelado de bucles:
 
@@ -2754,7 +3036,7 @@ define = -DPOSRES
 
 Puede generar archivos de restricciones con constantes decrecientes, por ejemplo 1000, 500, 100 y 0 kJ mol⁻¹ nm⁻², manteniendo la duración y los criterios documentados. Cada etapa debe continuar desde las coordenadas y velocidades de la anterior.
 
-### 16. Cofactores, metales y residuos no estándar
+### 25. Cofactores, metales y residuos no estándar
 
 Una proteína que contiene solo residuos reconocidos por el campo de fuerza puede procesarse directamente mediante **pdb2gmx**. Un cofactor orgánico, grupo prostético o residuo modificado requiere parámetros compatibles.
 
@@ -2770,7 +3052,7 @@ Un metal coordinado no debe reemplazarse por un ion genérico sin evaluar geomet
 
 Valide siempre que el orden de las coordenadas coincida con **[ molecules ]** y que la carga total sea la esperada.
 
-### 17. Monómeros, oligómeros y estabilidad artificial
+### 26. Monómeros, oligómeros y estabilidad artificial
 
 Cambiar el identificador de cadena o agrupar átomos en **index.ndx** no crea enlaces ni estabiliza físicamente un oligómero. Los grupos sirven para selecciones, acoplamiento, salida o análisis.
 
@@ -2788,7 +3070,7 @@ Las restricciones de posición pueden mantener una geometría, pero también imp
 
 Las restricciones aplicadas durante producción deben informarse porque modifican el ensamble y limitan la interpretación de fluctuaciones, RMSD, RMSF y transiciones conformacionales.
 
-### 18. Criterio para continuar
+### 27. Criterio para continuar
 
 Proceda a EM, NVT, NPT y producción únicamente cuando:
 
@@ -2809,6 +3091,12 @@ Para una proteína monomérica formada exclusivamente por aminoácidos estándar
 3. [Campos de fuerza en GROMACS](https://manual.gromacs.org/current/user-guide/force-fields.html)
 4. [Referencia de gmx solvate](https://manual.gromacs.org/current/onlinehelp/gmx-solvate.html)
 5. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
+6. [Tutorial práctico de PCA de trayectorias moleculares, Universidad del Sarre](https://biophys.uni-saarland.de/courses/comp-mol-bio/pract06/)
+7. [Referencia oficial de gmx covar](https://manual.gromacs.org/current/onlinehelp/gmx-covar.html#gmx-covar)
+8. [Referencia oficial de gmx anaeig](https://manual.gromacs.org/current/onlinehelp/gmx-anaeig.html#gmx-anaeig)
+9. [Tutorial introductorio de simulación de proteínas con GROMACS, J. Phys. Chem. B](https://pubs.acs.org/doi/10.1021/acs.jpcb.4c04050)
+10. [Revisión sobre aprendizaje automático en el análisis de simulaciones biomoleculares](https://www.tandfonline.com/doi/full/10.1080/23746149.2021.2006080)
+11. [Guía práctica complementaria de dinámica esencial con GROMACS](https://stemskillslab.com/how-to-do-pca-gromacs-trajectory-essential-dynamics/)
 
 ## Sistema bifásico
 
