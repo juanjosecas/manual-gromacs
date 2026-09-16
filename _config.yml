@@ -1,0 +1,16 @@
+title: Manual de referencia de GROMACS
+description: Guía práctica y fundamentos para simulaciones de dinámica molecular
+url: "https://juanjosecas.github.io"
+baseurl: "/manual-gromacs"
+lang: es
+markdown: kramdown
+kramdown:
+  input: GFM
+  math_engine: mathjax
+  syntax_highlighter: rouge
+  hard_wrap: false
+permalink: pretty
+exclude:
+  - LICENSE
+  - README.md
+  - "*.docx"
