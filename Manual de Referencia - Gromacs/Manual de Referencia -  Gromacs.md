@@ -3953,7 +3953,190 @@ El primer valor corresponde conjuntamente a x/y y el segundo a z. El acoplamient
 
 No interprete fluctuaciones instantáneas de presión como fallo. Evalúe deriva, densidad, área, espesor y promedios por bloques.
 
-### 17. Producción segmentada sin CSH
+### 17. Repartición de masa de hidrógeno (HMR)
+
+La **repartición de masa de hidrógeno** (*hydrogen mass repartitioning*, HMR) transfiere parte de la masa del átomo pesado a sus hidrógenos enlazados sin cambiar la masa total de la molécula. Su objetivo es disminuir las frecuencias más altas del sistema y permitir, después de validarlo, un paso de integración mayor.
+
+Para una vibración aproximadamente armónica:
+
+\[
+\omega=\sqrt{\frac{k}{\mu}},
+\qquad
+\mu=\frac{m_1m_2}{m_1+m_2}
+\]
+
+donde \(k\) es la constante de fuerza y \(\mu\) la masa reducida. Al aumentar la masa del hidrógeno aumenta \(\mu\) y disminuye \(\omega\). Para un factor de repartición \(f\):
+
+\[
+m'_{H}=f\,m_H,
+\qquad
+m'_X=m_X-\sum_H\left(m'_H-m_H\right)
+\]
+
+El segundo término se suma sobre los hidrógenos unidos al átomo pesado \(X\). Con \(f=3\), un hidrógeno de aproximadamente \(1.008\ \mathrm{u}\) pasa a aproximadamente \(3.024\ \mathrm{u}\). La masa total se conserva. HMR no cambia las cargas, los parámetros de Lennard-Jones ni la función de energía potencial; sí cambia la matriz de masas y, por lo tanto, puede modificar propiedades dinámicas.
+
+#### Qué permite y qué no permite HMR
+
+En sistemas atomísticos convencionales, GROMACS indica que combinar un factor 3 con enlaces a hidrógeno restringidos permite **habitualmente** usar \(\Delta t=0.004\ \mathrm{ps}=4\ \mathrm{fs}\). No es una garantía de estabilidad para cualquier topología. HMR:
+
+- reduce aproximadamente a la mitad el número de pasos necesario para simular el mismo tiempo físico;
+- puede acercarse a una aceleración de dos veces, aunque el rendimiento real depende de GPU, CPU, PME, restricciones y comunicaciones;
+- no mejora el campo de fuerza ni genera más muestreo por nanosegundo simulado;
+- conserva, en principio, las distribuciones configuracionales de equilibrio;
+- altera escalas dinámicas: difusión, correlaciones temporales, cinética y tasas de transporte pueden resultar algo más lentas.
+
+Por este último motivo, HMR es especialmente atractivo para propiedades estructurales y termodinámicas de membranas, pero exige cautela si el resultado principal es difusión lipídica, flujo de agua, permeabilidad de una acuaporina, tiempos de residencia o cinética de apertura.
+
+#### Método nativo en GROMACS 2026.3
+
+Desde GROMACS 2024, **gmx grompp** puede efectuar HMR a partir de una topología ordinaria mediante una sola opción del MDP. Para GROMACS 2026.3, el bloque mínimo es:
+
+~~~ini
+integrator              = md
+dt                      = 0.004
+constraints             = h-bonds
+constraint-algorithm    = lincs
+mass-repartition-factor = 3
+~~~
+
+**No combine este método con `define = -DHEAVY_H`, con masas ya modificadas por CHARMM-GUI ni con una edición manual de los ITP.** La opción nativa debe aplicarse al sistema completo. Reparticionar solo lípidos o solo proteína deja otros hidrógenos con movimientos rápidos y elimina la justificación física del paso de 4 fs.
+
+**grompp** eleva al umbral correspondiente las masas de los átomos ligeros y resta la diferencia al átomo enlazado. Emite una advertencia si un átomo ligero no tiene vecino enlazado y un error si tiene más de uno o si la resta haría que el vecino quedara por debajo de la masa mínima. Esto obliga a revisar con especial cuidado moléculas no estándar, modelos polarizables, sitios virtuales y topologías con conectividad inusual.
+
+#### Integración con los archivos de CHARMM-GUI
+
+Duplique el MDP de producción para conservar un control de 2 fs:
+
+~~~bash
+cp step7_production.mdp step7_production_hmr.mdp
+~~~
+
+En **step7_production_hmr.mdp**, mantenga los parámetros de CHARMM-GUI para electrostática, van der Waals, temperatura y presión, y cambie únicamente lo necesario para la comparación:
+
+~~~ini
+dt                      = 0.004
+constraints             = h-bonds
+mass-repartition-factor = 3
+~~~
+
+No aproveche el cambio a HMR para acortar cortes, cambiar el barostato o sustituir los parámetros no enlazados. El estudio de membranas que evaluó HMR encontró resultados razonables con el protocolo validado, pero no respaldó el corte de \(9\ \text{Å}=0.9\ \mathrm{nm}\) que también ensayó. En CHARMM36 deben conservarse los cortes y el esquema de conmutación recomendados para esa versión del campo de fuerza.
+
+El tiempo simulado es:
+
+\[
+t_{\mathrm{total}}=n_{\mathrm{steps}}\,\Delta t
+\]
+
+Para 10 ns:
+
+| Paso | `nsteps` | Tiempo |
+|---|---:|---:|
+| 0.002 ps (2 fs) | 5 000 000 | 10 ns |
+| 0.004 ps (4 fs) | 2 500 000 | 10 ns |
+
+Los intervalos de salida también dependen de \(\Delta t\):
+
+\[
+\Delta t_{\mathrm{salida}}=\mathrm{nst}\times\Delta t
+\]
+
+Si se desea guardar cada 10 ps con 4 fs, use por ejemplo:
+
+~~~ini
+nstlog              = 2500
+nstenergy           = 2500
+nstxout-compressed  = 2500
+~~~
+
+#### Generación y comprobación del TPR
+
+Ejemplo para producción después de una equilibración que ya empleó HMR:
+
+~~~bash
+gmx grompp \
+    -f step7_production_hmr.mdp \
+    -c step6.6_equilibration.gro \
+    -t step6.6_equilibration.cpt \
+    -r step5_input.gro \
+    -n index.ndx \
+    -p topol.top \
+    -pp processed_hmr.top \
+    -po mdout_hmr.mdp \
+    -o step7_1_hmr.tpr
+~~~
+
+Revise los parámetros efectivamente procesados:
+
+~~~bash
+grep -E '^(dt|nsteps|constraints|mass-repartition-factor)' mdout_hmr.mdp
+gmx dump -s step7_1_hmr.tpr > step7_1_hmr.dump
+~~~
+
+El archivo **processed_hmr.top** permite auditar la topología preprocesada, mientras que **gmx dump** permite inspeccionar el TPR. No edite ninguno para ejecutar la simulación; corrija siempre el MDP o la topología fuente y vuelva a ejecutar **grompp**.
+
+Lo más limpio es usar HMR de manera consistente desde la primera etapa de dinámica de la equilibración. Si el sistema fue equilibrado a 2 fs con masas normales y se decide cambiar después, no trate la primera ejecución HMR como una continuación bit a bit de la dinámica anterior. Genere velocidades compatibles en una etapa NVT corta, vuelva a equilibrar a NPT y recién después produzca. Mantenga separados los nombres de archivos y no anexe un tramo HMR a un log o trayectoria de masas normales.
+
+#### Prueba escalonada de estabilidad
+
+Antes de una producción larga:
+
+1. demuestre que el mismo sistema es estable con masas normales y 2 fs;
+2. prepare HMR sin cambiar simultáneamente otros parámetros;
+3. ejecute una prueba corta de 100 ps a 1 ns;
+4. revise advertencias LINCS, NaN, temperatura, energía, volumen, área xy y espesor;
+5. amplíe la prueba antes de lanzar réplicas largas.
+
+Una prueba de 1 ns a 4 fs contiene 250 000 pasos:
+
+~~~bash
+gmx mdrun \
+    -s step7_1_hmr.tpr \
+    -deffnm hmr_test \
+    -nsteps 250000 \
+    -v
+~~~
+
+Busque problemas evidentes:
+
+~~~bash
+grep -Ei 'LINCS|constraint|nan|fatal|warning' hmr_test.log
+gmx energy -f hmr_test.edr -o hmr_test_control.xvg
+~~~
+
+Seleccione al menos temperatura, energía potencial, presión, volumen y dimensiones de caja. Si 4 fs falla, no oculte el problema aumentando indiscriminadamente el orden de LINCS. Revise estructura, contactos, topología, restricciones y equilibración. Un paso de 3 fs puede ser una alternativa; si tampoco es estable o la topología no es compatible, use 2 fs.
+
+#### Validación específica para una membrana
+
+Compare al menos una réplica de referencia a 2 fs y masas normales con una réplica HMR a 4 fs, usando el mismo sistema y el mismo tiempo físico. Evalúe por bloques:
+
+- área por lípido o área xy;
+- espesor y perfiles de densidad;
+- parámetro de orden \(S_{CD}\);
+- compresibilidad areal;
+- RMSD, RMSF e inclinación de la proteína;
+- contactos lípido–proteína;
+- hidratación y radio del poro;
+- difusión lateral, indicando que HMR altera la dinámica;
+- estabilidad de temperatura, energía y presión;
+- rendimiento en ns/día sobre el mismo hardware.
+
+Para una acuaporina, la recomendación práctica es usar HMR con confianza solo después de demostrar que la estructura de la membrana y del canal coincide con el control. Si el objetivo es una **permeabilidad absoluta**, flujo de agua o una constante cinética, conserve producción de 2 fs con masas normales como referencia principal o cuantifique explícitamente el sesgo de HMR. Una ocupación o un perfil de densidad es configuracional; una tasa de cruce depende del tiempo dinámico y no debe asumirse invariante.
+
+#### Decisión práctica
+
+HMR es recomendable cuando se busca aumentar el muestreo de equilibrio de estructura, contactos y termodinámica, siempre que el sistema pase una validación apareada. No lo use de forma automática cuando:
+
+- existen hidrógenos flexibles sin restringir;
+- la topología contiene conectividades o partículas no estándar que **grompp** rechaza;
+- se mezclan componentes con y sin HMR;
+- se pretende comparar directamente cinética con trayectorias de masas normales;
+- no hay un control estable a 2 fs;
+- se cambia al mismo tiempo HMR, cortes, termostato, barostato y grupos de acoplamiento.
+
+La discusión histórica del foro incluye métodos dependientes del campo de fuerza y casos de inestabilidad anteriores a la opción nativa. Son útiles para entender los errores frecuentes, pero para GROMACS 2026.3 debe prevalecer el método documentado con **mass-repartition-factor**.
+
+
+### 18. Producción segmentada sin CSH
 
 Dividir una producción en segmentos no cambia por sí mismo la física. Facilita checkpoints, colas HPC, copias de seguridad y reanudación. El tiempo total es:
 
@@ -4036,7 +4219,7 @@ Si la producción no usa restricciones, **-r** puede ser innecesario, pero conse
 
 En un clúster, el script debe ejecutarse dentro del sistema de colas. No lance múltiples segmentos dependientes al mismo tiempo: cada uno necesita el checkpoint final del anterior.
 
-### 18. Reanudar una ejecución interrumpida
+### 19. Reanudar una ejecución interrumpida
 
 Si existe un checkpoint del mismo segmento:
 
@@ -4050,7 +4233,7 @@ gmx mdrun \
 
 No vuelva a ejecutar **grompp** desde la última estructura si el objetivo es continuar exactamente el mismo segmento. El checkpoint conserva estado del integrador, velocidades y otra información necesaria para una continuación reproducible.
 
-### 19. Preparación de la trayectoria para análisis
+### 20. Preparación de la trayectoria para análisis
 
 Conserve siempre la trayectoria original. Genere derivados para visualización y análisis.
 
@@ -4091,7 +4274,7 @@ gmx trjcat \
 
 Compruebe continuidad temporal y descarte marcos duplicados si los segmentos se solapan.
 
-### 20. Controles estructurales de la proteína
+### 21. Controles estructurales de la proteína
 
 RMSD del backbone:
 
@@ -4127,7 +4310,7 @@ Para una acuaporina tetramérica, calcule además:
 
 Un RMSD estable del tetrámero puede ocultar que un monómero se deforma; cuatro RMSD monoméricos estables pueden ocultar una reorganización cuaternaria.
 
-### 21. Área de la membrana
+### 22. Área de la membrana
 
 El área instantánea proyectada es:
 
@@ -4162,7 +4345,7 @@ La corrección depende de cómo se defina el área proyectada de la proteína. E
 
 No divida por el número total de lípidos de las dos monocapas: el denominador es el número de una monocapa.
 
-### 22. Compresibilidad areal
+### 23. Compresibilidad areal
 
 En un ensamble apropiado puede estimarse:
 
@@ -4183,7 +4366,7 @@ donde \(A=L_xL_y\). La estimación es sensible a:
 
 Use promedios por bloques y no compare directamente valores obtenidos con ensambles diferentes.
 
-### 23. Espesor y perfiles de densidad
+### 24. Espesor y perfiles de densidad
 
 Calcule perfiles a lo largo de z:
 
@@ -4215,7 +4398,7 @@ d_{PP}=z_{P,\mathrm{sup}}-z_{P,\mathrm{inf}}
 
 Es una definición global. Una membrana deformada alrededor de la proteína requiere mapas locales de espesor.
 
-### 24. Orden de las cadenas lipídicas
+### 25. Orden de las cadenas lipídicas
 
 El parámetro de orden deuterio se expresa como:
 
@@ -4246,7 +4429,7 @@ gmx order \
 
 El archivo de índice debe definir los átomos de cadena en el orden requerido. No mezcle carbonos de especies lipídicas diferentes en una misma curva sin justificarlo.
 
-### 25. Difusión lateral de lípidos
+### 26. Difusión lateral de lípidos
 
 Para difusión bidimensional:
 
@@ -4277,7 +4460,7 @@ gmx msd \
 
 Compruebe la sintaxis con **gmx msd -h**, porque cambió respecto de versiones antiguas. El ajuste no debe incluir el régimen balístico inicial ni una región donde el MSD todavía sea subdifusivo. La difusión lipídica converge lentamente y depende del tamaño del sistema.
 
-### 26. Inclinación de la proteína y del canal
+### 27. Inclinación de la proteína y del canal
 
 Defina un vector entre centros de masa de dos grupos situados en extremos opuestos del poro y calcule su ángulo con z:
 
@@ -4294,7 +4477,7 @@ gmx gangle \
 
 La selección debe adaptarse a residuos conservados de la acuaporina. Para el tetrámero, genere una curva por monómero.
 
-### 27. Radio y continuidad del poro
+### 28. Radio y continuidad del poro
 
 GROMACS no proporciona por sí solo un perfil completo de radio de poro equivalente a herramientas especializadas. Puede:
 
@@ -4305,7 +4488,7 @@ GROMACS no proporciona por sí solo un perfil completo de radio de poro equivale
 
 Una disminución local del radio no implica cierre funcional si el agua mantiene una cadena continua. Tampoco una cavidad geométricamente abierta demuestra permeabilidad.
 
-### 28. Puentes de hidrógeno y orientación del agua
+### 29. Puentes de hidrógeno y orientación del agua
 
 Puentes de hidrógeno proteína–agua:
 
@@ -4327,7 +4510,7 @@ gmx hbond -h
 
 En acuaporinas importa no solo la ocupación, sino la orientación de las moléculas de agua cerca de los motivos NPA. El cambio de orientación contribuye al mecanismo de exclusión de protones. Este análisis requiere vectores dipolares o enlaces O–H y una coordenada axial referida al poro.
 
-### 29. Conteo de eventos de permeación
+### 30. Conteo de eventos de permeación
 
 Contar moléculas dentro de un cilindro en cada fotograma no equivale a contar permeaciones. Un evento debe exigir una trayectoria completa desde un reservorio hasta el opuesto.
 
@@ -4355,7 +4538,7 @@ P_f=\frac{J}{\Delta c}
 
 Las unidades dependen de si \(J\) se expresa como moléculas por tiempo, moles por tiempo o volumen por tiempo. En equilibrio, donde no hay flujo neto sostenido, se utilizan formulaciones basadas en fluctuaciones colectivas; no debe aplicarse la ecuación anterior con \(\Delta c=0\).
 
-### 30. Permeabilidad colectiva en equilibrio
+### 31. Permeabilidad colectiva en equilibrio
 
 Para una coordenada colectiva \(n(t)\) que registra el desplazamiento neto de agua a través del canal:
 
@@ -4377,7 +4560,7 @@ donde \(v_w\) es el volumen molecular del agua y \(D_n\) es el coeficiente de di
 
 No calcule una permeabilidad confiable a partir de unos pocos cruces. Use réplicas, intervalos de confianza y análisis por bloques.
 
-### 31. Contactos lípido–proteína
+### 32. Contactos lípido–proteína
 
 Los contactos persistentes pueden revelar sitios anulares o específicos. Un contacto simple puede definirse por una distancia máxima:
 
@@ -4402,7 +4585,7 @@ E_i=
 
 donde \(E_i>1\) sugiere enriquecimiento de la especie \(i\) alrededor de la proteína. El resultado depende del corte, del área considerada y del muestreo.
 
-### 32. Potencial electrostático y sistemas con voltaje
+### 33. Potencial electrostático y sistemas con voltaje
 
 El potencial promedio a lo largo de z puede calcularse con **gmx potential** a partir de grupos de carga apropiados. Una sola bicapa periódica no crea automáticamente dos reservorios independientes.
 
@@ -4414,7 +4597,7 @@ Para estudiar flujo iónico bajo potencial sostenido puede utilizarse el protoco
 
 Este montaje no es necesario para permeación de agua en equilibrio y no debe añadirse sin una pregunta electrofisiológica explícita.
 
-### 33. Réplicas, descarte y convergencia
+### 34. Réplicas, descarte y convergencia
 
 Una trayectoria larga no reemplaza réplicas independientes. Para comparar acuaporinas, mutantes o composiciones:
 
@@ -4427,7 +4610,7 @@ Una trayectoria larga no reemplaza réplicas independientes. Para comparar acuap
 
 La estabilización del RMSD no demuestra que APL, espesor, difusión lipídica o permeación hayan convergido.
 
-### 34. Simulación coarse-grained
+### 35. Simulación coarse-grained
 
 Un modelo CG reduce grados de libertad y permite escalas espaciales o temporales mayores. A cambio, pierde detalle atomístico, modifica la cinética efectiva y puede requerir restricciones estructurales adicionales.
 
@@ -4452,7 +4635,7 @@ Registre:
 - paso de integración;
 - método de backmapping, si se utiliza.
 
-### 35. Redes elásticas en proteínas CG
+### 36. Redes elásticas en proteínas CG
 
 Una red elástica ayuda a conservar estructura terciaria o cuaternaria, pero puede suprimir:
 
@@ -4466,7 +4649,7 @@ No use una red “porque es el valor predeterminado” si la variable de interé
 
 La red elástica no reemplaza enlaces covalentes, disulfuros ni una unidad biológica correcta.
 
-### 36. Paso de integración en CG
+### 37. Paso de integración en CG
 
 Los pasos CG suelen ser mayores que en all-atom, pero el máximo estable depende del modelo, el agua, las restricciones y la geometría inicial. Comience con el protocolo recomendado para la versión concreta y revise:
 
@@ -4479,7 +4662,7 @@ Los pasos CG suelen ser mayores que en all-atom, pero el máximo estable depende
 
 La aceleración aparente del tiempo en CG no debe interpretarse como una correspondencia universal y exacta con tiempo experimental.
 
-### 37. Visualización CG
+### 38. Visualización CG
 
 VMD y otros visores pueden no inferir correctamente enlaces entre partículas CG porque usan reglas pensadas para geometrías atomísticas. La ausencia visual de enlaces no significa que falten en la topología.
 
@@ -4509,7 +4692,7 @@ No use la trayectoria reducida para análisis que requieran resolución temporal
 
 La representación secundaria atomística no puede reconstruirse exactamente a partir de unas pocas partículas por residuo. Una caricatura CG es una interpretación gráfica apoyada en la asignación secundaria, no una observación directa de todos los enlaces y ángulos del esqueleto.
 
-### 38. Errores conceptuales frecuentes
+### 39. Errores conceptuales frecuentes
 
 - Simular una sola cadena de una acuaporina tetramérica sin justificarlo.
 - Interpretar el centro del tetrámero como el poro de cada monómero.
@@ -4528,7 +4711,7 @@ La representación secundaria atomística no puede reconstruirse exactamente a p
 - Usar una red elástica CG que impide el movimiento que se quiere medir.
 - Suponer que CSH es necesario para ejecutar los archivos de CHARMM-GUI.
 
-### 39. Criterios para producción
+### 40. Criterios para producción
 
 Inicie la producción cuando:
 
@@ -4554,6 +4737,11 @@ Inicie la producción cuando:
 5. [Referencia de gmx msd](https://manual.gromacs.org/current/onlinehelp/gmx-msd.html)
 6. [Referencia de gmx order](https://manual.gromacs.org/current/onlinehelp/gmx-order.html)
 7. [Electrofisiología computacional en GROMACS](https://manual.gromacs.org/current/reference-manual/special/comp-electrophys.html)
+8. [Balusek et al., *Accelerating Membrane Simulations with Hydrogen Mass Repartitioning*](https://pmc.ncbi.nlm.nih.gov/articles/PMC7271963/)
+9. [Discusión técnica de HMR en el foro de GROMACS](https://gromacs.bioexcel.eu/t/hydrogen-mass-repartitioning/1171)
+10. [Seguimiento de la documentación de HMR en GROMACS, work item 5007](https://gitlab.com/gromacs/gromacs/-/work_items/5007)
+11. [HMR flexible mediante grompp: notas de rendimiento de GROMACS 2026.3](https://manual.gromacs.org/2026.3/release-notes/2024/major/performance.html#flexible-hydrogen-mass-repartitioning-using-grompp)
+12. [Opciones MDP de GROMACS 2026.3: mass-repartition-factor](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html#mdp-value-mass-repartition-factor)
 
 
 
