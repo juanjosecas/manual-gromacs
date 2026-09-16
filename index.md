@@ -5,4 +5,4 @@ description: Manual práctico de simulación molecular con GROMACS
 permalink: /
 ---
 
-{% include manual.md %}
+{% include_relative manual.md %}
