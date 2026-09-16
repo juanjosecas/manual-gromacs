@@ -5,34 +5,33 @@
 Versión 2023.21.10.9.44
 
 > The greatest obstacle to discovery is not ignorance -- it is the illusion of knowledge.
->
+> 
 > Never tell people how to do things. Tell them what to do and they will surprise you with their ingenuity.
->
+> 
 > General George S. Patton
->
+> 
 > Desordené
 > átomos tuyos
 > para hacerte aparecer.
->
+> 
 > Puente - Gustavo Cerati
->
+> 
 > Jerry, just remember, it's not a lie if you believe it.
->
+> 
 > George Costanza
->
+> 
 > Sometimes
 > Only sometimes
 > I question everything
->
+> 
 > Sometimes - Depeche Mode
->
+> 
 > The laughter penetrates my silence
 > As drunken men find flaws in science
->
+> 
 > Set The Fire To The Third Bar - Snow Patrol
->
-# Estrategia para la simulación
 
+# Estrategia para la simulación
 
 # Instalación de GROMACS
 
@@ -69,10 +68,10 @@ nvcc --version
 Según la compatibilidad menor publicada por NVIDIA:
 
 | Familia del toolkit | Controlador mínimo |
-|---|---:|
-| CUDA 13.x | 580 |
-| CUDA 12.x | 525 |
-| CUDA 11.x | 450 |
+| ------------------- | ------------------:|
+| CUDA 13.x           | 580                |
+| CUDA 12.x           | 525                |
+| CUDA 11.x           | 450                |
 
 Un controlador más nuevo puede ejecutar aplicaciones compiladas con una familia CUDA anterior mediante compatibilidad hacia atrás. La tabla es un requisito mínimo general; deben revisarse también las notas de la versión concreta del toolkit y la compatibilidad de la GPU.
 
@@ -292,18 +291,18 @@ En un clúster deben usarse el lanzador y las variables indicadas por el gestor 
 
 ## Opciones CMake relevantes
 
-| Opción | Uso |
-|---|---|
-| **-DGMX_MPI=ON** | Compila con MPI externo. |
-| **-DGMX_GPU=CUDA** | Activa GPU NVIDIA mediante CUDA. |
-| **-DGMX_GPU=OpenCL** | Activa el backend OpenCL. |
-| **-DGMX_GPU=SYCL** | Activa el backend SYCL. |
-| **-DGMX_SIMD=valor** | Selecciona explícitamente SIMD; normalmente conviene la autodetección. |
-| **-DGMX_DOUBLE=ON** | Compila en doble precisión; es más lento y rara vez necesario para dinámica molecular convencional. |
-| **-DGMX_FFT_LIBRARY=fftw3** | Selecciona la biblioteca FFT. |
-| **-DBUILD_SHARED_LIBS=ON** | Genera bibliotecas compartidas; es necesario para ciertos clientes, incluido gmxapi. |
-| **-DCMAKE_INSTALL_PREFIX=ruta** | Define el directorio de instalación. |
-| **-DCMAKE_BUILD_TYPE=Debug** | Compilación de depuración; no es adecuada para producción. |
+| Opción                          | Uso                                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **-DGMX_MPI=ON**                | Compila con MPI externo.                                                                            |
+| **-DGMX_GPU=CUDA**              | Activa GPU NVIDIA mediante CUDA.                                                                    |
+| **-DGMX_GPU=OpenCL**            | Activa el backend OpenCL.                                                                           |
+| **-DGMX_GPU=SYCL**              | Activa el backend SYCL.                                                                             |
+| **-DGMX_SIMD=valor**            | Selecciona explícitamente SIMD; normalmente conviene la autodetección.                              |
+| **-DGMX_DOUBLE=ON**             | Compila en doble precisión; es más lento y rara vez necesario para dinámica molecular convencional. |
+| **-DGMX_FFT_LIBRARY=fftw3**     | Selecciona la biblioteca FFT.                                                                       |
+| **-DBUILD_SHARED_LIBS=ON**      | Genera bibliotecas compartidas; es necesario para ciertos clientes, incluido gmxapi.                |
+| **-DCMAKE_INSTALL_PREFIX=ruta** | Define el directorio de instalación.                                                                |
+| **-DCMAKE_BUILD_TYPE=Debug**    | Compilación de depuración; no es adecuada para producción.                                          |
 
 Las opciones antiguas **-DGMX_GPU=ON** y **-DGMX_USE_OPENCL=ON** no deben usarse con GROMACS 2026. El backend se selecciona directamente mediante **-DGMX_GPU=CUDA**, **OpenCL** o **SYCL**.
 
@@ -738,17 +737,17 @@ Una trayectoria aislada no demuestra afinidad, mecanismo de acción ni convergen
 
 ## Conceptos que deben distinguirse
 
-| Concepto | Definición operativa |
-|---|---|
-| **Receptor** | Macromolécula que contiene el sitio de unión. En este tutorial es una proteína soluble. |
-| **Ligando** | Molécula cuya pose e interacciones con el receptor se estudian. Puede poseer varios estados de protonación, tautómeros o estereoisómeros. |
-| **Pose** | Posición, orientación y conformación del ligando dentro del sitio de unión. |
-| **Microestado** | Combinación concreta de protonación, tautomería y, cuando corresponda, estereoquímica. Dos microestados del mismo compuesto son sistemas químicos diferentes para una simulación clásica. |
-| **Coordenadas** | Posiciones atómicas almacenadas en PDB, GRO u otro formato. No contienen por sí solas una descripción completa de las interacciones. |
-| **Topología** | Conectividad, tipos atómicos, cargas, masas y parámetros que definen cómo se calcula la energía. |
-| **Campo de fuerza** | Conjunto de forma funcional y parámetros usado para aproximar la energía potencial. |
-| **Protocolo** | Secuencia documentada de preparación, minimización, equilibración, producción y análisis. |
-| **Réplica** | Simulación independiente, normalmente iniciada con velocidades aleatorias diferentes y, si corresponde, otra conformación inicial. |
+| Concepto            | Definición operativa                                                                                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Receptor**        | Macromolécula que contiene el sitio de unión. En este tutorial es una proteína soluble.                                                                                                   |
+| **Ligando**         | Molécula cuya pose e interacciones con el receptor se estudian. Puede poseer varios estados de protonación, tautómeros o estereoisómeros.                                                 |
+| **Pose**            | Posición, orientación y conformación del ligando dentro del sitio de unión.                                                                                                               |
+| **Microestado**     | Combinación concreta de protonación, tautomería y, cuando corresponda, estereoquímica. Dos microestados del mismo compuesto son sistemas químicos diferentes para una simulación clásica. |
+| **Coordenadas**     | Posiciones atómicas almacenadas en PDB, GRO u otro formato. No contienen por sí solas una descripción completa de las interacciones.                                                      |
+| **Topología**       | Conectividad, tipos atómicos, cargas, masas y parámetros que definen cómo se calcula la energía.                                                                                          |
+| **Campo de fuerza** | Conjunto de forma funcional y parámetros usado para aproximar la energía potencial.                                                                                                       |
+| **Protocolo**       | Secuencia documentada de preparación, minimización, equilibración, producción y análisis.                                                                                                 |
+| **Réplica**         | Simulación independiente, normalmente iniciada con velocidades aleatorias diferentes y, si corresponde, otra conformación inicial.                                                        |
 
 Una estructura químicamente correcta requiere coherencia entre coordenadas y topología: mismo número y orden de átomos, mismos nombres de residuos y átomos, misma conectividad, misma carga formal y mismo microestado.
 
@@ -807,17 +806,17 @@ Las ecuaciones anteriores explican por qué una topología no puede improvisarse
 
 Los archivos cumplen funciones diferentes:
 
-| Archivo | Función |
-|---|---|
-| **PDB/GRO** | Coordenadas, nombres de átomos y residuos; GRO incluye la caja. |
-| **TOP/ITP** | Topología y parámetros del sistema. |
-| **MDP** | Algoritmo, paso temporal, termostato, barostato, cortes y frecuencia de salida. |
-| **NDX** | Grupos de átomos definidos para acoplamiento, restricciones o análisis. |
-| **TPR** | Entrada binaria compilada por **gmx grompp** a partir de coordenadas, topología, MDP y, si se usa, índice. |
-| **CPT** | Estado completo necesario para continuar una simulación. |
+| Archivo     | Función                                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| **PDB/GRO** | Coordenadas, nombres de átomos y residuos; GRO incluye la caja.                                            |
+| **TOP/ITP** | Topología y parámetros del sistema.                                                                        |
+| **MDP**     | Algoritmo, paso temporal, termostato, barostato, cortes y frecuencia de salida.                            |
+| **NDX**     | Grupos de átomos definidos para acoplamiento, restricciones o análisis.                                    |
+| **TPR**     | Entrada binaria compilada por **gmx grompp** a partir de coordenadas, topología, MDP y, si se usa, índice. |
+| **CPT**     | Estado completo necesario para continuar una simulación.                                                   |
 | **XTC/TRR** | Trayectoria; XTC contiene coordenadas comprimidas y TRR puede contener coordenadas, velocidades y fuerzas. |
-| **EDR** | Energías y variables termodinámicas. |
-| **LOG** | Registro de parámetros efectivos, rendimiento, advertencias y evolución de la corrida. |
+| **EDR**     | Energías y variables termodinámicas.                                                                       |
+| **LOG**     | Registro de parámetros efectivos, rendimiento, advertencias y evolución de la corrida.                     |
 
 El flujo mínimo es:
 
@@ -849,14 +848,14 @@ GROMACS puede detectar inconsistencias sintácticas, pero no puede decidir si el
 
 ## Etapas y criterios para avanzar
 
-| Etapa | Finalidad | Criterio mínimo antes de continuar |
-|---|---|---|
-| Preparación | Definir composición, microestados y parámetros | Coordenadas y topología coherentes; carga y conectividad verificadas |
-| Minimización | Eliminar contactos y fuerzas excesivas | Sin NaN; fuerza máxima y geometría aceptables |
-| NVT | Ajustar temperatura a volumen fijo | Temperatura estable y estructura sin deformaciones |
-| NPT | Ajustar densidad y volumen | Densidad y volumen estacionarios; presión media compatible |
-| Producción | Muestrear el conjunto definido | Sin inestabilidad; duración y réplicas justificadas |
-| Análisis | Responder preguntas predefinidas | PBC, ajuste, selección e intervalo documentados |
+| Etapa        | Finalidad                                      | Criterio mínimo antes de continuar                                   |
+| ------------ | ---------------------------------------------- | -------------------------------------------------------------------- |
+| Preparación  | Definir composición, microestados y parámetros | Coordenadas y topología coherentes; carga y conectividad verificadas |
+| Minimización | Eliminar contactos y fuerzas excesivas         | Sin NaN; fuerza máxima y geometría aceptables                        |
+| NVT          | Ajustar temperatura a volumen fijo             | Temperatura estable y estructura sin deformaciones                   |
+| NPT          | Ajustar densidad y volumen                     | Densidad y volumen estacionarios; presión media compatible           |
+| Producción   | Muestrear el conjunto definido                 | Sin inestabilidad; duración y réplicas justificadas                  |
+| Análisis     | Responder preguntas predefinidas               | PBC, ajuste, selección e intervalo documentados                      |
 
 Una etapa no se valida porque el comando terminó sin error. La salida estructural, el log y las variables relevantes deben inspeccionarse antes de usarla como entrada de la etapa siguiente.
 
@@ -875,16 +874,16 @@ El ligando debe conservar la pose obtenida por cristalografía, docking u otro p
 
 ## Unidades utilizadas por GROMACS
 
-| Magnitud | Unidad habitual |
-|---|---|
-| Distancia | nm |
-| Tiempo | ps |
-| Temperatura | K |
-| Presión | bar |
-| Energía | kJ mol⁻¹ |
-| Fuerza | kJ mol⁻¹ nm⁻¹ |
-| Velocidad | nm ps⁻¹ |
-| Constante de fuerza de restricción posicional | kJ mol⁻¹ nm⁻² |
+| Magnitud                                      | Unidad habitual |
+| --------------------------------------------- | --------------- |
+| Distancia                                     | nm              |
+| Tiempo                                        | ps              |
+| Temperatura                                   | K               |
+| Presión                                       | bar             |
+| Energía                                       | kJ mol⁻¹        |
+| Fuerza                                        | kJ mol⁻¹ nm⁻¹   |
+| Velocidad                                     | nm ps⁻¹         |
+| Constante de fuerza de restricción posicional | kJ mol⁻¹ nm⁻²   |
 
 Equivalencias útiles:
 
@@ -943,12 +942,12 @@ No deben mezclarse tipos atómicos, reglas de combinación, cargas o términos d
 
 Los parámetros producidos de esta manera pertenecen a la familia **AMBER**:
 
-| Opción de ACPYPE | Parametrización | Uso previsto |
-| --- | --- | --- |
-| `-a gaff` | General Amber Force Field, GAFF | Moléculas orgánicas pequeñas dentro de un sistema AMBER compatible. |
-| `-a gaff2` | General Amber Force Field 2, GAFF2 | Opción preferente para moléculas pequeñas cuando se utiliza una parametrización AMBER moderna. |
-| `-a amber` | Tipos AMBER para residuos reconocidos y GAFF como respaldo | Péptidos o sistemas que pueden compararse con plantillas AMBER; no es la opción habitual para un ligando arbitrario. |
-| `-a amber2` | Tipos AMBER y GAFF2 como respaldo | Variante equivalente basada en GAFF2. |
+| Opción de ACPYPE | Parametrización                                            | Uso previsto                                                                                                         |
+| ---------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `-a gaff`        | General Amber Force Field, GAFF                            | Moléculas orgánicas pequeñas dentro de un sistema AMBER compatible.                                                  |
+| `-a gaff2`       | General Amber Force Field 2, GAFF2                         | Opción preferente para moléculas pequeñas cuando se utiliza una parametrización AMBER moderna.                       |
+| `-a amber`       | Tipos AMBER para residuos reconocidos y GAFF como respaldo | Péptidos o sistemas que pueden compararse con plantillas AMBER; no es la opción habitual para un ligando arbitrario. |
+| `-a amber2`      | Tipos AMBER y GAFF2 como respaldo                          | Variante equivalente basada en GAFF2.                                                                                |
 
 La opción **`-o gmx`** solicita archivos con sintaxis de GROMACS; **no convierte GAFF2 en CHARMM, CGenFF, OPLS-AA o GROMOS**. Del mismo modo, que ACPYPE pueda escribir un archivo denominado CHARMM significa que cambia el formato, no que los parámetros hayan sido desarrollados bajo CGenFF.
 
@@ -1167,7 +1166,6 @@ ACPYPE y GAFF2 requieren una revisión adicional o una estrategia diferente para
 - transformaciones alquímicas donde la correspondencia atómica y la topología híbrida requieren construcción específica.
 
 Para una proteína parametrizada con CHARMM36, use una ruta CGenFF compatible. Para OPLS-AA o GROMOS, emplee parámetros desarrollados y validados bajo las convenciones respectivas. Convertir el archivo final a sintaxis de GROMACS no resuelve la incompatibilidad entre familias.
-
 
 Ejemplo mínimo de un archivo ITP:
 
@@ -1676,14 +1674,14 @@ gmx mdrun -deffnm md -v
 
 Archivos principales:
 
-| Archivo | Contenido |
-|---|---|
-| **md.tpr** | Topología, parámetros, coordenadas y estado de entrada. |
-| **md.xtc** | Coordenadas comprimidas. |
-| **md.edr** | Energías y variables termodinámicas. |
-| **md.log** | Registro detallado de la ejecución. |
-| **md.cpt** | Checkpoint para continuar. |
-| **md.gro** | Coordenadas finales. |
+| Archivo    | Contenido                                                                    |
+| ---------- | ---------------------------------------------------------------------------- |
+| **md.tpr** | Topología, parámetros, coordenadas y estado de entrada.                      |
+| **md.xtc** | Coordenadas comprimidas.                                                     |
+| **md.edr** | Energías y variables termodinámicas.                                         |
+| **md.log** | Registro detallado de la ejecución.                                          |
+| **md.cpt** | Checkpoint para continuar.                                                   |
+| **md.gro** | Coordenadas finales.                                                         |
 | **md.trr** | Coordenadas, velocidades o fuerzas en precisión completa, si se solicitaron. |
 
 No es necesario generar TRR si el análisis no requiere velocidades, fuerzas o coordenadas de precisión completa.
@@ -2578,16 +2576,16 @@ El identificador **charmm36-jul2022** es un ejemplo. Debe coincidir con un campo
 
 Opciones útiles:
 
-| Opción | Uso |
-|---|---|
-| **-ff** | Selecciona el campo de fuerza. |
-| **-water** | Selecciona el modelo de agua. |
-| **-ter** | Permite elegir estados de los terminales. |
-| **-his** | Permite seleccionar estados de protonación de histidinas. |
-| **-ss** | Permite elegir interactivamente enlaces disulfuro. |
-| **-ignh** | Ignora hidrógenos de entrada y los reconstruye. Debe usarse deliberadamente. |
-| **-chainsep** | Controla cuándo separar cadenas en tipos moleculares. |
-| **-merge** | Controla la fusión de cadenas en un único tipo molecular. |
+| Opción        | Uso                                                                          |
+| ------------- | ---------------------------------------------------------------------------- |
+| **-ff**       | Selecciona el campo de fuerza.                                               |
+| **-water**    | Selecciona el modelo de agua.                                                |
+| **-ter**      | Permite elegir estados de los terminales.                                    |
+| **-his**      | Permite seleccionar estados de protonación de histidinas.                    |
+| **-ss**       | Permite elegir interactivamente enlaces disulfuro.                           |
+| **-ignh**     | Ignora hidrógenos de entrada y los reconstruye. Debe usarse deliberadamente. |
+| **-chainsep** | Controla cuándo separar cadenas en tipos moleculares.                        |
+| **-merge**    | Controla la fusión de cadenas en un único tipo molecular.                    |
 
 Consulte las opciones exactas de la instalación:
 
@@ -3248,17 +3246,16 @@ Para proyectar un conjunto de estructuras experimentales sobre una base PCA debe
 
 La lógica general —corregir PBC, seleccionar un marco de referencia, comprobar estabilidad, analizar coordenadas funcionales, estimar incertidumbre y comparar réplicas— se transfiere a otros sistemas. Los comandos no pueden copiarse sin modificar selecciones y significado físico.
 
-| Sistema | Parte reutilizable | Adaptación necesaria |
-|---|---|---|
-| Proteína–ligando | RMSD/RMSF de proteína, PCA, clustering | Ajustar por proteína; analizar pose, contactos y distancias del ligando por separado. |
-| Oligómero | PCA, contactos, distancias y clustering | Decidir si el ajuste usa una subunidad o el ensamblado; separar movimientos internos de reorganización cuaternaria. |
-| Membrana–proteína | Análisis de proteína y modos colectivos | Hacer moléculas enteras; no usar trayectoria ajustada para difusión lipídica, área o fluctuaciones de caja. |
-| Proteína con cofactor | Controles estructurales y PCA | Incluir el cofactor solo si su parametrización y la selección responden a la pregunta; controlar geometría de coordinación. |
-| Coarse-grained | PCA, clustering y contactos | Usar partículas equivalentes, interpretar otra resolución y no comparar amplitudes directamente con all-atom. |
-| Réplicas o variantes | Base PCA común y análisis por bloques | Mantener idénticos átomos, orden, referencia y preprocesamiento; cuantificar variabilidad entre réplicas. |
+| Sistema               | Parte reutilizable                      | Adaptación necesaria                                                                                                        |
+| --------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Proteína–ligando      | RMSD/RMSF de proteína, PCA, clustering  | Ajustar por proteína; analizar pose, contactos y distancias del ligando por separado.                                       |
+| Oligómero             | PCA, contactos, distancias y clustering | Decidir si el ajuste usa una subunidad o el ensamblado; separar movimientos internos de reorganización cuaternaria.         |
+| Membrana–proteína     | Análisis de proteína y modos colectivos | Hacer moléculas enteras; no usar trayectoria ajustada para difusión lipídica, área o fluctuaciones de caja.                 |
+| Proteína con cofactor | Controles estructurales y PCA           | Incluir el cofactor solo si su parametrización y la selección responden a la pregunta; controlar geometría de coordinación. |
+| Coarse-grained        | PCA, clustering y contactos             | Usar partículas equivalentes, interpretar otra resolución y no comparar amplitudes directamente con all-atom.               |
+| Réplicas o variantes  | Base PCA común y análisis por bloques   | Mantener idénticos átomos, orden, referencia y preprocesamiento; cuantificar variabilidad entre réplicas.                   |
 
 PCA no debe aplicarse indiscriminadamente a todas las coordenadas del sistema. Incluir agua, iones o lípidos junto con la proteína genera una matriz dominada por difusión y permutación de moléculas equivalentes. Para solvente y membrana son preferibles densidades, difusión, orientación, contactos o variables colectivas específicas.
-
 
 ### 24. Proteínas modeladas o inicialmente inestables
 
@@ -3405,7 +3402,7 @@ SMILES del 1-octanol:
 CCCCCCCCO
 ```
 
-La fórmula **CCCCCCCCOH** puede ser interpretada por algunos programas, pero el SMILES convencional es **CCCCCCCCO**; el hidrógeno del grupo hidroxilo se agrega según la valencia.
+
 
 SwissParam genera parámetros compatibles con la familia CHARMM y puede ser útil para una prueba inicial. No convierte automáticamente esos parámetros en una parametrización validada para propiedades de partición o de interfaz. Para un trabajo cuantitativo deben comprobarse, al menos:
 
@@ -3841,10 +3838,10 @@ gmx mdrun \
 
 Para una interfaz plana existen dos estrategias principales:
 
-| Estrategia | Ventaja | Limitación |
-|---|---|---|
-| NPT semiisotrópico | Permite ajustar por separado el plano xy y el eje z. | Las fluctuaciones del área pueden modificar la interfaz. |
-| NVT con caja previamente equilibrada | Mantiene fija el área interfacial. | Requiere haber determinado antes dimensiones y densidades adecuadas. |
+| Estrategia                           | Ventaja                                              | Limitación                                                           |
+| ------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------------------- |
+| NPT semiisotrópico                   | Permite ajustar por separado el plano xy y el eje z. | Las fluctuaciones del área pueden modificar la interfaz.             |
+| NVT con caja previamente equilibrada | Mantiene fija el área interfacial.                   | Requiere haber determinado antes dimensiones y densidades adecuadas. |
 
 Ejemplo NPT semiisotrópico:
 
@@ -4014,7 +4011,6 @@ Continúe únicamente cuando:
 6. [Unidades de GROMACS](https://manual.gromacs.org/current/reference-manual/definitions.html)
 7. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
 
-
 ## Proteína de membrana: construcción de una bicapa e inserción de una acuaporina
 
 ### Introducción
@@ -4161,13 +4157,13 @@ Elija la composición a partir del organismo y del compartimiento celular. Si no
 
 Ejemplos de decisiones justificables:
 
-| Objetivo | Modelo posible | Limitación |
-|---|---|---|
-| Estabilidad general de una acuaporina | POPC puro | No reproduce asimetría ni diversidad celular. |
-| Influencia del colesterol | POPC/colesterol | La proporción debe justificarse experimentalmente. |
-| Membrana bacteriana interna | Mezcla PE/PG/cardiolipina | Depende de especie y condición de crecimiento. |
-| Membrana externa Gram negativa | Monocapa externa con LPS y monocapa interna fosfolipídica | Requiere parámetros, iones y equilibración más exigentes. |
-| Comparación entre isoformas | Misma bicapa controlada | Aumenta comparabilidad, pero reduce realismo fisiológico. |
+| Objetivo                              | Modelo posible                                            | Limitación                                                |
+| ------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| Estabilidad general de una acuaporina | POPC puro                                                 | No reproduce asimetría ni diversidad celular.             |
+| Influencia del colesterol             | POPC/colesterol                                           | La proporción debe justificarse experimentalmente.        |
+| Membrana bacteriana interna           | Mezcla PE/PG/cardiolipina                                 | Depende de especie y condición de crecimiento.            |
+| Membrana externa Gram negativa        | Monocapa externa con LPS y monocapa interna fosfolipídica | Requiere parámetros, iones y equilibración más exigentes. |
+| Comparación entre isoformas           | Misma bicapa controlada                                   | Aumenta comparabilidad, pero reduce realismo fisiológico. |
 
 En mezclas asimétricas, las dos monocapas pueden contener números y áreas moleculares diferentes. CHARMM-GUI permite ajustar proporciones y luego refinar el número de cada especie. No fuerce la misma cantidad de lípidos en ambas monocapas si sus composiciones o áreas efectivas son diferentes.
 
@@ -4227,12 +4223,12 @@ $$
 T(\mathrm{K})=T(^{\circ}\mathrm{C})+273.15
 $$
 
-| °C | K |
-|---:|---:|
-| 20 | 293.15 |
-| 25 | 298.15 |
-| 30 | 303.15 |
-| 37 | 310.15 |
+| °C  | K      |
+| ---:| ------:|
+| 20  | 293.15 |
+| 25  | 298.15 |
+| 30  | 303.15 |
+| 37  | 310.15 |
 
 Una bicapa destinada a representar una fase fluida debe simularse por encima de la transición pertinente de la mezcla. En mezclas complejas, la transición no puede inferirse únicamente a partir de un lípido aislado.
 
@@ -4560,10 +4556,10 @@ $$
 
 Para 10 ns:
 
-| Paso | `nsteps` | Tiempo |
-|---|---:|---:|
-| 0.002 ps (2 fs) | 5 000 000 | 10 ns |
-| 0.004 ps (4 fs) | 2 500 000 | 10 ns |
+| Paso            | `nsteps`  | Tiempo |
+| --------------- | ---------:| ------:|
+| 0.002 ps (2 fs) | 5 000 000 | 10 ns  |
+| 0.004 ps (4 fs) | 2 500 000 | 10 ns  |
 
 Los intervalos de salida también dependen de $\Delta t$:
 
@@ -4665,7 +4661,6 @@ HMR es recomendable cuando se busca aumentar el muestreo de equilibrio de estruc
 - se cambia al mismo tiempo HMR, cortes, termostato, barostato y grupos de acoplamiento.
 
 La discusión histórica del foro incluye métodos dependientes del campo de fuerza y casos de inestabilidad anteriores a la opción nativa. Son útiles para entender los errores frecuentes, pero para GROMACS 2026.3 debe prevalecer el método documentado con **mass-repartition-factor**.
-
 
 ### 18. Producción segmentada sin CSH
 
@@ -5273,7 +5268,6 @@ Inicie la producción cuando:
 10. [Seguimiento de la documentación de HMR en GROMACS, work item 5007](https://gitlab.com/gromacs/gromacs/-/work_items/5007)
 11. [HMR flexible mediante grompp: notas de rendimiento de GROMACS 2026.3](https://manual.gromacs.org/2026.3/release-notes/2024/major/performance.html#flexible-hydrogen-mass-repartitioning-using-grompp)
 12. [Opciones MDP de GROMACS 2026.3: mass-repartition-factor](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html#mdp-value-mass-repartition-factor)
-
 
 ## Energía libre de perturbación: energía libre de solvatación
 
@@ -6135,7 +6129,6 @@ Para formaldehído acuoso en equilibrio, el último criterio no se cumple si sol
 8. [Revisión adicional proporcionada](https://pmc.ncbi.nlm.nih.gov/articles/PMC12163693/)
 9. [Proyecto NIST sobre energías libres de solvatación](https://www.nist.gov/programs-projects/solvation-free-energies)
 
-
 ## Energía de unión mediante `gmx_MMPBSA`
 
 ### 1. Qué calcula este método
@@ -6219,11 +6212,11 @@ El asterisco recuerda que no es una energía libre absoluta completa. Muchos inf
 
 MM/PBSA calcula la contribución polar resolviendo numéricamente la ecuación de Poisson–Boltzmann. MM/GBSA utiliza una aproximación Generalized Born.
 
-| Método | Ventaja | Limitación |
-|---|---|---|
-| MM/GBSA | Más rápido; útil para explorar protocolos y series. | Mayor dependencia del modelo GB y del conjunto de radios. |
-| MM/PBSA | Tratamiento continuo electrostático más explícito. | Más costoso y sensible a malla, radios, dieléctricos y convergencia numérica. |
-| 3D-RISM | Describe estructura promedio del solvente con mayor detalle. | Coste y preparación superiores; escalamiento paralelo limitado. |
+| Método  | Ventaja                                                      | Limitación                                                                    |
+| ------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| MM/GBSA | Más rápido; útil para explorar protocolos y series.          | Mayor dependencia del modelo GB y del conjunto de radios.                     |
+| MM/PBSA | Tratamiento continuo electrostático más explícito.           | Más costoso y sensible a malla, radios, dieléctricos y convergencia numérica. |
+| 3D-RISM | Describe estructura promedio del solvente con mayor detalle. | Coste y preparación superiores; escalamiento paralelo limitado.               |
 
 No existe una regla universal por la cual PB sea siempre más exacto que GB. La comparación debe validarse para la familia química y el objetivo.
 
@@ -6555,19 +6548,19 @@ gmx_MMPBSA -O \
 
 Significado de las opciones principales:
 
-| Opción | Función |
-|---|---|
-| **-O** | Permite sobrescribir resultados existentes. Úsela deliberadamente. |
-| **-i** | Archivo de parámetros. |
-| **-cs** | TPR o PDB del complejo; se recomienda el TPR de producción. |
-| **-ct** | Una o más trayectorias del complejo. |
-| **-ci** | Índice del complejo. |
-| **-cg** | Grupos receptor y ligando. |
-| **-cp** | Topología completa de GROMACS, obligatoria. |
-| **-cr** | PDB de referencia recomendado. |
-| **-o** | Resumen estadístico. |
-| **-eo** | Energías por marco en CSV. |
-| **-nogui** | No abre el analizador gráfico al terminar. |
+| Opción     | Función                                                            |
+| ---------- | ------------------------------------------------------------------ |
+| **-O**     | Permite sobrescribir resultados existentes. Úsela deliberadamente. |
+| **-i**     | Archivo de parámetros.                                             |
+| **-cs**    | TPR o PDB del complejo; se recomienda el TPR de producción.        |
+| **-ct**    | Una o más trayectorias del complejo.                               |
+| **-ci**    | Índice del complejo.                                               |
+| **-cg**    | Grupos receptor y ligando.                                         |
+| **-cp**    | Topología completa de GROMACS, obligatoria.                        |
+| **-cr**    | PDB de referencia recomendado.                                     |
+| **-o**     | Resumen estadístico.                                               |
+| **-eo**    | Energías por marco en CSV.                                         |
+| **-nogui** | No abre el analizador gráfico al terminar.                         |
 
 ### 15. Entrada mínima MM/PBSA
 
@@ -6642,13 +6635,13 @@ Los radios influyen en la frontera dieléctrica y en el término polar. No son u
 
 Correspondencias documentadas:
 
-| PBRadii | Conjunto | Uso típico |
-|---:|---|---|
-| 1 | bondi | Asociado habitualmente con igb=7. |
-| 2 | mbondi | Asociado habitualmente con igb=1. |
-| 3 | mbondi2 | Asociado con igb=2 o 5. |
-| 4 | mbondi3 | Asociado con igb=8. |
-| 7 | charmm_radii | Solo PB y topologías preparadas con CHARMM. |
+| PBRadii | Conjunto     | Uso típico                                  |
+| -------:| ------------ | ------------------------------------------- |
+| 1       | bondi        | Asociado habitualmente con igb=7.           |
+| 2       | mbondi       | Asociado habitualmente con igb=1.           |
+| 3       | mbondi2      | Asociado con igb=2 o 5.                     |
+| 4       | mbondi3      | Asociado con igb=8.                         |
+| 7       | charmm_radii | Solo PB y topologías preparadas con CHARMM. |
 
 El campo de fuerza de la dinámica y el conjunto de radios del solvente implícito son conceptos distintos. **PBRadii** no cambia los parámetros enlazados ni Lennard-Jones de la topología original.
 
@@ -7168,7 +7161,6 @@ Informe:
 8. [Ejemplo de Interaction Entropy](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/examples/Entropy_calculations/Interaction_Entropy/)
 9. [Artículo original de gmx_MMPBSA](https://pubs.acs.org/doi/10.1021/acs.jctc.1c00645)
 
-
 # Interacción energética lineal (Linear Interaction Energy, LIE)
 
 La **energía de interacción lineal** (LIE) es un método de estado final para estimar afinidades de unión. Requiere muestrear explícitamente dos estados mediante dinámica molecular:
@@ -7354,15 +7346,15 @@ gmx lie -f lie_bound.edr -o lie.xvg -b 20000 \
 
 Significado de las opciones principales:
 
-| Opción | Significado | Unidad |
-| --- | --- | --- |
-| **-Elj** | Promedio LJ ligando–solvente del estado libre | kJ mol$^{-1}$ |
-| **-Eqq** | Promedio Coulomb ligando–solvente del estado libre | kJ mol$^{-1}$ |
-| **-Clj** | Coeficiente $\alpha$ | adimensional |
-| **-Cqq** | Coeficiente $\beta$ | adimensional |
-| **-ligand** | Nombre del grupo de energía del ligando | — |
-| **-b**, **-e** | Inicio y final del intervalo analizado | ps, de forma predeterminada |
-| **-dt** | Separación temporal entre marcos utilizados | ps |
+| Opción         | Significado                                        | Unidad                      |
+| -------------- | -------------------------------------------------- | --------------------------- |
+| **-Elj**       | Promedio LJ ligando–solvente del estado libre      | kJ mol$^{-1}$               |
+| **-Eqq**       | Promedio Coulomb ligando–solvente del estado libre | kJ mol$^{-1}$               |
+| **-Clj**       | Coeficiente $\alpha$                               | adimensional                |
+| **-Cqq**       | Coeficiente $\beta$                                | adimensional                |
+| **-ligand**    | Nombre del grupo de energía del ligando            | —                           |
+| **-b**, **-e** | Inicio y final del intervalo analizado             | ps, de forma predeterminada |
+| **-dt**        | Separación temporal entre marcos utilizados        | ps                          |
 
 El archivo **lie.xvg** contiene la evolución de la estimación. No se debe elegir el comienzo del promedio sólo porque la curva “parece estable” a partir de un punto conveniente. El descarte debe establecerse antes de comparar ligandos o justificarse mediante diagnósticos de equilibrio y convergencia aplicados de manera uniforme.
 
@@ -7372,10 +7364,10 @@ También es recomendable extraer los cuatro promedios por separado y verificar m
 
 Para predicción cuantitativa, construya una tabla con un conjunto de ligandos de afinidad experimental conocida:
 
-| Ligando | $\Delta V_{\mathrm{vdW}}$ | $\Delta V_{\mathrm{elec}}$ | $\Delta G^\circ_{\mathrm{exp}}$ |
-| --- | ---: | ---: | ---: |
-| compuesto 1 | unido − libre | unido − libre | kJ mol$^{-1}$ |
-| compuesto 2 | unido − libre | unido − libre | kJ mol$^{-1}$ |
+| Ligando     | $\Delta V_{\mathrm{vdW}}$ | $\Delta V_{\mathrm{elec}}$ | $\Delta G^\circ_{\mathrm{exp}}$ |
+| ----------- | -------------------------:| --------------------------:| -------------------------------:|
+| compuesto 1 | unido − libre             | unido − libre              | kJ mol$^{-1}$                   |
+| compuesto 2 | unido − libre             | unido − libre              | kJ mol$^{-1}$                   |
 
 Ajuste entonces
 
@@ -7450,5 +7442,3 @@ Un resultado LIE reproducible debe incluir: versión de GROMACS, campo de fuerza
 3. [Recent Developments in Linear Interaction Energy Based Binding Free Energy Calculations](https://www.frontiersin.org/journals/molecular-biosciences/articles/10.3389/fmolb.2020.00114/full)
 4. [Combined Linear Interaction Energy and Alchemical Solvation Free-Energy Approach](https://pubs.acs.org/jctcce/article/16/2/1300/606208/Combined-Linear-Interaction-Energy-and-Alchemical)
 5. [A Comparative Linear Interaction Energy and MM/PBSA Study](https://pubs.acs.org/jcisd8/article/59/9/4018/987937/A-Comparative-Linear-Interaction-Energy-and-MM)
-
-
