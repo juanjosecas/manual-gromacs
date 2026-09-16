@@ -2,36 +2,23 @@
 
 *Dr. JJ Casal, PhD*
 
-Versión 2023.21.10.9.44
+Versión 2026.09.16.19.16
 
-> The greatest obstacle to discovery is not ignorance -- it is the illusion of knowledge.
-> 
-> Never tell people how to do things. Tell them what to do and they will surprise you with their ingenuity.
+> *The greatest obstacle to discovery is not ignorance -- it is the illusion of knowledge. Never tell people how to do things. Tell them what to do and they will surprise you with their ingenuity.*
 > 
 > General George S. Patton
-> 
-> Desordené
+
+> *Desordené
 > átomos tuyos
-> para hacerte aparecer.
+> para hacerte aparecer.*
 > 
 > Puente - Gustavo Cerati
-> 
-> Jerry, just remember, it's not a lie if you believe it.
+
+> *Jerry, just remember, it's not a lie if you believe it.*
 > 
 > George Costanza
-> 
-> Sometimes
-> Only sometimes
-> I question everything
-> 
-> Sometimes - Depeche Mode
-> 
-> The laughter penetrates my silence
-> As drunken men find flaws in science
-> 
-> Set The Fire To The Third Bar - Snow Patrol
 
-# Estrategia para la simulación
+
 
 # Instalación de GROMACS
 
@@ -3401,8 +3388,6 @@ SMILES del 1-octanol:
 ```text
 CCCCCCCCO
 ```
-
-
 
 SwissParam genera parámetros compatibles con la familia CHARMM y puede ser útil para una prueba inicial. No convierte automáticamente esos parámetros en una parametrización validada para propiedades de partición o de interfaz. Para un trabajo cuantitativo deben comprobarse, al menos:
 
