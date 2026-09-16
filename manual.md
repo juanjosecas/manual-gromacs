@@ -89,6 +89,7 @@ Algunas variantes empaquetadas pueden instalar ejecutables o módulos separados 
 
 ```bash
 rpm -ql gromacs | grep /bin/
+
 gmx --version
 ```
 
@@ -96,6 +97,7 @@ gmx --version
 
 ```bash
 sudo pacman -S gromacs
+
 gmx --version
 ```
 
@@ -103,7 +105,9 @@ gmx --version
 
 ```bash
 brew update
+
 brew install gromacs
+
 gmx --version
 ```
 
@@ -124,7 +128,9 @@ Dentro de Ubuntu:
 
 ```bash
 sudo apt update
+
 sudo apt install gromacs
+
 gmx --version
 ```
 
@@ -140,7 +146,8 @@ nvidia-smi
 
 ```bash
 sudo apt update
-sudo apt install build-essential cmake git python3     libfftw3-dev libhwloc-dev
+
+sudo apt install build-essential cmake git python3 libfftw3-dev libhwloc-dev
 ```
 
 Para una compilación MPI agregue:
@@ -152,7 +159,7 @@ sudo apt install openmpi-bin libopenmpi-dev
 ### Dependencias en Fedora
 
 ```bash
-sudo dnf install gcc gcc-c++ cmake make git python3     fftw-devel hwloc-devel
+sudo dnf install gcc gcc-c++ cmake make git python3 fftw-devel hwloc-devel
 ```
 
 Para MPI:
@@ -173,18 +180,27 @@ Si el comando **module** no existe o el módulo tiene otro nombre, examine los a
 
 Use una carpeta de compilación separada del código fuente. El prefijo bajo `$HOME/opt` evita requerir permisos de administrador durante la instalación.
 
+Aclaración: un "\" al final de la línea indica que el comando continúa en la siguiente línea. Esto funciona en Linux, macOS y WSL2. En Windows PowerShell se puede escribir todo en una línea o usar el carácter de continuación de PowerShell. Es por una cuestión de visualización, si resulta molesto, se puede escribir todo en una sola línea.
+
 ```bash
 wget https://ftp.gromacs.org/gromacs/gromacs-2026.3.tar.gz
+
 tar xfz gromacs-2026.3.tar.gz
+
 cd gromacs-2026.3
 
 mkdir build
+
 cd build
 
-cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3"
+cmake .. -DGMX_BUILD_OWN_FFTW=ON \
+    -DREGRESSIONTEST_DOWNLOAD=ON \
+    -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3"
 
 cmake --build . --parallel
+
 ctest --output-on-failure
+
 cmake --install .
 ```
 
@@ -192,6 +208,7 @@ Active la instalación:
 
 ```bash
 source "$HOME/opt/gromacs-2026.3/bin/GMXRC"
+
 gmx --version
 ```
 
@@ -209,6 +226,7 @@ Primero instale un controlador NVIDIA compatible y el toolkit CUDA siguiendo el 
 
 ```bash
 nvidia-smi
+
 nvcc --version
 ```
 
@@ -216,13 +234,20 @@ Configure GROMACS con el backend CUDA:
 
 ```bash
 cd gromacs-2026.3
+
 mkdir build-cuda
+
 cd build-cuda
 
-cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_GPU=CUDA     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-cuda"
+cmake .. -DGMX_BUILD_OWN_FFTW=ON \
+    -DREGRESSIONTEST_DOWNLOAD=ON \
+    -DGMX_GPU=CUDA \
+    -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-cuda"
 
 cmake --build . --parallel
+
 ctest --output-on-failure
+
 cmake --install .
 ```
 
@@ -253,10 +278,15 @@ cd gromacs-2026.3
 mkdir build-mpi
 cd build-mpi
 
-cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_MPI=ON     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-mpi"
+cmake .. -DGMX_BUILD_OWN_FFTW=ON \
+    -DREGRESSIONTEST_DOWNLOAD=ON \
+    -DGMX_MPI=ON \
+    -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-mpi"
 
 cmake --build . --parallel
+
 ctest --output-on-failure
+
 cmake --install .
 ```
 
@@ -264,14 +294,20 @@ Comprobación:
 
 ```bash
 source "$HOME/opt/gromacs-2026.3-mpi/bin/GMXRC"
+
 gmx_mpi --version
+
 mpirun -np 2 gmx_mpi --version
 ```
 
 Para combinar MPI y CUDA:
 
 ```bash
-cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_MPI=ON     -DGMX_GPU=CUDA     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-mpi-cuda"
+cmake .. -DGMX_BUILD_OWN_FFTW=ON \
+    -DREGRESSIONTEST_DOWNLOAD=ON \
+    -DGMX_MPI=ON \
+    -DGMX_GPU=CUDA \
+    -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-mpi-cuda"
 ```
 
 En un clúster deben usarse el lanzador y las variables indicadas por el gestor de trabajos. Un comando local con **mpirun** no sustituye un script de SLURM, PBS u otro planificador.
@@ -304,7 +340,9 @@ La imagen debe construirse para una versión exacta de GROMACS. No conviene desc
 Para CPU sólo se necesitan Docker Engine o Docker Desktop y espacio suficiente para compilar:
 
 ```bash
+
 docker version
+
 docker info
 ```
 
@@ -320,6 +358,7 @@ Después de instalar NVIDIA Container Toolkit:
 
 ```bash
 sudo nvidia-ctk runtime configure --runtime=docker
+
 sudo systemctl restart docker
 ```
 
@@ -625,7 +664,11 @@ En HPC suele ser más simple construir una imagen OCI validada y ejecutarla medi
 gmxapi requiere una instalación previa de GROMACS compilada con **GMXAPI=ON** y **BUILD_SHARED_LIBS=ON**. Ambas opciones suelen estar activadas por defecto, pero conviene declararlas cuando se prepara una instalación destinada a Python:
 
 ```bash
-cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMXAPI=ON     -DBUILD_SHARED_LIBS=ON     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3"
+cmake .. -DGMX_BUILD_OWN_FFTW=ON \
+    -DREGRESSIONTEST_DOWNLOAD=ON \
+    -DGMXAPI=ON \
+    -DBUILD_SHARED_LIBS=ON \
+    -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3"
 ```
 
 Después de instalar GROMACS, cree un entorno virtual. gmxapi admite Python 3.9 o posterior.
@@ -636,6 +679,7 @@ source "$HOME/venvs/gmxapi-2026/bin/activate"
 
 python -m pip install --upgrade pip setuptools wheel cmake pybind11
 source "$HOME/opt/gromacs-2026.3/bin/GMXRC"
+
 python -m pip install --no-cache-dir gmxapi
 ```
 
@@ -657,7 +701,9 @@ Después de actualizar o recompilar GROMACS con otro compilador, MPI o precisió
 
 ```bash
 which gmx
+
 gmx --version
+
 gmx mdrun -version
 ```
 
@@ -675,6 +721,7 @@ Una prueba mínima del ejecutable no reemplaza los tests:
 
 ```bash
 gmx help
+
 gmx check -h
 ```
 
@@ -1245,6 +1292,7 @@ curl -fL \
     -o LIG_swissparam.tar.gz
 
 mkdir -p swissparam_LIG
+
 tar -xzf LIG_swissparam.tar.gz -C swissparam_LIG
 ```
 
@@ -1386,13 +1434,22 @@ Ejecute **pdb2gmx** sobre una copia de la estructura original:
 ```bash
 cd 01_preparacion
 
-gmx pdb2gmx     -f ../00_entrada/protein.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -water tip3p
+gmx pdb2gmx -f ../00_entrada/protein.pdb \
+            -o protein_processed.gro \ 
+            -p topol.top \
+            -i posre_protein.itp \ 
+            -water tip3p
 ```
 
 Seleccione el campo de fuerza de manera interactiva o especifíquelo mediante **-ff** si el identificador instalado está documentado:
 
 ```bash
-gmx pdb2gmx     -f ../00_entrada/protein.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -ff charmm36-jul2022     -water tip3p
+gmx pdb2gmx -f ../00_entrada/protein.pdb \
+            -o protein_processed.gro \
+            -p topol.top \
+            -i posre_protein.itp \
+            -ff charmm36-jul2022 \
+            -water tip3p
 ```
 
 El nombre disponible puede diferir según los campos de fuerza instalados. Consulte:
@@ -1461,7 +1518,11 @@ El orden en `[ molecules ]` debe coincidir con el orden de las moléculas en el 
 Para una proteína soluble aproximadamente globular, una caja dodecaédrica reduce el número de moléculas de agua respecto de una caja cúbica:
 
 ```bash
-gmx editconf     -f complex.gro     -o complex_box.gro     -c     -d 1.0     -bt dodecahedron
+gmx editconf -f complex.gro \
+    -o complex_box.gro \
+    -c \
+    -d 1.0 \
+    -bt dodecahedron
 ```
 
 **-d 1.0** establece una distancia mínima de 1.0 nm entre el soluto y el límite de la caja. No es una constante universal. Debe ser compatible con los radios de corte y con los movimientos esperados del sistema.
@@ -1475,7 +1536,10 @@ gmx editconf -f complex_box.gro
 ## Solvatación
 
 ```bash
-gmx solvate     -cp complex_box.gro     -cs spc216.gro     -o complex_solv.gro     -p topol.top
+gmx solvate -cp complex_box.gro \
+            -cs spc216.gro \
+            -o complex_solv.gro \
+            -p topol.top
 ```
 
 El nombre **spc216.gro** identifica una configuración preequilibrada distribuida con GROMACS. La topología final del agua está determinada por el modelo elegido en **pdb2gmx**, por lo que debe mantenerse la compatibilidad entre campo de fuerza, archivo de agua y topología.
@@ -1501,16 +1565,18 @@ pbc             = xyz
 Genere un TPR temporal:
 
 ```bash
-gmx grompp     -f ions.mdp     -c complex_solv.gro     -p topol.top     -o ions.tpr
+gmx grompp -f ions.mdp -c complex_solv.gro -p topol.top -o ions.tpr
 ```
 
 Añada NaCl, neutralice la carga neta y solicite una concentración nominal de 0.15 mol L⁻¹:
 
 ```bash
-gmx genion     -s ions.tpr     -o complex_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
+gmx genion -s ions.tpr -o complex_solv_ions.gro -p topol.top -pname NA -nname CL -neutral -conc 0.15
 ```
 
 Seleccione el grupo de solvente, normalmente **SOL**, cuando el programa pregunte qué moléculas reemplazar. No use un número de grupo copiado de otro sistema.
+
+Vayamos un poco al tema de los "grupos". Es un concepto que GROMACS utiliza para organizar átomos y moléculas en conjuntos. Por ejemplo, cuando se le pide al usuario que seleccione un grupo de solvente, GROMACS muestra una lista de grupos predefinidos (como SOL, Protein, LIG, etc.) y el usuario debe elegir el grupo correspondiente al solvente que desea reemplazar con iones. En los archivos de topología, los grupos se definen en la sección `[ molecules ]`, y cada grupo tiene un número de identificación que GROMACS utiliza internamente. Por eso es importante no copiar números de grupo de otros sistemas, ya que pueden no coincidir con la estructura actual.
 
 La concentración se relaciona con el número de pares iónicos mediante:
 
@@ -1547,12 +1613,24 @@ name 18 Protein_LIG
 q
 ```
 
-El número 18 es ilustrativo: debe reemplazarse por el número asignado durante esa sesión. El grupo **Protein_LIG** resulta útil para centrar y visualizar el complejo, pero no crea una única molécula física.
+El número 18 es ilustrativo: debe reemplazarse por el número asignado durante esa sesión. El grupo **Protein_LIG** resulta útil para centrar y visualizar el complejo, pero no crea una única molécula física. "Interactivo" significa que el usuario escribe comandos en la terminal; no es un script automático. La salida **index.ndx** contiene los grupos de índice y puede editarse con un editor de texto. Se puede "automatizar"? Es posible, pero la interacción permite verificar que los grupos creados coincidan con lo esperado. Si tuvieramos mucha seguridad de los índices de los átomos, podríamos crear un script que genere el archivo de índice directamente, pero la revisión visual es una buena práctica para evitar errores. Si supiéramos exactamente como se llama el grupo que queremos, podríamos usar una modificación de la línea de comandos para crear el grupo sin interacción, ejemplo:
+
+```bash
+echo "r LIG" | gmx make_ndx -f complex_solv_ions.gro -o index.ndx
+```
+
+ó
+
+```bash
+echo -e "r LIG\nname 18 Protein_LIG\nq" | gmx make_ndx -f complex_solv_ions.gro -o index.ndx
+```
+
+el "-e" permite interpretar los saltos de línea. Pero la interacción permite verificar que los grupos creados coincidan con lo esperado.
 
 Puede examinar selecciones modernas con:
 
 ```bash
-gmx select     -s complex_solv_ions.gro     -select 'group "Protein" or resname LIG'
+gmx select -s complex_solv_ions.gro -select 'group "Protein" or resname LIG'
 ```
 
 ## Restricciones de posición del ligando
@@ -1560,10 +1638,10 @@ gmx select     -s complex_solv_ions.gro     -select 'group "Protein" or resname 
 Genere las restricciones usando una estructura que contenga solamente el ligando y cuyo orden atómico coincida con **ligand.itp**:
 
 ```bash
-gmx genrestr     -f ligand.gro     -o posre_ligand.itp     -fc 1000 1000 1000
+gmx genrestr -f ligand.gro -o posre_ligand.itp -fc 1000 1000 1000
 ```
 
-Seleccione **LIG**. Los índices del archivo de restricciones son locales al `[ moleculetype ]`. Si se usa la estructura completa y se generan índices globales, las restricciones pueden apuntar a átomos incorrectos.
+Seleccione **LIG**. Los índices del archivo de restricciones son locales al `[ moleculetype ]`. Si se usa la estructura completa y se generan índices globales, las restricciones pueden apuntar a átomos incorrectos. **-fc** define la fuerza de restricción en cada eje. El valor 1000 corresponde a 1000 kJ mol⁻¹ nm⁻². Cuanto mayor sea la constante de fuerza, más rígida será la restricción. La fuerza de restricción debe ser suficiente para mantener el ligando en su sitio durante la equilibración, pero no tan alta como para generar fuerzas excesivas o artefactos.
 
 Incluya el archivo inmediatamente después de la topología del ligando:
 
@@ -1618,7 +1696,10 @@ Preprocese y ejecute:
 mkdir -p ../02_em
 cd ../02_em
 
-gmx grompp     -f ../01_preparacion/em.mdp     -c ../01_preparacion/complex_solv_ions.gro     -p ../01_preparacion/topol.top     -o em.tpr
+gmx grompp -f ../01_preparacion/em.mdp \
+    -c ../01_preparacion/complex_solv_ions.gro \
+    -p ../01_preparacion/topol.top \ 
+    -o em.tpr
 
 gmx mdrun -deffnm em -v
 ```
