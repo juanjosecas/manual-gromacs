@@ -5,7 +5,9 @@
   const sidebar = document.getElementById("sidebar");
   const menu = document.getElementById("menu-button");
   const backdrop = document.getElementById("backdrop");
-  if (!article || !toc) return;
+  const desktop = window.matchMedia("(min-width: 901px)");
+  const sidebarKey = "manual-sidebar-collapsed";
+  if (!article || !toc || !sidebar || !menu || !backdrop) return;
 
   const normalize = (text) =>
     text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -41,7 +43,7 @@
   search?.addEventListener("input", () => {
     const query = normalize(search.value.trim());
     list.querySelectorAll("li").forEach((item) => {
-      item.hidden = query && !item.firstElementChild.dataset.search.includes(query);
+      item.hidden = Boolean(query) && !item.firstElementChild.dataset.search.includes(query);
     });
   });
 
@@ -66,7 +68,7 @@
       } catch {
         button.textContent = "Error";
       }
-      setTimeout(() => button.textContent = "Copiar", 1400);
+      window.setTimeout(() => button.textContent = "Copiar", 1400);
     });
     pre.appendChild(button);
   });
@@ -81,12 +83,56 @@
     headings.forEach((heading) => observer.observe(heading));
   }
 
-  const openMenu = (open) => {
+  const setMobileMenu = (open) => {
     sidebar.classList.toggle("open", open);
     menu.setAttribute("aria-expanded", String(open));
     backdrop.hidden = !open;
   };
-  menu?.addEventListener("click", () => openMenu(!sidebar.classList.contains("open")));
-  backdrop?.addEventListener("click", () => openMenu(false));
-  toc.addEventListener("click", () => openMenu(false));
+
+  const setDesktopSidebar = (collapsed) => {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    menu.setAttribute("aria-expanded", String(!collapsed));
+    backdrop.hidden = true;
+    try {
+      localStorage.setItem(sidebarKey, collapsed ? "1" : "0");
+    } catch {}
+  };
+
+  if (desktop.matches) {
+    let collapsed = false;
+    try {
+      collapsed = localStorage.getItem(sidebarKey) === "1";
+    } catch {}
+    setDesktopSidebar(collapsed);
+  } else {
+    setMobileMenu(false);
+  }
+
+  menu.addEventListener("click", () => {
+    if (desktop.matches) {
+      setDesktopSidebar(!document.body.classList.contains("sidebar-collapsed"));
+    } else {
+      setMobileMenu(!sidebar.classList.contains("open"));
+    }
+  });
+
+  backdrop.addEventListener("click", () => setMobileMenu(false));
+  toc.addEventListener("click", () => {
+    if (!desktop.matches) setMobileMenu(false);
+  });
+
+  desktop.addEventListener("change", (event) => {
+    sidebar.classList.remove("open");
+    backdrop.hidden = true;
+    if (event.matches) {
+      let collapsed = false;
+      try {
+        collapsed = localStorage.getItem(sidebarKey) === "1";
+      } catch {}
+      setDesktopSidebar(collapsed);
+    } else {
+      document.body.classList.remove("sidebar-collapsed");
+      setMobileMenu(false);
+    }
+  });
 })();
