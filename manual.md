@@ -913,8 +913,10 @@ GROMACS no parametriza automáticamente moléculas orgánicas arbitrarias. La to
 - AMBER: parámetros compatibles con GAFF u otra metodología AMBER.
 - OPLS-AA: tipos y cargas consistentes con OPLS.
 - GROMOS: parámetros desarrollados bajo las convenciones GROMOS.
+- AnteChamber/ACPYPE: tipos GAFF o GAFF2 y cargas parciales AM1-BCC.
+- LigParGen: tipos OPLS-AA y cargas parciales CM1A-LBCC.
 
-No deben mezclarse tipos atómicos, reglas de combinación, cargas o términos de CHARMM y AMBER sin una transformación validada.
+No deben mezclarse tipos atómicos, reglas de combinación, cargas o términos de CHARMM y AMBER sin una transformación validada. Lamentablemente, la conversión de topologías entre familias de campos de fuerza no es trivial y no puede automatizarse sin riesgo de errores.
 
 ### Parametrización del ligando con ACPYPE
 
