@@ -722,6 +722,144 @@ Los nombres de archivos son ejemplos. Conviene mantener nombres explícitos y un
 mkdir -p 00_entrada 01_preparacion 02_em 03_nvt 04_npt 05_md 06_analisis
 ~~~
 
+## Objetivo y alcance del tutorial
+
+El sistema estudiado contiene una proteína receptora, un ligando, solvente explícito e iones. El objetivo es construir un modelo atomístico consistente, eliminar contactos desfavorables, equilibrarlo y generar un conjunto de conformaciones que permita describir la estabilidad estructural y las interacciones del complejo.
+
+Este procedimiento puede responder preguntas como:
+
+- si una pose permanece estable durante el intervalo simulado;
+- qué residuos mantienen contacto con el ligando;
+- qué puentes de hidrógeno, contactos hidrofóbicos o interacciones iónicas son persistentes;
+- qué regiones de la proteína cambian su movilidad;
+- si aparecen reorganizaciones del sitio de unión o entrada de agua.
+
+Una trayectoria aislada no demuestra afinidad, mecanismo de acción ni convergencia termodinámica. Tampoco convierte una pose de docking en una estructura experimental. La afinidad requiere métodos y diseños específicos —por ejemplo FEP, LIE, MM/PBSA o potencial de fuerza media— y réplicas suficientes para estimar incertidumbre.
+
+## Conceptos que deben distinguirse
+
+| Concepto | Definición operativa |
+|---|---|
+| **Receptor** | Macromolécula que contiene el sitio de unión. En este tutorial es una proteína soluble. |
+| **Ligando** | Molécula cuya pose e interacciones con el receptor se estudian. Puede poseer varios estados de protonación, tautómeros o estereoisómeros. |
+| **Pose** | Posición, orientación y conformación del ligando dentro del sitio de unión. |
+| **Microestado** | Combinación concreta de protonación, tautomería y, cuando corresponda, estereoquímica. Dos microestados del mismo compuesto son sistemas químicos diferentes para una simulación clásica. |
+| **Coordenadas** | Posiciones atómicas almacenadas en PDB, GRO u otro formato. No contienen por sí solas una descripción completa de las interacciones. |
+| **Topología** | Conectividad, tipos atómicos, cargas, masas y parámetros que definen cómo se calcula la energía. |
+| **Campo de fuerza** | Conjunto de forma funcional y parámetros usado para aproximar la energía potencial. |
+| **Protocolo** | Secuencia documentada de preparación, minimización, equilibración, producción y análisis. |
+| **Réplica** | Simulación independiente, normalmente iniciada con velocidades aleatorias diferentes y, si corresponde, otra conformación inicial. |
+
+Una estructura químicamente correcta requiere coherencia entre coordenadas y topología: mismo número y orden de átomos, mismos nombres de residuos y átomos, misma conectividad, misma carga formal y mismo microestado.
+
+## Modelo físico aproximado
+
+La dinámica molecular clásica integra las ecuaciones de movimiento de Newton:
+
+\[
+m_i\frac{d^2\mathbf r_i}{dt^2}
+=
+\mathbf F_i
+=
+-\nabla_i U(\mathbf r).
+\]
+
+La fuerza sobre cada átomo se obtiene del gradiente de una función de energía potencial. En forma esquemática,
+
+\[
+U =
+U_{\mathrm{enlaces}}
++U_{\mathrm{ángulos}}
++U_{\mathrm{diedros}}
++U_{\mathrm{impropios}}
++U_{\mathrm{LJ}}
++U_{\mathrm{Coulomb}}
++U_{\mathrm{restricciones}}.
+\]
+
+Para un par de átomos, las contribuciones no enlazantes más habituales son
+
+\[
+U_{\mathrm{LJ}}(r)
+=
+4\varepsilon
+\left[
+\left(\frac{\sigma}{r}\right)^{12}
+-
+\left(\frac{\sigma}{r}\right)^6
+\right]
+\]
+
+y
+
+\[
+U_{\mathrm{Coulomb}}(r)
+=
+\frac{1}{4\pi\varepsilon_0\varepsilon_r}
+\frac{q_iq_j}{r}.
+\]
+
+El término de Lennard-Jones representa de manera aproximada la repulsión de corto alcance y la dispersión. El término electrostático depende de las cargas parciales asignadas por el campo de fuerza. En los campos de fuerza biomoleculares convencionales estas cargas suelen ser fijas: no se modela explícitamente la polarización electrónica inducida.
+
+Las ecuaciones anteriores explican por qué una topología no puede improvisarse a partir de una geometría. Cambiar cargas, tipos atómicos, reglas de combinación o parámetros torsionales cambia la superficie de energía potencial y, por tanto, el sistema que se está simulando.
+
+## Archivos y flujo de información
+
+Los archivos cumplen funciones diferentes:
+
+| Archivo | Función |
+|---|---|
+| **PDB/GRO** | Coordenadas, nombres de átomos y residuos; GRO incluye la caja. |
+| **TOP/ITP** | Topología y parámetros del sistema. |
+| **MDP** | Algoritmo, paso temporal, termostato, barostato, cortes y frecuencia de salida. |
+| **NDX** | Grupos de átomos definidos para acoplamiento, restricciones o análisis. |
+| **TPR** | Entrada binaria compilada por **gmx grompp** a partir de coordenadas, topología, MDP y, si se usa, índice. |
+| **CPT** | Estado completo necesario para continuar una simulación. |
+| **XTC/TRR** | Trayectoria; XTC contiene coordenadas comprimidas y TRR puede contener coordenadas, velocidades y fuerzas. |
+| **EDR** | Energías y variables termodinámicas. |
+| **LOG** | Registro de parámetros efectivos, rendimiento, advertencias y evolución de la corrida. |
+
+El flujo mínimo es:
+
+\[
+\text{coordenadas}+\text{topología}+\text{MDP}
+\xrightarrow{\texttt{gmx grompp}}
+\text{TPR}
+\xrightarrow{\texttt{gmx mdrun}}
+\text{trayectoria}+\text{energías}+\text{checkpoint}.
+\]
+
+**gmx grompp** no es una formalidad: expande directivas del preprocesador, valida parte de la coherencia del sistema y escribe en el TPR los parámetros efectivos. Debe conservarse el archivo MDP procesado generado con **-po** cuando se desea auditar exactamente qué se ejecutó.
+
+## Decisiones previas que no debe tomar GROMACS
+
+Antes de ejecutar **pdb2gmx** deben quedar documentadas:
+
+1. identidad biológica de la estructura, cadenas y ensamblaje oligomérico;
+2. residuos o átomos faltantes y método usado para reconstruirlos;
+3. conformaciones alternativas retenidas;
+4. estados de protonación de residuos titulables;
+5. presencia de enlaces disulfuro, metales, cofactores y aguas estructurales;
+6. microestado, carga formal y estereoquímica del ligando;
+7. origen de la pose inicial;
+8. campo de fuerza y modelo de agua;
+9. condiciones experimentales que se intentan representar: temperatura, presión, pH y composición salina.
+
+GROMACS puede detectar inconsistencias sintácticas, pero no puede decidir si el tautómero, la pose, el ensamblaje biológico o la química de coordinación elegidos son correctos.
+
+## Etapas y criterios para avanzar
+
+| Etapa | Finalidad | Criterio mínimo antes de continuar |
+|---|---|---|
+| Preparación | Definir composición, microestados y parámetros | Coordenadas y topología coherentes; carga y conectividad verificadas |
+| Minimización | Eliminar contactos y fuerzas excesivas | Sin NaN; fuerza máxima y geometría aceptables |
+| NVT | Ajustar temperatura a volumen fijo | Temperatura estable y estructura sin deformaciones |
+| NPT | Ajustar densidad y volumen | Densidad y volumen estacionarios; presión media compatible |
+| Producción | Muestrear el conjunto definido | Sin inestabilidad; duración y réplicas justificadas |
+| Análisis | Responder preguntas predefinidas | PBC, ajuste, selección e intervalo documentados |
+
+Una etapa no se valida porque el comando terminó sin error. La salida estructural, el log y las variables relevantes deben inspeccionarse antes de usarla como entrada de la etapa siguiente.
+
 ## Requisitos básicos
 
 Archivos iniciales:
@@ -953,6 +1091,14 @@ donde **c** es la concentración en mol L⁻¹, (N_A) es la constante de Avogadr
 
 La opción **-neutral** agrega los contraiones necesarios para llevar la carga neta a cero. **-conc 0.15** agrega además la sal correspondiente a la concentración solicitada. Revise la cantidad final de NA y CL en **topol.top**.
 
+Concentración de sal y fuerza iónica no son siempre equivalentes. La fuerza iónica se define como
+
+\[
+I=\frac{1}{2}\sum_i c_i z_i^2,
+\]
+
+donde \(c_i\) es la concentración molar de la especie iónica \(i\) y \(z_i\) su número de carga. Para NaCl ideal, 0.15 mol L⁻¹ corresponde aproximadamente a \(I=0.15\) mol L⁻¹. La presencia de contraiones añadidos para neutralizar una proteína cargada modifica la composición y la fuerza iónica efectiva; el efecto es más visible en cajas pequeñas o con solutos muy cargados.
+
 ## Grupos de índice
 
 Los números de grupo cambian con la composición del sistema. Cree los grupos necesarios y documente las selecciones:
@@ -1046,7 +1192,13 @@ gmx grompp     -f ../01_preparacion/em.mdp     -c ../01_preparacion/complex_solv
 gmx mdrun -deffnm em -v
 ~~~
 
-El criterio **emtol = 1000** significa que la minimización puede finalizar cuando la fuerza máxima sea menor que 1000 kJ mol⁻¹ nm⁻¹. Este valor es habitual antes de equilibrar, pero no garantiza que la estructura represente un mínimo profundo.
+El criterio **emtol = 1000** significa que la minimización puede finalizar cuando la fuerza máxima sea menor que 1000 kJ mol⁻¹ nm⁻¹:
+
+\[
+F_{\max}=\max_i\left|-\nabla_i U\right|.
+\]
+
+Este valor es habitual antes de equilibrar, pero no garantiza que la estructura represente un mínimo profundo ni que el sistema esté equilibrado. La minimización desplaza coordenadas cuesta abajo sobre la superficie de energía potencial; no genera un conjunto termodinámico y no sustituye NVT o NPT.
 
 Extraiga la energía potencial:
 
@@ -1067,7 +1219,15 @@ No use **-maxwarn** para ocultar advertencias de **grompp**. Debe entenderse la 
 
 ## Equilibración NVT
 
-En NVT se estabiliza la temperatura manteniendo fijo el volumen. Ejemplo a 300 K durante 100 ps:
+En el conjunto canónico NVT permanecen fijos el número de partículas \(N\), el volumen \(V\) y la temperatura objetivo \(T\). El termostato modifica la dinámica para muestrear la distribución correspondiente; no debe interpretarse como una simple corrección periódica de velocidades.
+
+La probabilidad de un microestado de energía \(E\) es proporcional a
+
+\[
+P(E)\propto \exp\left(-\frac{E}{k_{\mathrm B}T}\right).
+\]
+
+En esta etapa se estabiliza la temperatura manteniendo fijo el volumen. Ejemplo a 300 K durante 100 ps:
 
 ~~~ini
 title                    = Equilibración NVT
@@ -1145,7 +1305,11 @@ La temperatura debe evaluarse como serie temporal y promedio, no por un único v
 
 ## Equilibración NPT
 
-En NPT se ajustan presión, volumen y densidad. Ejemplo de 500 ps con barostato C-rescale:
+En el conjunto isotérmico-isobárico NPT permanecen fijos \(N\), la temperatura objetivo \(T\) y la presión objetivo \(P\), mientras el volumen fluctúa. El barostato modifica los vectores de caja y las coordenadas para permitir que la densidad se relaje.
+
+La presión instantánea es una magnitud ruidosa, especialmente en cajas pequeñas. El criterio práctico no es obtener una línea plana en 1 bar, sino comprobar que volumen y densidad alcanzaron un régimen estacionario y que la presión promedio es compatible con el objetivo dentro de su incertidumbre.
+
+Ejemplo de 500 ps con barostato C-rescale:
 
 ~~~ini
 title                    = Equilibración NPT
@@ -1545,6 +1709,11 @@ Use réplicas independientes cuando la conclusión dependa del muestreo. RMSD, R
 3. [Manual de análisis](https://manual.gromacs.org/current/reference-manual/analysis/analysis.html)
 4. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
 5. [Referencia de comandos de GROMACS](https://manual.gromacs.org/current/onlinehelp/gmx.html)
+6. [Flujo general de una simulación en GROMACS](https://manual.gromacs.org/current/user-guide/flow.html)
+7. [Definiciones y unidades](https://manual.gromacs.org/current/reference-manual/definitions.html)
+8. [Dinámica molecular](https://manual.gromacs.org/current/reference-manual/algorithms/molecular-dynamics.html)
+9. [Condiciones periódicas de contorno](https://manual.gromacs.org/current/reference-manual/algorithms/periodic-boundary-conditions.html)
+10. [Algoritmos de restricciones](https://manual.gromacs.org/current/reference-manual/algorithms/constraint-algorithms.html)
 
 # Simulación de una caja de agua
 
