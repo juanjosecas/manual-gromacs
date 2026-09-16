@@ -29,6 +29,13 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
+      - name: Preparar el manual para Jekyll
+        shell: bash
+        run: |
+          mkdir -p _includes
+          cp -- "Manual de Referencia - Gromacs/Manual de Referencia -  Gromacs.md" "_includes/manual.md"
+          test -s "_includes/manual.md"
+
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
 
