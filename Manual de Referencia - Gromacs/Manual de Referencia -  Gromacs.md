@@ -185,7 +185,7 @@ Si el comando **module** no existe o el módulo tiene otro nombre, examine los a
 
 ### Descarga y compilación básica para CPU
 
-Use una carpeta de compilación separada del código fuente. El prefijo bajo **$HOME/opt** evita requerir permisos de administrador durante la instalación.
+Use una carpeta de compilación separada del código fuente. El prefijo bajo `$HOME/opt` evita requerir permisos de administrador durante la instalación.
 
 ```bash
 wget https://ftp.gromacs.org/gromacs/gromacs-2026.3.tar.gz
@@ -888,18 +888,18 @@ El ligando debe conservar la pose obtenida por cristalografía, docking u otro p
 
 Equivalencias útiles:
 
-$
+$$
 1\ \mathrm{nm}=10\ \text{Å}
-$
+$$
 
-$
+$$
 1\ \mathrm{ps}=10^{-12}\ \mathrm{s},\qquad
 1\ \mathrm{ns}=1000\ \mathrm{ps}
-$
+$$
 
-$
+$$
 1\ \mathrm{kcal\ mol^{-1}}=4.184\ \mathrm{kJ\ mol^{-1}}
-$
+$$
 
 No convierta distancias de Å a nm de forma implícita. Una distancia de corte de 1.0 en un archivo MDP significa 1.0 nm, es decir, 10 Å.
 
@@ -1083,9 +1083,9 @@ Seleccione el grupo de solvente, normalmente **SOL**, cuando el programa pregunt
 
 La concentración se relaciona con el número de pares iónicos mediante:
 
-$
+$$
 N_{\mathrm{pares}} \approx c\,N_A\,V
-$
+$$
 
 donde **c** es la concentración en mol L⁻¹, (N_A) es la constante de Avogadro y **V** es el volumen en litros. Debido a que el número de iones debe ser entero y la caja es pequeña, la concentración efectiva puede diferir del valor solicitado.
 
@@ -1146,9 +1146,9 @@ Incluya el archivo inmediatamente después de la topología del ligando:
 
 El valor 1000 corresponde a 1000 kJ mol⁻¹ nm⁻² en cada eje. La energía armónica de una restricción unidimensional es:
 
-$
+$$
 V(x)=\frac{1}{2}k(x-x_0)^2
-$
+$$
 
 donde **k** es la constante de fuerza y (x_0) la posición de referencia.
 
@@ -1269,15 +1269,15 @@ nstlog                   = 500
 
 El tiempo simulado es:
 
-$
+$$
 t_{\mathrm{total}}=\mathrm{dt}\times\mathrm{nsteps}
-$
+$$
 
 En este ejemplo:
 
-$
+$$
 0.002\ \mathrm{ps}\times 50000=100\ \mathrm{ps}
-$
+$$
 
 Con restricciones sobre enlaces con hidrógeno, un paso de 0.002 ps equivale a 2 fs.
 
@@ -1418,11 +1418,11 @@ nstlog                   = 5000
 
 Con 2 fs por paso:
 
-$
+$$
 50000000\times 0.002\ \mathrm{ps}
 =100000\ \mathrm{ps}
 =100\ \mathrm{ns}
-$
+$$
 
 Ejecución:
 
@@ -1524,11 +1524,11 @@ Use el mismo intervalo de producción, tratamiento de PBC y selección en todas 
 
 El RMSD mide la desviación respecto de una referencia después del ajuste:
 
-$
+$$
 \mathrm{RMSD}(t)=
 \sqrt{\frac{1}{M}\sum_i m_i
 \left\|\mathbf r_i(t)-\mathbf r_i^{\mathrm{ref}}\right\|^2}
-$
+$$
 
 donde **M** es la masa total de los átomos seleccionados. Una meseta indica estabilidad relativa frente a esa referencia, no convergencia termodinámica.
 
@@ -1624,9 +1624,9 @@ gmx msd     -s md.tpr     -f md_nojump.xtc     -n index.ndx     -sel 'group "LIG
 
 La estimación del coeficiente de difusión se basa en la región lineal de la relación de Einstein:
 
-$
+$$
 \left\langle |\mathbf r(t)-\mathbf r(0)|^2\right\rangle=2dDt
-$
+$$
 
 donde **d** es la dimensionalidad: 3 para difusión tridimensional y 2 para difusión lateral. Debe elegirse un intervalo de ajuste en el régimen difusivo; el tramo inicial balístico y las regiones con muestreo insuficiente sesgan el resultado.
 
@@ -1643,13 +1643,13 @@ El sistema debe estar alineado previamente. Informe el eje promediado, la resolu
 
 La RMSF mide la fluctuación de cada átomo alrededor de su posición promedio:
 
-$
+$$
 \mathrm{RMSF}_i=
 \sqrt{
 \left\langle
 \left\|\mathbf r_i(t)-\langle\mathbf r_i\rangle\right\|^2
 \right\rangle}
-$
+$$
 
 Primero ajuste la trayectoria sobre una región estructuralmente estable:
 
@@ -1669,9 +1669,9 @@ gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n ind
 
 **-oq** escribe los valores convertidos al campo B del PDB. La relación isotrópica es:
 
-$
+$$
 B_i=\frac{8\pi^2}{3}\mathrm{RMSF}_i^2
-$
+$$
 
 Para evaluar estabilidad temporal, compare bloques de igual duración:
 
