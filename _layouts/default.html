@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="{{ site.lang | default: 'es' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#14324a">
+  <title>{{ page.title | default: site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  <link rel="canonical" href="{{ page.url | absolute_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script defer src="{{ '/assets/js/site.js' | relative_url }}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="sidebar" aria-expanded="false">
+      <span aria-hidden="true">☰</span>
+      <span>Índice</span>
+    </button>
+    <div class="brand">
+      <a href="{{ '/' | relative_url }}">{{ site.title }}</a>
+      <span>GROMACS 2026</span>
+    </div>
+    <a class="repo-link" href="https://github.com/juanjosecas/manual-gromacs">Repositorio</a>
+  </header>
+
+  <div class="page-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navegación del manual">
+      <label class="search-label" for="toc-search">Buscar una sección</label>
+      <input id="toc-search" type="search" placeholder="p. ej., membrana, FEP…" autocomplete="off">
+      <nav id="table-of-contents" aria-label="Tabla de contenidos">
+        <p class="toc-loading">Generando índice…</p>
+      </nav>
+    </aside>
+
+    <main id="contenido" class="manual" tabindex="-1">
+      <article>
+        {{ content }}
+      </article>
+      <footer class="site-footer">
+        <p>Este sitio se reconstruye automáticamente cuando cambia el manual en la rama <code>main</code>.</p>
+        <a href="#contenido">Volver arriba ↑</a>
+      </footer>
+    </main>
+  </div>
+
+  <div class="sidebar-backdrop" hidden></div>
+</body>
+</html>
