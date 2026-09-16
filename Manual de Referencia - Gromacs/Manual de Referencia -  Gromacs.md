@@ -962,7 +962,7 @@ agua:     modelo recomendado para el campo AMBER elegido
 
 No mezcle directamente una proteína CHARMM36 con un ligando GAFF2. Las familias pueden diferir en cargas, torsiones, reglas de combinación y factores de escala para interacciones 1–4. Un TPR que compila sin errores no demuestra compatibilidad física.
 
-En los ports AMBER para GROMACS deben conservarse las convenciones AMBER declaradas en **`[ defaults ]`**, incluidas las reglas de combinación y los factores **fudgeLJ/fudgeQQ**. No copie el bloque **`[ defaults ]`** de la topología completa de ACPYPE dentro de una topología ya creada por **pdb2gmx**.
+En los ports AMBER para GROMACS deben conservarse las convenciones AMBER declaradas en `[ defaults ]`, incluidas las reglas de combinación y los factores **fudgeLJ/fudgeQQ**. No copie el bloque `[ defaults ]` de la topología completa de ACPYPE dentro de una topología ya creada por **pdb2gmx**.
 
 #### Instalación reproducible
 
@@ -1137,9 +1137,9 @@ Protein    1
 LIG        1
 ```
 
-El identificador `amber14sb.ff` es ilustrativo: debe coincidir con el directorio realmente instalado. Si el ITP de ACPYPE contiene **`[ atomtypes ]`** y se incluye después de la topología de la proteína, **grompp** puede detenerse con un error de orden de directivas. Como alternativa, separe los tipos del ligando en **ligand_atomtypes.itp**, inclúyalos inmediatamente después de **forcefield.itp** y deje las secciones **`[ moleculetype ]`**, **`[ atoms ]`**, enlaces, ángulos y diedros en **LIG.itp**.
+El identificador `amber14sb.ff` es ilustrativo: debe coincidir con el directorio realmente instalado. Si el ITP de ACPYPE contiene `[ atomtypes ]` y se incluye después de la topología de la proteína, **grompp** puede detenerse con un error de orden de directivas. Como alternativa, separe los tipos del ligando en **ligand_atomtypes.itp**, inclúyalos inmediatamente después de **forcefield.itp** y deje las secciones `[ moleculetype ]`, `[ atoms ]`, enlaces, ángulos y diedros en **LIG.itp**.
 
-El orden de **`[ molecules ]`** debe reproducir el orden de las moléculas en el archivo de coordenadas. El nombre **LIG** debe coincidir exactamente con el valor definido en **`[ moleculetype ]`**, no solo con el nombre de residuo mostrado en el GRO.
+El orden de `[ molecules ]` debe reproducir el orden de las moléculas en el archivo de coordenadas. El nombre **LIG** debe coincidir exactamente con el valor definido en `[ moleculetype ]`, no solo con el nombre de residuo mostrado en el GRO.
 
 Genere siempre una topología preprocesada para auditar la integración:
 
@@ -1183,7 +1183,7 @@ LIG        3
 ; ...
 ```
 
-Las líneas iniciadas por punto y coma son comentarios. El nombre definido en **[ moleculetype ]** debe coincidir exactamente con el utilizado en **[ molecules ]**. La suma de las cargas parciales debe reproducir la carga formal esperada dentro de la precisión numérica del modelo.
+Las líneas iniciadas por punto y coma son comentarios. El nombre definido en `[ moleculetype ]` debe coincidir exactamente con el utilizado en `[ molecules ]`. La suma de las cargas parciales debe reproducir la carga formal esperada dentro de la precisión numérica del modelo.
 
 El valor de **nrexcl** depende de la convención del campo de fuerza. No debe cambiarse solo para eliminar errores de preprocesamiento.
 
@@ -1248,7 +1248,7 @@ En **topol.top**, incluya la topología del ligando después de los parámetros 
 #include "topol_Protein_chain_A.itp"
 ```
 
-Una sección **[ atomtypes ]** debe aparecer antes de cualquier **[ moleculetype ]** que utilice esos tipos. No incluya el mismo bloque de tipos atómicos más de una vez.
+Una sección `[ atomtypes ]` debe aparecer antes de cualquier `[ moleculetype ]` que utilice esos tipos. No incluya el mismo bloque de tipos atómicos más de una vez.
 
 Al final de **topol.top**:
 
@@ -1262,7 +1262,7 @@ Protein_chain_A     1
 LIG                 1
 ```
 
-El orden en **[ molecules ]** debe coincidir con el orden de las moléculas en el archivo de coordenadas. La cantidad representa moléculas, no átomos ni residuos.
+El orden en `[ molecules ]` debe coincidir con el orden de las moléculas en el archivo de coordenadas. La cantidad representa moléculas, no átomos ni residuos.
 
 ## Caja periódica
 
@@ -1288,7 +1288,7 @@ gmx solvate     -cp complex_box.gro     -cs spc216.gro     -o complex_solv.gro  
 
 El nombre **spc216.gro** identifica una configuración preequilibrada distribuida con GROMACS. La topología final del agua está determinada por el modelo elegido en **pdb2gmx**, por lo que debe mantenerse la compatibilidad entre campo de fuerza, archivo de agua y topología.
 
-**gmx solvate** actualiza automáticamente el número de moléculas de solvente en **topol.top**. Revise la sección **[ molecules ]** después del comando.
+**gmx solvate** actualiza automáticamente el número de moléculas de solvente en **topol.top**. Revise la sección `[ molecules ]` después del comando.
 
 ## Neutralización y concentración salina
 
@@ -1326,7 +1326,7 @@ $$
 N_{\mathrm{pares}} \approx c\,N_A\,V
 $$
 
-donde **c** es la concentración en mol L⁻¹, (N_A) es la constante de Avogadro y **V** es el volumen en litros. Debido a que el número de iones debe ser entero y la caja es pequeña, la concentración efectiva puede diferir del valor solicitado.
+donde **c** es la concentración en mol L⁻¹, $N_A$ es la constante de Avogadro y **V** es el volumen en litros. Debido a que el número de iones debe ser entero y la caja es pequeña, la concentración efectiva puede diferir del valor solicitado.
 
 La opción **-neutral** agrega los contraiones necesarios para llevar la carga neta a cero. **-conc 0.15** agrega además la sal correspondiente a la concentración solicitada. Revise la cantidad final de NA y CL en **topol.top**.
 
@@ -1371,7 +1371,7 @@ Genere las restricciones usando una estructura que contenga solamente el ligando
 gmx genrestr     -f ligand.gro     -o posre_ligand.itp     -fc 1000 1000 1000
 ```
 
-Seleccione **LIG**. Los índices del archivo de restricciones son locales al **[ moleculetype ]**. Si se usa la estructura completa y se generan índices globales, las restricciones pueden apuntar a átomos incorrectos.
+Seleccione **LIG**. Los índices del archivo de restricciones son locales al `[ moleculetype ]`. Si se usa la estructura completa y se generan índices globales, las restricciones pueden apuntar a átomos incorrectos.
 
 Incluya el archivo inmediatamente después de la topología del ligando:
 
@@ -1389,7 +1389,7 @@ $$
 V(x)=\frac{1}{2}k(x-x_0)^2
 $$
 
-donde **k** es la constante de fuerza y (x_0) la posición de referencia.
+donde **k** es la constante de fuerza y $x_0$ la posición de referencia.
 
 Active las restricciones desde el MDP:
 
@@ -1968,7 +1968,7 @@ Vamos a simular un sistema compuesto por agua. Puede ser que nos sirva para simu
 Los sistemas con varias cadenas proteicas y varios ligandos requieren distinguir tres conceptos:
 
 1. **Copia molecular:** instancia concreta con coordenadas propias.
-2. **Tipo molecular:** definición de la molécula en una sección **[ moleculetype ]**.
+2. **Tipo molecular:** definición de la molécula en una sección `[ moleculetype ]`.
 3. **Nombre de residuo:** etiqueta empleada en las coordenadas y en las selecciones.
 
 Dos ligandos químicamente idénticos, con los mismos átomos, orden atómico, enlaces, cargas y parámetros, pueden ser dos copias del mismo tipo molecular. Sus posiciones y conformaciones iniciales pueden ser diferentes. En cambio, ligandos distintos o copias que deban recibir topologías diferentes necesitan tipos moleculares separados.
@@ -2045,7 +2045,7 @@ Protein_chain_B         1
 BOG                     2
 ```
 
-La sección **[ molecules ]** indica que existen dos instancias de BOG. No deben incluirse dos copias idénticas de **bog.itp** porque se redefinirían los mismos tipos o el mismo **[ moleculetype ]**.
+La sección `[ molecules ]` indica que existen dos instancias de BOG. No deben incluirse dos copias idénticas de **bog.itp** porque se redefinirían los mismos tipos o el mismo `[ moleculetype ]`.
 
 El orden de las coordenadas debe ser:
 
@@ -2056,7 +2056,7 @@ BOG, copia 1
 BOG, copia 2
 ```
 
-Este orden debe coincidir exactamente con **[ molecules ]**.
+Este orden debe coincidir exactamente con `[ molecules ]`.
 
 ### Cuándo son necesarias topologías separadas
 
@@ -2082,7 +2082,7 @@ LIGA               1
 LIGB               1
 ```
 
-Duplicar una topología solo para cambiar el nombre del residuo suele ser innecesario. Si se crean **LIGA** y **LIGB**, ambos archivos deben tener nombres de **[ moleculetype ]** diferentes y todos sus índices deben seguir siendo locales a cada molécula.
+Duplicar una topología solo para cambiar el nombre del residuo suele ser innecesario. Si se crean **LIGA** y **LIGB**, ambos archivos deben tener nombres de `[ moleculetype ]` diferentes y todos sus índices deben seguir siendo locales a cada molécula.
 
 ### Sistemas con muchas cadenas: ejemplo 6BKK
 
@@ -2166,8 +2166,8 @@ No continúe si aparece alguno de estos problemas:
 - tipos atómicos desconocidos;
 - parámetros enlazados ausentes;
 - carga total inesperada;
-- redefiniciones de **[ atomtypes ]**;
-- nombres distintos entre **[ molecules ]** y **[ moleculetype ]**.
+- redefiniciones de `[ atomtypes ]`;
+- nombres distintos entre `[ molecules ]` y `[ moleculetype ]`.
 
 No use **-maxwarn** para forzar el TPR sin comprender cada advertencia.
 
@@ -2205,7 +2205,7 @@ Seleccione el grupo de solvente, normalmente **SOL**. El número del grupo depen
 
 #### Múltiples copias del mismo tipo molecular
 
-Si dos ligandos son instancias del mismo **[ moleculetype ]**, un único archivo de restricciones incluido dentro de esa topología se aplica a todas las copias:
+Si dos ligandos son instancias del mismo `[ moleculetype ]`, un único archivo de restricciones incluido dentro de esa topología se aplica a todas las copias:
 
 ```bash
 gmx genrestr     -f bog_only.gro     -o posre_bog.itp     -fc 1000 1000 1000
@@ -2257,7 +2257,7 @@ Esta duplicación aumenta el mantenimiento y solo se justifica si las copias req
 
 #### Cadenas proteicas
 
-Las restricciones de cada cadena deben estar dentro del ámbito del **[ moleculetype ]** correspondiente. Los ITP generados por **pdb2gmx** suelen incluir su propio archivo de restricciones mediante la macro **POSRES**. Revise cada archivo antes de añadir nuevas inclusiones.
+Las restricciones de cada cadena deben estar dentro del ámbito del `[ moleculetype ]` correspondiente. Los ITP generados por **pdb2gmx** suelen incluir su propio archivo de restricciones mediante la macro **POSRES**. Revise cada archivo antes de añadir nuevas inclusiones.
 
 Ejemplo dentro de **topol_Protein_chain_A.itp**:
 
@@ -2637,7 +2637,7 @@ Proteína monomérica en agua
 Protein    1
 ```
 
-La estructura exacta depende de la salida de **pdb2gmx**. No reescriba manualmente nombres sin cambiar también la definición **[ moleculetype ]** correspondiente.
+La estructura exacta depende de la salida de **pdb2gmx**. No reescriba manualmente nombres sin cambiar también la definición `[ moleculetype ]` correspondiente.
 
 El archivo de restricciones suele estar incluido dentro del ITP de la proteína:
 
@@ -2673,7 +2673,7 @@ No use este protocolo de caja acuosa para una proteína transmembrana: necesita 
 gmx solvate     -cp protein_box.gro     -cs spc216.gro     -o protein_solv.gro     -p topol.top
 ```
 
-**gmx solvate** actualiza la cantidad de solvente en **[ molecules ]**. Revise el final de **topol.top** y confirme que el agua utilizada es compatible con la topología elegida.
+**gmx solvate** actualiza la cantidad de solvente en `[ molecules ]`. Revise el final de **topol.top** y confirme que el agua utilizada es compatible con la topología elegida.
 
 Compruebe que la proteína no cruza de forma problemática la caja y que no existen cavidades o solapamientos extraños mediante una inspección visual.
 
@@ -3286,7 +3286,7 @@ Una proteína que contiene solo residuos reconocidos por el campo de fuerza pued
 
 No todos los cofactores deben tratarse como ligandos independientes. Existen varios casos:
 
-- **cofactor no covalente:** puede definirse como otro **[ moleculetype ]**;
+- **cofactor no covalente:** puede definirse como otro `[ moleculetype ]`;
 - **grupo covalente:** requiere enlaces y parámetros entre proteína y cofactor;
 - **residuo modificado:** puede necesitar una entrada RTP y reglas de enlace;
 - **metal estructural o catalítico:** exige un modelo específico de coordinación;
@@ -3294,7 +3294,7 @@ No todos los cofactores deben tratarse como ligandos independientes. Existen var
 
 Un metal coordinado no debe reemplazarse por un ion genérico sin evaluar geometría, estado de oxidación, coordinación y transferencia de carga.
 
-Valide siempre que el orden de las coordenadas coincida con **[ molecules ]** y que la carga total sea la esperada.
+Valide siempre que el orden de las coordenadas coincida con `[ molecules ]` y que la carga total sea la esperada.
 
 ### 26. Monómeros, oligómeros y estabilidad artificial
 
@@ -3417,7 +3417,7 @@ SwissParam genera parámetros compatibles con la familia CHARMM y puede ser úti
 - distribución de cargas;
 - compatibilidad exacta con la versión del campo de fuerza.
 
-No mezcle una topología generada para CHARMM con un campo AMBER, GROMOS u OPLS. Tampoco copie bloques **[ atomtypes ]** sin comprobar si los nombres ya existen: dos tipos con el mismo nombre y parámetros diferentes invalidan la topología.
+No mezcle una topología generada para CHARMM con un campo AMBER, GROMOS u OPLS. Tampoco copie bloques `[ atomtypes ]` sin comprobar si los nombres ya existen: dos tipos con el mismo nombre y parámetros diferentes invalidan la topología.
 
 Una organización sencilla es:
 
@@ -3438,7 +3438,7 @@ topol.top
 
 ### 3. Revisar la topología molecular
 
-El archivo **octanol.itp** debe contener un único **[ moleculetype ]** y las secciones moleculares correspondientes:
+El archivo **octanol.itp** debe contener un único `[ moleculetype ]` y las secciones moleculares correspondientes:
 
 ```ini
 [ moleculetype ]
@@ -3470,9 +3470,9 @@ Si el generador entrega tipos atómicos nuevos, colóquelos en un archivo separa
 #include "00_parametros/octanol.itp"
 ```
 
-No coloque **[ atomtypes ]** después de haber comenzado una definición **[ moleculetype ]**. El preprocesador de topologías exige un orden específico de directivas.
+No coloque `[ atomtypes ]` después de haber comenzado una definición `[ moleculetype ]`. El preprocesador de topologías exige un orden específico de directivas.
 
-Compruebe que la coordenada de una molécula aislada tenga exactamente los mismos átomos, nombres y orden que la sección **[ atoms ]**:
+Compruebe que la coordenada de una molécula aislada tenga exactamente los mismos átomos, nombres y orden que la sección `[ atoms ]`:
 
 ```bash
 gmx check -f 00_parametros/octanol.gro
@@ -3564,7 +3564,7 @@ gmx insert-molecules \
     -o 01_octanol_liquido/octanol_box.gro
 ```
 
-**gmx insert-molecules** evita solapamientos mediante radios atómicos, pero no garantiza que el número solicitado pueda insertarse. Revise la línea final y use el número realmente añadido en **[ molecules ]**.
+**gmx insert-molecules** evita solapamientos mediante radios atómicos, pero no garantiza que el número solicitado pueda insertarse. Revise la línea final y use el número realmente añadido en `[ molecules ]`.
 
 Si no logra insertar todas las moléculas:
 
@@ -3591,7 +3591,7 @@ Topología inicial:
 OCT           500
 ```
 
-El nombre **OCT** debe ser idéntico al definido en **[ moleculetype ]**.
+El nombre **OCT** debe ser idéntico al definido en `[ moleculetype ]`.
 
 ### 6. Minimizar el líquido de 1-octanol
 
@@ -3761,7 +3761,7 @@ Compruebe visualmente:
 
 ### 9. Incorporar el agua
 
-Incluya la topología de agua compatible con el campo de fuerza antes de la sección **[ system ]**:
+Incluya la topología de agua compatible con el campo de fuerza antes de la sección `[ system ]`:
 
 ```ini
 #include "campo_de_fuerza.ff/forcefield.itp"
@@ -3789,7 +3789,7 @@ gmx solvate \
 
 **spc216.gro** aporta una configuración geométrica de agua de tres sitios; la interacción efectiva queda definida por la topología incluida. Verifique que el modelo de agua sea el recomendado para el campo de fuerza.
 
-**gmx solvate** elimina moléculas que solapan con el octanol y actualiza el número de agua en **[ molecules ]**. La salida final debe quedar, por ejemplo:
+**gmx solvate** elimina moléculas que solapan con el octanol y actualiza el número de agua en `[ molecules ]`. La salida final debe quedar, por ejemplo:
 
 ```ini
 [ molecules ]
@@ -3800,7 +3800,7 @@ SOL           4442
 
 El valor 4442 no es universal. Depende de las dimensiones finales, la densidad de la lámina y los criterios geométricos de solvatación. Use el número informado por su propia ejecución.
 
-Revise el orden: las coordenadas contienen primero OCT y después SOL, por lo que **[ molecules ]** debe seguir el mismo orden.
+Revise el orden: las coordenadas contienen primero OCT y después SOL, por lo que `[ molecules ]` debe seguir el mismo orden.
 
 Compruebe el sistema:
 
@@ -3981,7 +3981,7 @@ Contar espontáneamente un soluto en cada fase puede servir si ocurren muchas tr
 - Duplicar tipos atómicos con nombres iguales.
 - Confundir el solvente de coordenadas **spc216.gro** con el modelo definido en la topología.
 - Conservar el número de moléculas solicitado cuando **insert-molecules** insertó menos.
-- Escribir **[ molecules ]** en un orden distinto al archivo de coordenadas.
+- Escribir `[ molecules ]` en un orden distinto al archivo de coordenadas.
 - Extraer un PDB intermedio y perder precisión de caja o velocidades sin necesidad.
 - Equilibrar solo 1 ps.
 - Interpretar separación visual como equilibrio termodinámico.
@@ -4321,7 +4321,7 @@ grep -R "^define\|^integrator\|^dt\|^nsteps\|^tcoupl\|^pcoupl\|^pcoupltype" ./*.
 Compruebe:
 
 - campo de fuerza esperado;
-- nombres y cantidades en **[ molecules ]**;
+- nombres y cantidades en `[ molecules ]`;
 - existencia de todos los archivos incluidos;
 - grupos de **index.ndx**;
 - temperatura;
@@ -5475,7 +5475,7 @@ FOR    1
 SOL    NUMERO_DE_AGUAS
 ```
 
-**FOR** debe coincidir con **[ moleculetype ]**. Si existen varias moléculas FOR, **couple-moltype = FOR** perturbará todas. Para desacoplar una sola copia se necesita un tipo molecular exclusivo.
+**FOR** debe coincidir con `[ moleculetype ]`. Si existen varias moléculas FOR, **couple-moltype = FOR** perturbará todas. Para desacoplar una sola copia se necesita un tipo molecular exclusivo.
 
 ### 8. Construcción de la caja
 
@@ -6136,7 +6136,7 @@ Para formaldehído acuoso en equilibrio, el último criterio no se cumple si sol
 9. [Proyecto NIST sobre energías libres de solvatación](https://www.nist.gov/programs-projects/solvation-free-energies)
 
 
-## Energía de unión mediante gmx_MMPBSA
+## Energía de unión mediante `gmx_MMPBSA`
 
 ### 1. Qué calcula este método
 
