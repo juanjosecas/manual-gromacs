@@ -1,4 +1,4 @@
-# PROTOCOLOS DE TRABAJO CON GROMACS 5.X-2021
+# Protocolos de trabajo con GROMACS 2026.3
 
 *Dr. JJ Casal, PhD*
 
@@ -49,20 +49,20 @@ La guía oficial vigente requiere CMake 3.28 o posterior, un compilador C99 y un
 
 Antes de instalar:
 
-~~~bash
+```bash
 uname -a
 cmake --version
 gcc --version
 g++ --version
 python3 --version
-~~~
+```
 
 Si se utilizará una GPU NVIDIA:
 
-~~~bash
+```bash
 nvidia-smi
 nvcc --version
-~~~
+```
 
 **nvidia-smi** informa el controlador instalado y la versión máxima de CUDA admitida por ese controlador. **nvcc --version** informa la versión del toolkit usado para compilar. No son la misma cosa.
 
@@ -80,46 +80,46 @@ Un controlador más nuevo puede ejecutar aplicaciones compiladas con una familia
 
 ### Ubuntu y Debian
 
-~~~bash
+```bash
 sudo apt update
 sudo apt install gromacs
-~~~
+```
 
 Comprobación:
 
-~~~bash
+```bash
 gmx --version
-~~~
+```
 
 El paquete disponible depende de la versión de Ubuntu o Debian. Esta vía es adecuada si la versión empaquetada satisface el protocolo. Para simulaciones de producción conviene revisar en la salida de **gmx --version** el soporte SIMD, FFT, MPI y GPU.
 
 ### Fedora
 
-~~~bash
+```bash
 sudo dnf install gromacs
-~~~
+```
 
 Algunas variantes empaquetadas pueden instalar ejecutables o módulos separados para MPI. Compruebe los nombres proporcionados por la versión de Fedora:
 
-~~~bash
+```bash
 rpm -ql gromacs | grep /bin/
 gmx --version
-~~~
+```
 
 ### Arch Linux y Manjaro
 
-~~~bash
+```bash
 sudo pacman -S gromacs
 gmx --version
-~~~
+```
 
 ### macOS con Homebrew
 
-~~~bash
+```bash
 brew update
 brew install gromacs
 gmx --version
-~~~
+```
 
 La aceleración CUDA no está disponible en macOS. En equipos Apple Silicon, la compilación nativa puede aprovechar SIMD y la GPU solo mediante backends admitidos por la versión de GROMACS y las herramientas disponibles; no debe asumirse que una fórmula de Homebrew incluye aceleración por GPU.
 
@@ -129,57 +129,57 @@ La ruta más práctica para ejecutar GROMACS en Windows es WSL2 con una distribu
 
 Desde PowerShell con privilegios de administrador:
 
-~~~powershell
+```powershell
 wsl --install -d Ubuntu
 wsl --update
-~~~
+```
 
 Dentro de Ubuntu:
 
-~~~bash
+```bash
 sudo apt update
 sudo apt install gromacs
 gmx --version
-~~~
+```
 
 Para usar una GPU NVIDIA dentro de WSL2 se necesita un controlador de Windows compatible con WSL; no debe instalarse un controlador Linux NVIDIA dentro de la distribución WSL. El toolkit CUDA de usuario puede instalarse dentro de WSL cuando sea necesario para compilar. Verifique desde WSL:
 
-~~~bash
+```bash
 nvidia-smi
-~~~
+```
 
 ## Compilación desde código fuente
 
 ### Dependencias en Ubuntu o Debian
 
-~~~bash
+```bash
 sudo apt update
 sudo apt install build-essential cmake git python3     libfftw3-dev libhwloc-dev
-~~~
+```
 
 Para una compilación MPI agregue:
 
-~~~bash
+```bash
 sudo apt install openmpi-bin libopenmpi-dev
-~~~
+```
 
 ### Dependencias en Fedora
 
-~~~bash
+```bash
 sudo dnf install gcc gcc-c++ cmake make git python3     fftw-devel hwloc-devel
-~~~
+```
 
 Para MPI:
 
-~~~bash
+```bash
 sudo dnf install openmpi openmpi-devel
-~~~
+```
 
 En Fedora puede ser necesario cargar el entorno de OpenMPI según cómo esté empaquetado:
 
-~~~bash
+```bash
 module load mpi/openmpi-x86_64
-~~~
+```
 
 Si el comando **module** no existe o el módulo tiene otro nombre, examine los archivos instalados por el paquete OpenMPI.
 
@@ -187,7 +187,7 @@ Si el comando **module** no existe o el módulo tiene otro nombre, examine los a
 
 Use una carpeta de compilación separada del código fuente. El prefijo bajo **$HOME/opt** evita requerir permisos de administrador durante la instalación.
 
-~~~bash
+```bash
 wget https://ftp.gromacs.org/gromacs/gromacs-2026.3.tar.gz
 tar xfz gromacs-2026.3.tar.gz
 cd gromacs-2026.3
@@ -200,20 +200,20 @@ cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DCMAK
 cmake --build . --parallel
 ctest --output-on-failure
 cmake --install .
-~~~
+```
 
 Active la instalación:
 
-~~~bash
+```bash
 source "$HOME/opt/gromacs-2026.3/bin/GMXRC"
 gmx --version
-~~~
+```
 
 Para cargarla automáticamente al iniciar Bash:
 
-~~~bash
+```bash
 echo 'source "$HOME/opt/gromacs-2026.3/bin/GMXRC"' >> "$HOME/.bashrc"
-~~~
+```
 
 **GMX_BUILD_OWN_FFTW=ON** descarga y compila FFTW. Si existe una instalación adecuada de FFTW puede omitirse. La FFTW suministrada por GROMACS es una elección simple y reproducible para una estación de trabajo.
 
@@ -221,14 +221,14 @@ echo 'source "$HOME/opt/gromacs-2026.3/bin/GMXRC"' >> "$HOME/.bashrc"
 
 Primero instale un controlador NVIDIA compatible y el toolkit CUDA siguiendo el método correspondiente a la distribución. No mezcle paquetes CUDA de repositorios incompatibles. Verifique:
 
-~~~bash
+```bash
 nvidia-smi
 nvcc --version
-~~~
+```
 
 Configure GROMACS con el backend CUDA:
 
-~~~bash
+```bash
 cd gromacs-2026.3
 mkdir build-cuda
 cd build-cuda
@@ -238,23 +238,23 @@ cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_
 cmake --build . --parallel
 ctest --output-on-failure
 cmake --install .
-~~~
+```
 
 Active y compruebe:
 
-~~~bash
+```bash
 source "$HOME/opt/gromacs-2026.3-cuda/bin/GMXRC"
 gmx --version
 gmx mdrun -version
-~~~
+```
 
 La salida debe indicar que GROMACS fue compilado con soporte CUDA. Que CUDA aparezca en **nvidia-smi** no demuestra que el ejecutable de GROMACS tenga soporte GPU.
 
 Para comprobar el acceso real al dispositivo:
 
-~~~bash
+```bash
 nvidia-smi -L
-~~~
+```
 
 La aceleración efectiva depende del tamaño del sistema, el modelo de GPU, CPU, red, configuración PME y opciones de **gmx mdrun**. No se debe forzar la descarga de todas las tareas a GPU sin medir el rendimiento.
 
@@ -262,7 +262,7 @@ La aceleración efectiva depende del tamaño del sistema, el modelo de GPU, CPU,
 
 La compilación MPI externa se usa para distribuir una simulación entre varios nodos. Puede coexistir con la instalación normal; el ejecutable suele llamarse **gmx_mpi**.
 
-~~~bash
+```bash
 cd gromacs-2026.3
 mkdir build-mpi
 cd build-mpi
@@ -272,21 +272,21 @@ cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_
 cmake --build . --parallel
 ctest --output-on-failure
 cmake --install .
-~~~
+```
 
 Comprobación:
 
-~~~bash
+```bash
 source "$HOME/opt/gromacs-2026.3-mpi/bin/GMXRC"
 gmx_mpi --version
 mpirun -np 2 gmx_mpi --version
-~~~
+```
 
 Para combinar MPI y CUDA:
 
-~~~bash
+```bash
 cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMX_MPI=ON     -DGMX_GPU=CUDA     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3-mpi-cuda"
-~~~
+```
 
 En un clúster deben usarse el lanzador y las variables indicadas por el gestor de trabajos. Un comando local con **mpirun** no sustituye un script de SLURM, PBS u otro planificador.
 
@@ -317,10 +317,10 @@ La imagen debe construirse para una versión exacta de GROMACS. No conviene desc
 
 Para CPU sólo se necesitan Docker Engine o Docker Desktop y espacio suficiente para compilar:
 
-~~~bash
+```bash
 docker version
 docker info
-~~~
+```
 
 En Linux con una GPU NVIDIA se necesitan además:
 
@@ -332,16 +332,16 @@ El controlador se instala únicamente en el anfitrión. La imagen contiene el to
 
 Después de instalar NVIDIA Container Toolkit:
 
-~~~bash
+```bash
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
-~~~
+```
 
 Compruebe el acceso antes de compilar GROMACS:
 
-~~~bash
+```bash
 docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
-~~~
+```
 
 Si este comando falla, el problema está en Docker, el runtime NVIDIA o el controlador del anfitrión; recompilar GROMACS no lo corrige.
 
@@ -349,7 +349,7 @@ Si este comando falla, el problema está en Docker, el runtime NVIDIA o el contr
 
 Cree un archivo llamado **Dockerfile.cpu**:
 
-~~~dockerfile
+```dockerfile
 FROM ubuntu:24.04 AS builder
 
 ARG GROMACS_VERSION=2026.3
@@ -398,24 +398,24 @@ WORKDIR /work
 
 ENTRYPOINT ["gmx"]
 CMD ["--version"]
-~~~
+```
 
 Construya la imagen:
 
-~~~bash
+```bash
 docker build --pull --no-cache \
   -f Dockerfile.cpu \
   -t gromacs:2026.3-cpu .
-~~~
+```
 
 El valor **SSE2** se eligió como mínimo común denominador razonable para x86-64. Aumenta la posibilidad de ejecutar la misma imagen en procesadores x86-64 distintos, pero reduce el rendimiento respecto de AVX2 o AVX-512. Para una imagen destinada a un único nodo o a máquinas homogéneas puede compilarse otra variante:
 
-~~~bash
+```bash
 docker build --pull \
   --build-arg GMX_SIMD=AVX2_256 \
   -f Dockerfile.cpu \
   -t gromacs:2026.3-cpu-avx2 .
-~~~
+```
 
 Esa imagen fallará o no será apropiada en CPU sin AVX2. Una imagen construida para **linux/amd64** tampoco se vuelve compatible automáticamente con ARM64. En ARM debe realizarse una compilación nativa con el SIMD correspondiente; la emulación mediante QEMU sirve para construir o probar, pero no para medir rendimiento de dinámica molecular.
 
@@ -425,7 +425,7 @@ GROMACS 2026.3 requiere CUDA 12.1 o posterior y una GPU con capacidad de cómput
 
 Cree **Dockerfile.cuda**:
 
-~~~dockerfile
+```dockerfile
 FROM nvidia/cuda:12.6.3-devel-ubuntu24.04 AS builder
 
 ARG GROMACS_VERSION=2026.3
@@ -475,11 +475,11 @@ WORKDIR /work
 
 ENTRYPOINT ["gmx"]
 CMD ["--version"]
-~~~
+```
 
 Construya y verifique:
 
-~~~bash
+```bash
 docker build --pull --no-cache \
   -f Dockerfile.cuda \
   -t gromacs:2026.3-cuda12.6 .
@@ -489,16 +489,16 @@ docker run --rm --gpus all \
 
 docker run --rm --gpus all \
   gromacs:2026.3-cuda12.6 mdrun -version
-~~~
+```
 
 La lista de **CMAKE_CUDA_ARCHITECTURES** genera código para varias generaciones y aumenta el tiempo de compilación y el tamaño de la imagen. Puede reducirse para un parque homogéneo. Por ejemplo, una RTX 3060 utiliza SM 86 y una Tesla P100 utiliza SM 60:
 
-~~~bash
+```bash
 docker build --pull \
   --build-arg CUDA_ARCHITECTURES="60;86" \
   -f Dockerfile.cuda \
   -t gromacs:2026.3-cuda12.6-sm60-sm86 .
-~~~
+```
 
 No agregue una arquitectura que el toolkit seleccionado ya no admita. Si se busca máxima portabilidad entre GPU NVIDIA, es preferible conservar la lista predeterminada de arquitecturas generada por GROMACS o definir explícitamente todas las GPU reales que deberán ejecutar la imagen.
 
@@ -508,12 +508,12 @@ La versión mostrada por **nvidia-smi** como “CUDA Version” es la versión m
 
 Verifique ambos lados:
 
-~~~bash
+```bash
 nvidia-smi
 
 docker run --rm --gpus all \
   gromacs:2026.3-cuda12.6 mdrun -version
-~~~
+```
 
 La primera orden caracteriza el anfitrión. La segunda confirma cómo fue compilado GROMACS y si el contenedor ve la GPU.
 
@@ -521,7 +521,7 @@ La primera orden caracteriza el anfitrión. La segunda confirma cómo fue compil
 
 Los datos no deben quedar únicamente dentro de la capa efímera del contenedor. Monte el directorio actual en **/work** y use el UID y GID del usuario para evitar archivos propiedad de root:
 
-~~~bash
+```bash
 docker run --rm -it \
   --user "$(id -u):$(id -g)" \
   --volume "$PWD:/work" \
@@ -529,11 +529,11 @@ docker run --rm -it \
   gromacs:2026.3-cpu \
   grompp -f md.mdp -c npt.gro -t npt.cpt \
   -p topol.top -o md.tpr
-~~~
+```
 
 Para producción con NVIDIA:
 
-~~~bash
+```bash
 docker run --rm -it \
   --gpus all \
   --user "$(id -u):$(id -g)" \
@@ -541,13 +541,13 @@ docker run --rm -it \
   --workdir /work \
   gromacs:2026.3-cuda12.6 \
   mdrun -deffnm md -ntmpi 1 -ntomp 8
-~~~
+```
 
 Como el Dockerfile define **ENTRYPOINT ["gmx"]**, después del nombre de la imagen se escribe directamente la suborden, por ejemplo **grompp**, **mdrun** o **rms**. El directorio montado conserva TPR, trayectorias, energías, logs y checkpoints cuando se elimina el contenedor.
 
 Si Docker tiene un límite de CPU o memoria, GROMACS sólo podrá usar los recursos asignados. Conviene declararlos de forma explícita cuando se comparan rendimientos:
 
-~~~bash
+```bash
 docker run --rm \
   --gpus all \
   --cpuset-cpus 0-7 \
@@ -557,7 +557,7 @@ docker run --rm \
   --workdir /work \
   gromacs:2026.3-cuda12.6 \
   mdrun -deffnm md -ntmpi 1 -ntomp 8
-~~~
+```
 
 ### Validación mínima de la imagen
 
@@ -565,23 +565,23 @@ La compilación ejecuta **ctest**, pero la imagen GPU se construye normalmente s
 
 Registre la configuración:
 
-~~~bash
+```bash
 docker image inspect gromacs:2026.3-cuda12.6 > image-inspect.json
 
 docker run --rm --gpus all \
   gromacs:2026.3-cuda12.6 mdrun -version
-~~~
+```
 
 Después ejecute un sistema pequeño y examine el log:
 
-~~~bash
+```bash
 docker run --rm --gpus all \
   --user "$(id -u):$(id -g)" \
   --volume "$PWD:/work" \
   --workdir /work \
   gromacs:2026.3-cuda12.6 \
   mdrun -s test.tpr -deffnm test -nsteps 1000
-~~~
+```
 
 Compruebe en **test.log**:
 
@@ -599,9 +599,9 @@ Una diferencia numérica pequeña entre hardware, número de hilos o backends no
 
 Una etiqueta como **ubuntu:24.04** o **nvidia/cuda:12.6.3-runtime-ubuntu24.04** puede apuntar posteriormente a una imagen base reconstruida. Para congelar una imagen publicada se debe registrar y usar su digest:
 
-~~~dockerfile
+```dockerfile
 FROM ubuntu:24.04@sha256:DIGEST_VERIFICADO AS builder
-~~~
+```
 
 El digest se obtiene del registro utilizado y debe conservarse junto con:
 
@@ -638,42 +638,42 @@ En HPC suele ser más simple construir una imagen OCI validada y ejecutarla medi
 
 gmxapi requiere una instalación previa de GROMACS compilada con **GMXAPI=ON** y **BUILD_SHARED_LIBS=ON**. Ambas opciones suelen estar activadas por defecto, pero conviene declararlas cuando se prepara una instalación destinada a Python:
 
-~~~bash
+```bash
 cmake ..     -DGMX_BUILD_OWN_FFTW=ON     -DREGRESSIONTEST_DOWNLOAD=ON     -DGMXAPI=ON     -DBUILD_SHARED_LIBS=ON     -DCMAKE_INSTALL_PREFIX="$HOME/opt/gromacs-2026.3"
-~~~
+```
 
 Después de instalar GROMACS, cree un entorno virtual. gmxapi admite Python 3.9 o posterior.
 
-~~~bash
+```bash
 python3 -m venv "$HOME/venvs/gmxapi-2026"
 source "$HOME/venvs/gmxapi-2026/bin/activate"
 
 python -m pip install --upgrade pip setuptools wheel cmake pybind11
 source "$HOME/opt/gromacs-2026.3/bin/GMXRC"
 python -m pip install --no-cache-dir gmxapi
-~~~
+```
 
 Si el instalador no encuentra GROMACS:
 
-~~~bash
+```bash
 gmxapi_ROOT="$HOME/opt/gromacs-2026.3" python -m pip install --no-cache-dir gmxapi
-~~~
+```
 
 Comprobación:
 
-~~~bash
+```bash
 python -c "import gmxapi; print(gmxapi.__version__)"
-~~~
+```
 
 Después de actualizar o recompilar GROMACS con otro compilador, MPI o precisión, reinstale gmxapi sin usar la caché. Una rueda compilada contra otra instalación puede importar incorrectamente o fallar por símbolos incompatibles.
 
 ## Verificación final
 
-~~~bash
+```bash
 which gmx
 gmx --version
 gmx mdrun -version
-~~~
+```
 
 Compruebe al menos:
 
@@ -687,17 +687,17 @@ Compruebe al menos:
 
 Una prueba mínima del ejecutable no reemplaza los tests:
 
-~~~bash
+```bash
 gmx help
 gmx check -h
-~~~
+```
 
 Para diagnosticar qué ejecutable se está usando cuando existen varias instalaciones:
 
-~~~bash
+```bash
 type -a gmx
 echo "$PATH"
-~~~
+```
 
 Si se activa otro entorno, módulo o instalación, ejecute nuevamente el **GMXRC** correspondiente antes de continuar.
 
@@ -718,9 +718,9 @@ Este tutorial describe la preparación, simulación y análisis de un complejo p
 
 Los nombres de archivos son ejemplos. Conviene mantener nombres explícitos y una carpeta por etapa:
 
-~~~bash
+```bash
 mkdir -p 00_entrada 01_preparacion 02_em 03_nvt 04_npt 05_md 06_analisis
-~~~
+```
 
 ## Objetivo y alcance del tutorial
 
@@ -756,17 +756,17 @@ Una estructura químicamente correcta requiere coherencia entre coordenadas y to
 
 La dinámica molecular clásica integra las ecuaciones de movimiento de Newton:
 
-\[
+$$
 m_i\frac{d^2\mathbf r_i}{dt^2}
 =
 \mathbf F_i
 =
 -\nabla_i U(\mathbf r).
-\]
+$$
 
 La fuerza sobre cada átomo se obtiene del gradiente de una función de energía potencial. En forma esquemática,
 
-\[
+$$
 U =
 U_{\mathrm{enlaces}}
 +U_{\mathrm{ángulos}}
@@ -775,11 +775,11 @@ U_{\mathrm{enlaces}}
 +U_{\mathrm{LJ}}
 +U_{\mathrm{Coulomb}}
 +U_{\mathrm{restricciones}}.
-\]
+$$
 
 Para un par de átomos, las contribuciones no enlazantes más habituales son
 
-\[
+$$
 U_{\mathrm{LJ}}(r)
 =
 4\varepsilon
@@ -788,16 +788,16 @@ U_{\mathrm{LJ}}(r)
 -
 \left(\frac{\sigma}{r}\right)^6
 \right]
-\]
+$$
 
 y
 
-\[
+$$
 U_{\mathrm{Coulomb}}(r)
 =
 \frac{1}{4\pi\varepsilon_0\varepsilon_r}
 \frac{q_iq_j}{r}.
-\]
+$$
 
 El término de Lennard-Jones representa de manera aproximada la repulsión de corto alcance y la dispersión. El término electrostático depende de las cargas parciales asignadas por el campo de fuerza. En los campos de fuerza biomoleculares convencionales estas cargas suelen ser fijas: no se modela explícitamente la polarización electrónica inducida.
 
@@ -821,13 +821,13 @@ Los archivos cumplen funciones diferentes:
 
 El flujo mínimo es:
 
-\[
+$$
 \text{coordenadas}+\text{topología}+\text{MDP}
 \xrightarrow{\texttt{gmx grompp}}
 \text{TPR}
 \xrightarrow{\texttt{gmx mdrun}}
 \text{trayectoria}+\text{energías}+\text{checkpoint}.
-\]
+$$
 
 **gmx grompp** no es una formalidad: expande directivas del preprocesador, valida parte de la coherencia del sistema y escribe en el TPR los parámetros efectivos. Debe conservarse el archivo MDP procesado generado con **-po** cuando se desea auditar exactamente qué se ejecutó.
 
@@ -909,15 +909,15 @@ La protonación debe corresponder al pH y al microentorno que se pretende simula
 
 Conversión básica con Open Babel:
 
-~~~bash
+```bash
 obabel -ipdb ligand.pdb -omol2 -O ligand.mol2 -h
-~~~
+```
 
 Protonación aproximada a pH 7.4:
 
-~~~bash
+```bash
 obabel -ipdb ligand.pdb -omol2 -O ligand_pH7.4.mol2 -p 7.4
-~~~
+```
 
 La opción **-p 7.4** predice una forma de protonación. Para moléculas con tautomería, centros ionizables acoplados o metales, el resultado debe verificarse. También deben revisarse carga formal, orden de enlaces y estereoquímica.
 
@@ -932,7 +932,7 @@ No deben mezclarse tipos atómicos, reglas de combinación, cargas o términos d
 
 Ejemplo mínimo de un archivo ITP:
 
-~~~ini
+```ini
 [ moleculetype ]
 ; nombre   nrexcl
 LIG        3
@@ -942,7 +942,7 @@ LIG        3
 1     CG2R61  1     LIG      C1     1     0.12   12.011
 2     NG2R50  1     LIG      N1     2    -0.32   14.007
 ; ...
-~~~
+```
 
 Las líneas iniciadas por punto y coma son comentarios. El nombre definido en **[ moleculetype ]** debe coincidir exactamente con el utilizado en **[ molecules ]**. La suma de las cargas parciales debe reproducir la carga formal esperada dentro de la precisión numérica del modelo.
 
@@ -952,31 +952,31 @@ El valor de **nrexcl** depende de la convención del campo de fuerza. No debe ca
 
 Ejecute **pdb2gmx** sobre una copia de la estructura original:
 
-~~~bash
+```bash
 cd 01_preparacion
 
 gmx pdb2gmx     -f ../00_entrada/protein.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -water tip3p
-~~~
+```
 
 Seleccione el campo de fuerza de manera interactiva o especifíquelo mediante **-ff** si el identificador instalado está documentado:
 
-~~~bash
+```bash
 gmx pdb2gmx     -f ../00_entrada/protein.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -ff charmm36-jul2022     -water tip3p
-~~~
+```
 
 El nombre disponible puede diferir según los campos de fuerza instalados. Consulte:
 
-~~~bash
+```bash
 gmx pdb2gmx -h
-~~~
+```
 
 Evite **-ignh** como opción automática: descarta los hidrógenos presentes y los regenera según las plantillas del campo de fuerza. Puede ser útil, pero también elimina estados de protonación definidos previamente.
 
 Compruebe la estructura:
 
-~~~bash
+```bash
 gmx check -f protein_processed.gro
-~~~
+```
 
 Revise en la salida de **pdb2gmx**:
 
@@ -995,7 +995,7 @@ Use un editor molecular o un script validado para combinar las coordenadas sin a
 
 En **topol.top**, incluya la topología del ligando después de los parámetros generales del campo de fuerza y antes de las topologías de agua e iones:
 
-~~~ini
+```ini
 ; Parámetros generales
 #include "charmm36-jul2022.ff/forcefield.itp"
 
@@ -1007,13 +1007,13 @@ En **topol.top**, incluya la topología del ligando después de los parámetros 
 
 ; Topología de la proteína generada por pdb2gmx
 #include "topol_Protein_chain_A.itp"
-~~~
+```
 
 Una sección **[ atomtypes ]** debe aparecer antes de cualquier **[ moleculetype ]** que utilice esos tipos. No incluya el mismo bloque de tipos atómicos más de una vez.
 
 Al final de **topol.top**:
 
-~~~ini
+```ini
 [ system ]
 Complejo proteína–ligando
 
@@ -1021,7 +1021,7 @@ Complejo proteína–ligando
 ; molécula          cantidad
 Protein_chain_A     1
 LIG                 1
-~~~
+```
 
 El orden en **[ molecules ]** debe coincidir con el orden de las moléculas en el archivo de coordenadas. La cantidad representa moléculas, no átomos ni residuos.
 
@@ -1029,23 +1029,23 @@ El orden en **[ molecules ]** debe coincidir con el orden de las moléculas en e
 
 Para una proteína soluble aproximadamente globular, una caja dodecaédrica reduce el número de moléculas de agua respecto de una caja cúbica:
 
-~~~bash
+```bash
 gmx editconf     -f complex.gro     -o complex_box.gro     -c     -d 1.0     -bt dodecahedron
-~~~
+```
 
 **-d 1.0** establece una distancia mínima de 1.0 nm entre el soluto y el límite de la caja. No es una constante universal. Debe ser compatible con los radios de corte y con los movimientos esperados del sistema.
 
 Compruebe el volumen y los vectores de caja:
 
-~~~bash
+```bash
 gmx editconf -f complex_box.gro
-~~~
+```
 
 ## Solvatación
 
-~~~bash
+```bash
 gmx solvate     -cp complex_box.gro     -cs spc216.gro     -o complex_solv.gro     -p topol.top
-~~~
+```
 
 El nombre **spc216.gro** identifica una configuración preequilibrada distribuida con GROMACS. La topología final del agua está determinada por el modelo elegido en **pdb2gmx**, por lo que debe mantenerse la compatibilidad entre campo de fuerza, archivo de agua y topología.
 
@@ -1055,7 +1055,7 @@ El nombre **spc216.gro** identifica una configuración preequilibrada distribuid
 
 Archivo **ions.mdp** mínimo:
 
-~~~ini
+```ini
 integrator      = steep
 nsteps          = 0
 emtol           = 1000.0
@@ -1065,19 +1065,19 @@ coulombtype     = PME
 rcoulomb        = 1.0
 rvdw            = 1.0
 pbc             = xyz
-~~~
+```
 
 Genere un TPR temporal:
 
-~~~bash
+```bash
 gmx grompp     -f ions.mdp     -c complex_solv.gro     -p topol.top     -o ions.tpr
-~~~
+```
 
 Añada NaCl, neutralice la carga neta y solicite una concentración nominal de 0.15 mol L⁻¹:
 
-~~~bash
+```bash
 gmx genion     -s ions.tpr     -o complex_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
-~~~
+```
 
 Seleccione el grupo de solvente, normalmente **SOL**, cuando el programa pregunte qué moléculas reemplazar. No use un número de grupo copiado de otro sistema.
 
@@ -1093,56 +1093,56 @@ La opción **-neutral** agrega los contraiones necesarios para llevar la carga n
 
 Concentración de sal y fuerza iónica no son siempre equivalentes. La fuerza iónica se define como
 
-\[
+$$
 I=\frac{1}{2}\sum_i c_i z_i^2,
-\]
+$$
 
-donde \(c_i\) es la concentración molar de la especie iónica \(i\) y \(z_i\) su número de carga. Para NaCl ideal, 0.15 mol L⁻¹ corresponde aproximadamente a \(I=0.15\) mol L⁻¹. La presencia de contraiones añadidos para neutralizar una proteína cargada modifica la composición y la fuerza iónica efectiva; el efecto es más visible en cajas pequeñas o con solutos muy cargados.
+donde $c_i$ es la concentración molar de la especie iónica $i$ y $z_i$ su número de carga. Para NaCl ideal, 0.15 mol L⁻¹ corresponde aproximadamente a $I=0.15$ mol L⁻¹. La presencia de contraiones añadidos para neutralizar una proteína cargada modifica la composición y la fuerza iónica efectiva; el efecto es más visible en cajas pequeñas o con solutos muy cargados.
 
 ## Grupos de índice
 
 Los números de grupo cambian con la composición del sistema. Cree los grupos necesarios y documente las selecciones:
 
-~~~bash
+```bash
 gmx make_ndx -f complex_solv_ions.gro -o index.ndx
-~~~
+```
 
 Ejemplo interactivo:
 
-~~~text
+```text
 r LIG
 "Protein" | "LIG"
 name 18 Protein_LIG
 q
-~~~
+```
 
 El número 18 es ilustrativo: debe reemplazarse por el número asignado durante esa sesión. El grupo **Protein_LIG** resulta útil para centrar y visualizar el complejo, pero no crea una única molécula física.
 
 Puede examinar selecciones modernas con:
 
-~~~bash
+```bash
 gmx select     -s complex_solv_ions.gro     -select 'group "Protein" or resname LIG'
-~~~
+```
 
 ## Restricciones de posición del ligando
 
 Genere las restricciones usando una estructura que contenga solamente el ligando y cuyo orden atómico coincida con **ligand.itp**:
 
-~~~bash
+```bash
 gmx genrestr     -f ligand.gro     -o posre_ligand.itp     -fc 1000 1000 1000
-~~~
+```
 
 Seleccione **LIG**. Los índices del archivo de restricciones son locales al **[ moleculetype ]**. Si se usa la estructura completa y se generan índices globales, las restricciones pueden apuntar a átomos incorrectos.
 
 Incluya el archivo inmediatamente después de la topología del ligando:
 
-~~~ini
+```ini
 #include "ligand.itp"
 
 #ifdef POSRES_LIG
 #include "posre_ligand.itp"
 #endif
-~~~
+```
 
 El valor 1000 corresponde a 1000 kJ mol⁻¹ nm⁻² en cada eje. La energía armónica de una restricción unidimensional es:
 
@@ -1154,9 +1154,9 @@ donde **k** es la constante de fuerza y (x_0) la posición de referencia.
 
 Active las restricciones desde el MDP:
 
-~~~ini
+```ini
 define = -DPOSRES -DPOSRES_LIG
-~~~
+```
 
 El archivo indicado mediante **gmx grompp -r** proporciona las coordenadas de referencia. Las restricciones se usan normalmente durante la equilibración y se eliminan en producción.
 
@@ -1164,7 +1164,7 @@ El archivo indicado mediante **gmx grompp -r** proporciona las coordenadas de re
 
 Archivo **em.mdp**:
 
-~~~ini
+```ini
 title            = Minimización de energía
 integrator       = steep
 nsteps           = 50000
@@ -1179,33 +1179,33 @@ rcoulomb         = 1.0
 vdwtype          = Cut-off
 rvdw             = 1.0
 pbc              = xyz
-~~~
+```
 
 Preprocese y ejecute:
 
-~~~bash
+```bash
 mkdir -p ../02_em
 cd ../02_em
 
 gmx grompp     -f ../01_preparacion/em.mdp     -c ../01_preparacion/complex_solv_ions.gro     -p ../01_preparacion/topol.top     -o em.tpr
 
 gmx mdrun -deffnm em -v
-~~~
+```
 
 El criterio **emtol = 1000** significa que la minimización puede finalizar cuando la fuerza máxima sea menor que 1000 kJ mol⁻¹ nm⁻¹:
 
-\[
+$$
 F_{\max}=\max_i\left|-\nabla_i U\right|.
-\]
+$$
 
 Este valor es habitual antes de equilibrar, pero no garantiza que la estructura represente un mínimo profundo ni que el sistema esté equilibrado. La minimización desplaza coordenadas cuesta abajo sobre la superficie de energía potencial; no genera un conjunto termodinámico y no sustituye NVT o NPT.
 
 Extraiga la energía potencial:
 
-~~~bash
+```bash
 (echo Potential; echo 0) |
 gmx energy -f em.edr -o ../06_analisis/em_potential.xvg
-~~~
+```
 
 Compruebe:
 
@@ -1219,17 +1219,17 @@ No use **-maxwarn** para ocultar advertencias de **grompp**. Debe entenderse la 
 
 ## Equilibración NVT
 
-En el conjunto canónico NVT permanecen fijos el número de partículas \(N\), el volumen \(V\) y la temperatura objetivo \(T\). El termostato modifica la dinámica para muestrear la distribución correspondiente; no debe interpretarse como una simple corrección periódica de velocidades.
+En el conjunto canónico NVT permanecen fijos el número de partículas $N$, el volumen $V$ y la temperatura objetivo $T$. El termostato modifica la dinámica para muestrear la distribución correspondiente; no debe interpretarse como una simple corrección periódica de velocidades.
 
-La probabilidad de un microestado de energía \(E\) es proporcional a
+La probabilidad de un microestado de energía $E$ es proporcional a
 
-\[
+$$
 P(E)\propto \exp\left(-\frac{E}{k_{\mathrm B}T}\right).
-\]
+$$
 
 En esta etapa se estabiliza la temperatura manteniendo fijo el volumen. Ejemplo a 300 K durante 100 ps:
 
-~~~ini
+```ini
 title                    = Equilibración NVT
 define                   = -DPOSRES -DPOSRES_LIG
 
@@ -1265,7 +1265,7 @@ nstxout-compressed       = 500
 compressed-x-precision   = 1000
 nstenergy                = 500
 nstlog                   = 500
-~~~
+```
 
 El tiempo simulado es:
 
@@ -1283,35 +1283,35 @@ Con restricciones sobre enlaces con hidrógeno, un paso de 0.002 ps equivale a 2
 
 Ejecución:
 
-~~~bash
+```bash
 mkdir -p ../03_nvt
 cd ../03_nvt
 
 gmx grompp     -f ../01_preparacion/nvt.mdp     -c ../02_em/em.gro     -r ../02_em/em.gro     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o nvt.tpr
 
 gmx mdrun -deffnm nvt -v
-~~~
+```
 
 Las velocidades se generan una sola vez. Para las etapas posteriores se conserva el estado mediante el checkpoint.
 
 Análisis de temperatura:
 
-~~~bash
+```bash
 (echo Temperature; echo 0) |
 gmx energy -f nvt.edr -o ../06_analisis/nvt_temperature.xvg
-~~~
+```
 
 La temperatura debe evaluarse como serie temporal y promedio, no por un único valor final.
 
 ## Equilibración NPT
 
-En el conjunto isotérmico-isobárico NPT permanecen fijos \(N\), la temperatura objetivo \(T\) y la presión objetivo \(P\), mientras el volumen fluctúa. El barostato modifica los vectores de caja y las coordenadas para permitir que la densidad se relaje.
+En el conjunto isotérmico-isobárico NPT permanecen fijos $N$, la temperatura objetivo $T$ y la presión objetivo $P$, mientras el volumen fluctúa. El barostato modifica los vectores de caja y las coordenadas para permitir que la densidad se relaje.
 
 La presión instantánea es una magnitud ruidosa, especialmente en cajas pequeñas. El criterio práctico no es obtener una línea plana en 1 bar, sino comprobar que volumen y densidad alcanzaron un régimen estacionario y que la presión promedio es compatible con el objetivo dentro de su incertidumbre.
 
 Ejemplo de 500 ps con barostato C-rescale:
 
-~~~ini
+```ini
 title                    = Equilibración NPT
 define                   = -DPOSRES -DPOSRES_LIG
 
@@ -1349,27 +1349,27 @@ nstxout-compressed       = 500
 compressed-x-precision   = 1000
 nstenergy                = 500
 nstlog                   = 500
-~~~
+```
 
 **ref-p = 1.0** significa 1 bar. **compressibility = 4.5e-5 bar⁻¹** es un valor habitual para agua líquida cerca de condiciones ambientales; debe adaptarse si el medio no es agua.
 
 Ejecución:
 
-~~~bash
+```bash
 mkdir -p ../04_npt
 cd ../04_npt
 
 gmx grompp     -f ../01_preparacion/npt.mdp     -c ../03_nvt/nvt.gro     -r ../03_nvt/nvt.gro     -t ../03_nvt/nvt.cpt     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o npt.tpr
 
 gmx mdrun -deffnm npt -v
-~~~
+```
 
 Extraiga presión y densidad:
 
-~~~bash
+```bash
 (echo Pressure; echo Density; echo 0) |
 gmx energy -f npt.edr -o ../06_analisis/npt_pressure_density.xvg
-~~~
+```
 
 La presión instantánea fluctúa mucho en sistemas pequeños. Evalúe promedios por bloques, densidad y volumen. Si existe una deriva sistemática, prolongue la equilibración desde el checkpoint.
 
@@ -1377,7 +1377,7 @@ La presión instantánea fluctúa mucho en sistemas pequeños. Evalúe promedios
 
 Durante producción se retiran las restricciones posicionales, salvo que formen parte explícita del protocolo. El siguiente MDP describe 100 ns:
 
-~~~ini
+```ini
 title                    = Producción NPT
 
 integrator               = md
@@ -1414,7 +1414,7 @@ nstxout-compressed       = 5000
 compressed-x-precision   = 1000
 nstenergy                = 5000
 nstlog                   = 5000
-~~~
+```
 
 Con 2 fs por paso:
 
@@ -1426,14 +1426,14 @@ $
 
 Ejecución:
 
-~~~bash
+```bash
 mkdir -p ../05_md
 cd ../05_md
 
 gmx grompp     -f ../01_preparacion/md.mdp     -c ../04_npt/npt.gro     -t ../04_npt/npt.cpt     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o md.tpr
 
 gmx mdrun -deffnm md -v
-~~~
+```
 
 Archivos principales:
 
@@ -1453,27 +1453,27 @@ No es necesario generar TRR si el análisis no requiere velocidades, fuerzas o c
 
 Para reanudar una ejecución interrumpida:
 
-~~~bash
+```bash
 gmx mdrun -deffnm md -cpi md.cpt -append
-~~~
+```
 
 **-append** verifica y continúa los archivos existentes. Use **-noappend** solo cuando necesite segmentos separados.
 
 Si el TPR agotó el número de pasos, extiéndalo. **-extend** se expresa en picosegundos:
 
-~~~bash
+```bash
 gmx convert-tpr     -s md.tpr     -extend 50000     -o md_extended.tpr
 
 gmx mdrun     -s md_extended.tpr     -deffnm md     -cpi md.cpt     -append
-~~~
+```
 
 Aquí se agregan 50000 ps, equivalentes a 50 ns.
 
 Concatenación de segmentos XTC:
 
-~~~bash
+```bash
 gmx trjcat     -f md.part0001.xtc md.part0002.xtc     -o md_complete.xtc
-~~~
+```
 
 Revise el orden y los tiempos. La concatenación no corrige superposiciones temporales ni discontinuidades físicas.
 
@@ -1481,40 +1481,40 @@ Revise el orden y los tiempos. La concatenación no corrige superposiciones temp
 
 Las condiciones periódicas pueden separar visualmente moléculas que continúan próximas. No existe una única secuencia válida para todos los sistemas. Para un complejo soluble:
 
-~~~bash
+```bash
 echo System |
 gmx trjconv     -s md.tpr     -f md.xtc     -o md_whole.xtc     -pbc whole
-~~~
+```
 
 Trayectoria sin saltos, útil para difusión:
 
-~~~bash
+```bash
 echo System |
 gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_nojump.xtc     -pbc nojump
-~~~
+```
 
 Centre el complejo y lleve las moléculas a una caja compacta:
 
-~~~bash
+```bash
 (echo Protein_LIG; echo System) |
 gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_center.xtc     -center     -pbc mol     -ur compact     -n index.ndx
-~~~
+```
 
 Elimine rotación y traslación ajustando el backbone:
 
-~~~bash
+```bash
 (echo Backbone; echo System) |
 gmx trjconv     -s md.tpr     -f md_center.xtc     -o md_fit.xtc     -fit rot+trans     -n index.ndx
-~~~
+```
 
 El orden importa: no aplique **-pbc nojump** después de centrar. Inspeccione visualmente la trayectoria final.
 
 Extracción de una estructura a 50 ns:
 
-~~~bash
+```bash
 echo Protein_LIG |
 gmx trjconv     -s md.tpr     -f md_fit.xtc     -o frame_50ns.pdb     -dump 50     -tu ns     -n index.ndx
-~~~
+```
 
 ## Análisis de resultados
 
@@ -1532,25 +1532,25 @@ $
 
 donde **M** es la masa total de los átomos seleccionados. Una meseta indica estabilidad relativa frente a esa referencia, no convergencia termodinámica.
 
-~~~bash
+```bash
 mkdir -p ../06_analisis/rmsd
 
 (echo Backbone; echo Backbone) |
 gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o ../06_analisis/rmsd/rmsd_backbone.xvg     -tu ns
-~~~
+```
 
 RMSD del ligando después de ajustar la proteína:
 
-~~~bash
+```bash
 (echo Backbone; echo LIG) |
 gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o ../06_analisis/rmsd/rmsd_ligand_fit_protein.xvg     -tu ns
-~~~
+```
 
 ### Radio de giro
 
-~~~bash
+```bash
 gmx gyrate     -s md.tpr     -f md_fit.xtc     -n index.ndx     -sel 'group "Protein"'     -o ../06_analisis/gyrate_protein.xvg
-~~~
+```
 
 El radio de giro informa sobre la compacidad global. Debe interpretarse junto con RMSD, estructura secundaria y contactos internos.
 
@@ -1558,16 +1558,16 @@ El radio de giro informa sobre la compacidad global. Debe interpretarse junto co
 
 Distancia entre el centro geométrico del ligando y un átomo de referencia:
 
-~~~bash
+```bash
 gmx distance     -s md.tpr     -f md_fit.xtc     -n index.ndx     -select 'com of group "LIG" plus com of resid 123 and name CA'     -oall ../06_analisis/dist_lig_res123.xvg
-~~~
+```
 
 El residuo 123 es un ejemplo y debe reemplazarse. Para distancia mínima y número de contactos:
 
-~~~bash
+```bash
 (echo Protein; echo LIG) |
 gmx mindist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_analisis/mindist_protein_lig.xvg     -on ../06_analisis/contacts_protein_lig.xvg     -d 0.4
-~~~
+```
 
 **-d 0.4** establece un umbral de contacto de 0.4 nm, equivalente a 4 Å. Debe informarse el umbral utilizado.
 
@@ -1575,9 +1575,9 @@ gmx mindist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_anali
 
 GROMACS 2026 incluye la implementación moderna de **gmx hbond**, incorporada inicialmente en GROMACS 2024:
 
-~~~bash
+```bash
 gmx hbond     -s md.tpr     -f md_fit.xtc     -n index.ndx     -r 'group "Protein"'     -t 'group "LIG"'     -num ../06_analisis/hbonds_protein_lig.xvg
-~~~
+```
 
 Las selecciones de referencia y objetivo deben ser idénticas o no solaparse. Los valores recomendados por la herramienta son 0.35 nm para distancia y 30 grados para el criterio angular. Si se modifican, deben reportarse.
 
@@ -1585,26 +1585,26 @@ Las selecciones de referencia y objetivo deben ser idénticas o no solaparse. Lo
 
 Un contacto corto entre grupos cargados puede estudiarse mediante selecciones explícitas:
 
-~~~bash
+```bash
 gmx pairdist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -ref 'group "Protein_charged"'     -sel 'group "LIG_charged"'     -type min     -o ../06_analisis/ion_pairs.xvg
-~~~
+```
 
 Los grupos **Protein_charged** y **LIG_charged** deben construirse previamente según los átomos efectivamente cargados. Una distancia corta no demuestra por sí sola una interacción energéticamente favorable.
 
 ### Área accesible al solvente
 
-~~~bash
+```bash
 gmx sasa     -s md.tpr     -f md_fit.xtc     -n index.ndx     -surface 'group "Protein_LIG"'     -output 'group "Protein_LIG"'     -o ../06_analisis/sasa_complex.xvg     -or ../06_analisis/sasa_per_residue.xvg
-~~~
+```
 
 SASA depende de la selección, los radios atómicos y la sonda. Una disminución del área expuesta del ligando puede acompañar su enterramiento, pero no equivale a energía de unión.
 
 ### Variables termodinámicas
 
-~~~bash
+```bash
 (echo Temperature; echo Pressure; echo Density; echo Volume; echo Potential; echo 0) |
 gmx energy     -f md.edr     -o ../06_analisis/thermodynamics.xvg
-~~~
+```
 
 Los nombres disponibles dependen del contenido de EDR. Evalúe promedios por bloques y deriva temporal. La presión instantánea suele presentar fluctuaciones grandes.
 
@@ -1612,15 +1612,15 @@ Los nombres disponibles dependen del contenido de EDR. Evalúe promedios por blo
 
 **gmx msd** usa selecciones modernas:
 
-~~~bash
+```bash
 gmx msd     -s md.tpr     -f md_nojump.xtc     -n index.ndx     -sel 'group "LIG"'     -o ../06_analisis/msd_ligand.xvg
-~~~
+```
 
 Difusión lateral en el plano XY:
 
-~~~bash
+```bash
 gmx msd     -s md.tpr     -f md_nojump.xtc     -n index.ndx     -sel 'group "LIG"'     -lateral z     -o ../06_analisis/msd_ligand_xy.xvg
-~~~
+```
 
 La estimación del coeficiente de difusión se basa en la región lineal de la relación de Einstein:
 
@@ -1632,10 +1632,10 @@ donde **d** es la dimensionalidad: 3 para difusión tridimensional y 2 para difu
 
 ### Mapas de densidad
 
-~~~bash
+```bash
 echo LIG |
 gmx densmap     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_analisis/density_ligand.xpm     -aver z
-~~~
+```
 
 El sistema debe estar alineado previamente. Informe el eje promediado, la resolución de la grilla y la selección.
 
@@ -1653,19 +1653,19 @@ $
 
 Primero ajuste la trayectoria sobre una región estructuralmente estable:
 
-~~~bash
+```bash
 mkdir -p ../06_analisis/rmsf
 
 echo Backbone |
 gmx trjconv     -s md.tpr     -f md_center.xtc     -o ../06_analisis/rmsf/md_fit_backbone.xtc     -fit rot+trans     -n index.ndx
-~~~
+```
 
 Calcule RMSF por residuo usando C-alpha:
 
-~~~bash
+```bash
 echo C-alpha |
 gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -o ../06_analisis/rmsf/rmsf_calpha.xvg     -res     -oq ../06_analisis/rmsf/rmsf_calpha_bfactor.pdb
-~~~
+```
 
 **-oq** escribe los valores convertidos al campo B del PDB. La relación isotrópica es:
 
@@ -1675,13 +1675,13 @@ $
 
 Para evaluar estabilidad temporal, compare bloques de igual duración:
 
-~~~bash
+```bash
 echo C-alpha |
 gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -b 20     -e 40     -tu ns     -res     -o ../06_analisis/rmsf/rmsf_20_40ns.xvg
 
 echo C-alpha |
 gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -b 40     -e 60     -tu ns     -res     -o ../06_analisis/rmsf/rmsf_40_60ns.xvg
-~~~
+```
 
 Picos persistentes suelen corresponder a terminales, bucles o regiones expuestas. Cambios localizados cerca del sitio de unión pueden sugerir estabilización o reorganización, pero deben contrastarse con contactos, estructura secundaria, RMSD y réplicas independientes.
 
@@ -1745,7 +1745,7 @@ Puede asignarse **BOG** como nombre de residuo y como nombre del tipo molecular.
 
 Ejemplo simplificado de coordenadas:
 
-~~~text
+```text
 HETATM    1  C1  BOG C   1     -14.258  79.953  45.302  1.00  0.00           C
 HETATM    2  O1  BOG C   1     -13.074  79.344  45.814  1.00  0.00           O
 ...
@@ -1753,13 +1753,13 @@ TER
 HETATM   49  C1  BOG D   2     -17.418  58.852   3.720  1.00  0.00           C
 HETATM   50  O1  BOG D   2     -16.140  59.295   3.262  1.00  0.00           O
 ...
-~~~
+```
 
 Los números de átomo deben ser únicos dentro del PDB. Los números de residuo o identificadores de cadena diferentes facilitan el análisis, aunque GROMACS asigna la topología principalmente según el orden de las moléculas.
 
 Topología molecular:
 
-~~~ini
+```ini
 [ moleculetype ]
 ; nombre   nrexcl
 BOG        3
@@ -1769,11 +1769,11 @@ BOG        3
 1     ...   1      BOG      C1     1     ...    12.011
 2     ...   1      BOG      O1     2     ...    15.999
 ; ...
-~~~
+```
 
 En **topol.top** se incluye una sola vez:
 
-~~~ini
+```ini
 ; Parámetros generales
 #include "charmm36-jul2022.ff/forcefield.itp"
 
@@ -1786,11 +1786,11 @@ En **topol.top** se incluye una sola vez:
 ; Cadenas proteicas generadas por pdb2gmx
 #include "topol_Protein_chain_A.itp"
 #include "topol_Protein_chain_B.itp"
-~~~
+```
 
 Al final del archivo:
 
-~~~ini
+```ini
 [ system ]
 Proteína 1OKE con dos moléculas BOG
 
@@ -1799,18 +1799,18 @@ Proteína 1OKE con dos moléculas BOG
 Protein_chain_A         1
 Protein_chain_B         1
 BOG                     2
-~~~
+```
 
 La sección **[ molecules ]** indica que existen dos instancias de BOG. No deben incluirse dos copias idénticas de **bog.itp** porque se redefinirían los mismos tipos o el mismo **[ moleculetype ]**.
 
 El orden de las coordenadas debe ser:
 
-~~~text
+```text
 Protein_chain_A
 Protein_chain_B
 BOG, copia 1
 BOG, copia 2
-~~~
+```
 
 Este orden debe coincidir exactamente con **[ molecules ]**.
 
@@ -1827,7 +1827,7 @@ Use tipos moleculares diferentes, por ejemplo **LIGA** y **LIGB**, cuando:
 
 En ese caso:
 
-~~~ini
+```ini
 #include "ligand_A.itp"
 #include "ligand_B.itp"
 
@@ -1836,7 +1836,7 @@ Protein_chain_A    1
 Protein_chain_B    1
 LIGA               1
 LIGB               1
-~~~
+```
 
 Duplicar una topología solo para cambiar el nombre del residuo suele ser innecesario. Si se crean **LIGA** y **LIGB**, ambos archivos deben tener nombres de **[ moleculetype ]** diferentes y todos sus índices deben seguir siendo locales a cada molécula.
 
@@ -1846,15 +1846,15 @@ La estructura 6BKK corresponde al dominio transmembrana M2 de influenza A unido 
 
 Prepare la proteína sin eliminar ligandos o cofactores hasta haber registrado su identidad y posición. Luego genere la topología de las cadenas:
 
-~~~bash
+```bash
 gmx pdb2gmx     -f protein_only.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -water tip3p
-~~~
+```
 
 Seleccione un campo de fuerza compatible con la topología de amantadina. No use automáticamente CHARMM27 por aparecer en protocolos antiguos; registre el campo de fuerza concreto disponible en la instalación.
 
 Si **pdb2gmx** separa las cadenas en archivos ITP, **topol.top** puede contener:
 
-~~~ini
+```ini
 #include "topol_Protein_chain_A.itp"
 #include "topol_Protein_chain_B.itp"
 #include "topol_Protein_chain_C.itp"
@@ -1863,13 +1863,13 @@ Si **pdb2gmx** separa las cadenas en archivos ITP, **topol.top** puede contener:
 #include "topol_Protein_chain_F.itp"
 #include "topol_Protein_chain_G.itp"
 #include "topol_Protein_chain_H.itp"
-~~~
+```
 
 La cantidad y el orden deben verificarse en la salida real. No copie esta lista a otro sistema.
 
 Si existen dos amantadinas idénticas:
 
-~~~ini
+```ini
 [ molecules ]
 Protein_chain_A    1
 Protein_chain_B    1
@@ -1880,7 +1880,7 @@ Protein_chain_F    1
 Protein_chain_G    1
 Protein_chain_H    1
 AMA                2
-~~~
+```
 
 Cada copia debe tener coordenadas propias, números de átomo válidos y el mismo orden interno que **ama.itp**.
 
@@ -1888,19 +1888,19 @@ Cada copia debe tener coordenadas propias, números de átomo válidos y el mism
 
 Después de combinar proteína y ligandos:
 
-~~~bash
+```bash
 gmx editconf     -f protein_ligands.pdb     -o complex.gro
-~~~
+```
 
 Revise el archivo:
 
-~~~bash
+```bash
 gmx check -f complex.gro
-~~~
+```
 
 Genere un TPR de validación antes de solvatar. Puede usarse un MDP mínimo:
 
-~~~ini
+```ini
 integrator      = steep
 nsteps          = 0
 cutoff-scheme   = Verlet
@@ -1908,11 +1908,11 @@ coulombtype     = PME
 rcoulomb        = 1.0
 rvdw            = 1.0
 pbc             = xyz
-~~~
+```
 
-~~~bash
+```bash
 gmx grompp     -f validate.mdp     -c complex.gro     -p topol.top     -o validate.tpr     -pp processed.top
-~~~
+```
 
 La opción **-pp processed.top** guarda la topología ya expandida por el preprocesador. Resulta útil para comprobar el orden de las inclusiones, macros y restricciones activadas.
 
@@ -1931,29 +1931,29 @@ No use **-maxwarn** para forzar el TPR sin comprender cada advertencia.
 
 Para una proteína soluble:
 
-~~~bash
+```bash
 gmx editconf     -f complex.gro     -o complex_box.gro     -c     -d 1.0     -bt dodecahedron
-~~~
+```
 
 Para un sistema de membrana no debe construirse una caja acuosa genérica alrededor de la proteína. Primero debe definirse la membrana, su orientación, composición y espesor mediante un protocolo específico.
 
 Solvatación:
 
-~~~bash
+```bash
 gmx solvate     -cp complex_box.gro     -cs spc216.gro     -o complex_solv.gro     -p topol.top
-~~~
+```
 
 Preprocesamiento para iones:
 
-~~~bash
+```bash
 gmx grompp     -f ions.mdp     -c complex_solv.gro     -p topol.top     -o ions.tpr
-~~~
+```
 
 Neutralización y NaCl 0.15 mol L⁻¹:
 
-~~~bash
+```bash
 gmx genion     -s ions.tpr     -o complex_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
-~~~
+```
 
 Seleccione el grupo de solvente, normalmente **SOL**. El número del grupo depende del sistema.
 
@@ -1963,25 +1963,25 @@ Seleccione el grupo de solvente, normalmente **SOL**. El número del grupo depen
 
 Si dos ligandos son instancias del mismo **[ moleculetype ]**, un único archivo de restricciones incluido dentro de esa topología se aplica a todas las copias:
 
-~~~bash
+```bash
 gmx genrestr     -f bog_only.gro     -o posre_bog.itp     -fc 1000 1000 1000
-~~~
+```
 
 Incluya las restricciones inmediatamente después de la definición de BOG:
 
-~~~ini
+```ini
 #include "bog.itp"
 
 #ifdef POSRES_BOG
 #include "posre_bog.itp"
 #endif
-~~~
+```
 
 Active la macro durante la equilibración:
 
-~~~ini
+```ini
 define = -DPOSRES -DPOSRES_BOG
-~~~
+```
 
 No genere **posre_BOG1.itp** y **posre_BOG2.itp** para incluirlos sobre un único tipo molecular. Los índices de las restricciones son locales al tipo molecular, por lo que ambas copias usarán la misma selección local.
 
@@ -1989,7 +1989,7 @@ No genere **posre_BOG1.itp** y **posre_BOG2.itp** para incluirlos sobre un únic
 
 Si BOG1 y BOG2 deben tener restricciones diferentes, defina dos tipos moleculares:
 
-~~~ini
+```ini
 #include "bog1.itp"
 #ifdef POSRES_BOG1
 #include "posre_bog1.itp"
@@ -1999,15 +1999,15 @@ Si BOG1 y BOG2 deben tener restricciones diferentes, defina dos tipos moleculare
 #ifdef POSRES_BOG2
 #include "posre_bog2.itp"
 #endif
-~~~
+```
 
-~~~ini
+```ini
 [ molecules ]
 Protein_chain_A    1
 Protein_chain_B    1
 BOG1               1
 BOG2               1
-~~~
+```
 
 Esta duplicación aumenta el mantenimiento y solo se justifica si las copias requieren un tratamiento realmente diferente.
 
@@ -2017,7 +2017,7 @@ Las restricciones de cada cadena deben estar dentro del ámbito del **[ molecule
 
 Ejemplo dentro de **topol_Protein_chain_A.itp**:
 
-~~~ini
+```ini
 [ moleculetype ]
 Protein_chain_A    3
 
@@ -2027,7 +2027,7 @@ Protein_chain_A    3
 #ifdef POSRES
 #include "posre_Protein_chain_A.itp"
 #endif
-~~~
+```
 
 No reúna al final de **topol.top** restricciones de varias moléculas como si utilizaran índices globales.
 
@@ -2035,35 +2035,35 @@ No reúna al final de **topol.top** restricciones de varias moléculas como si u
 
 Cree grupos explícitos:
 
-~~~bash
+```bash
 gmx make_ndx     -f complex_solv_ions.gro     -o index.ndx
-~~~
+```
 
 Ejemplo interactivo para dos ligandos con residuo BOG:
 
-~~~text
+```text
 r BOG
 name 18 BOG_all
 "Protein" | 18
 name 19 Protein_BOG
 q
-~~~
+```
 
 Los números 18 y 19 son ejemplos. Use los asignados en su sesión.
 
 Las dos copias pueden seleccionarse por número de residuo, cadena o índice atómico. La sintaxis exacta depende de la información conservada en el archivo:
 
-~~~bash
+```bash
 gmx select     -s complex_solv_ions.gro     -n index.ndx     -select 'resname BOG'
-~~~
+```
 
 Para separar las copias por número de residuo:
 
-~~~bash
+```bash
 gmx select     -s complex_solv_ions.gro     -select 'resname BOG and resid 1'     -on bog_1.ndx
 
 gmx select     -s complex_solv_ions.gro     -select 'resname BOG and resid 2'     -on bog_2.ndx
-~~~
+```
 
 Si los números de residuo no son únicos entre cadenas, seleccione además por identificador de cadena cuando esté disponible o utilice rangos de índices verificados.
 
@@ -2071,33 +2071,33 @@ Si los números de residuo no son únicos entre cadenas, seleccione además por 
 
 La minimización sigue el flujo general:
 
-~~~bash
+```bash
 gmx grompp     -f em.mdp     -c complex_solv_ions.gro     -p topol.top     -n index.ndx     -o em.tpr
 
 gmx mdrun -deffnm em -v
-~~~
+```
 
 NVT con restricciones:
 
-~~~bash
+```bash
 gmx grompp     -f nvt.mdp     -c em.gro     -r em.gro     -p topol.top     -n index.ndx     -o nvt.tpr
 
 gmx mdrun -deffnm nvt -v
-~~~
+```
 
 NPT continuando coordenadas y velocidades:
 
-~~~bash
+```bash
 gmx grompp     -f npt.mdp     -c nvt.gro     -r nvt.gro     -t nvt.cpt     -p topol.top     -n index.ndx     -o npt.tpr
 
 gmx mdrun -deffnm npt -v
-~~~
+```
 
 No use el barostato Berendsen para obtener un ensamble de producción. Para equilibración, **C-rescale** permite controlar la presión y genera el ensamble correcto. Para producción suele utilizarse **Parrinello-Rahman**, según el sistema y el protocolo.
 
 Ejemplo de acoplamiento durante NPT:
 
-~~~ini
+```ini
 tcoupl           = V-rescale
 tc-grps          = Protein_LIG Water_and_ions
 tau-t            = 1.0 1.0
@@ -2108,15 +2108,15 @@ pcoupltype       = isotropic
 tau-p            = 5.0
 ref-p            = 1.0
 compressibility  = 4.5e-5
-~~~
+```
 
 **tau-t** y **tau-p** se expresan en ps; **ref-t**, en K; **ref-p**, en bar; la compresibilidad, en bar⁻¹.
 
 El tiempo de simulación se calcula como:
 
-~~~
+```text
 tiempo = dt × nsteps
-~~~
+```
 
 Con **dt = 0.002 ps** y **nsteps = 500000**, el tiempo es 1000 ps, equivalente a 1 ns. En el texto anterior, **nsteps = 20000** se interpretaba erróneamente como 60 ns: en realidad corresponde a 40 ps con un paso de 2 fs.
 
@@ -2124,20 +2124,20 @@ Con **dt = 0.002 ps** y **nsteps = 500000**, el tiempo es 1000 ps, equivalente a
 
 Genere el TPR sin las macros de restricciones, salvo que formen parte deliberada del experimento:
 
-~~~bash
+```bash
 gmx grompp     -f md.mdp     -c npt.gro     -t npt.cpt     -p topol.top     -n index.ndx     -o md.tpr
 
 gmx mdrun -deffnm md -v
-~~~
+```
 
 Compruebe que **md.mdp** contiene **continuation = yes** y **gen-vel = no**. La producción debe continuar las velocidades de NPT.
 
 Para revisar métodos y parámetros contenidos en el TPR:
 
-~~~bash
+```bash
 gmx dump -s md.tpr > md_tpr_dump.txt
 gmx report-methods -s md.tpr -o methods.tex
-~~~
+```
 
 **gmx report-methods** genera una descripción de métodos a partir del TPR. Debe revisarse antes de incorporarla a un manuscrito.
 
@@ -2145,24 +2145,24 @@ gmx report-methods -s md.tpr -o methods.tex
 
 Haga las moléculas completas:
 
-~~~bash
+```bash
 echo System |
 gmx trjconv     -s md.tpr     -f md.xtc     -o md_whole.xtc     -pbc whole
-~~~
+```
 
 Centre el complejo completo:
 
-~~~bash
+```bash
 (echo Protein_LIG; echo System) |
 gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_center.xtc     -center     -pbc mol     -ur compact     -n index.ndx
-~~~
+```
 
 Ajuste rotación y traslación respecto del backbone de todas las cadenas:
 
-~~~bash
+```bash
 (echo Backbone; echo System) |
 gmx trjconv     -s md.tpr     -f md_center.xtc     -o md_fit.xtc     -fit rot+trans     -n index.ndx
-~~~
+```
 
 Para oligómeros, inspeccione que el grupo usado para centrar contiene todas las cadenas funcionales y todos los ligandos relevantes.
 
@@ -2172,33 +2172,33 @@ Si ambas copias están en un mismo grupo, **gmx rms** calcula un único RMSD sob
 
 Cree grupos separados para BOG1 y BOG2 y calcule cada curva después de ajustar sobre la proteína:
 
-~~~bash
+```bash
 (echo Backbone; echo BOG1) |
 gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_bog1.xvg     -tu ns
 
 (echo Backbone; echo BOG2) |
 gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_bog2.xvg     -tu ns
-~~~
+```
 
 El primer grupo selecciona los átomos usados para el ajuste; el segundo, los átomos cuyo RMSD se calcula. Para ligandos simétricos, el RMSD convencional puede mostrar saltos por permutaciones de átomos equivalentes y debe interpretarse con cuidado.
 
 Comando extra para medir la distancia mínima de cada ligando a la proteína:
 
-~~~bash
+```bash
 gmx pairdist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -ref 'group "Protein"'     -sel 'group "BOG1"' 'group "BOG2"'     -type min     -o ligand_protein_mindist.xvg
-~~~
+```
 
 ### RMSD de cadenas individuales
 
 Cree grupos para cada cadena y use el oligómero completo como grupo de ajuste si desea comparar movimientos internos bajo una referencia común:
 
-~~~bash
+```bash
 (echo Backbone; echo Chain_A) |
 gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_chain_A.xvg     -tu ns
 
 (echo Backbone; echo Chain_B) |
 gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o rmsd_chain_B.xvg     -tu ns
-~~~
+```
 
 Si cada cadena se ajusta sobre sí misma, se elimina su movimiento relativo respecto del oligómero. Ambas estrategias responden preguntas diferentes y no deben mezclarse en una misma comparación.
 
@@ -2206,16 +2206,16 @@ Si cada cadena se ajusta sobre sí misma, se elimina su movimiento relativo resp
 
 Después de corregir PBC y ajustar la trayectoria:
 
-~~~bash
+```bash
 (echo Backbone; echo Backbone) |
 gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o md_rmsd_protein_all_chains.xvg     -tu ns
-~~~
+```
 
 Este RMSD describe el cambio del backbone del conjunto de cadenas respecto de la referencia seleccionada. Puede aumentar por reorganización cuaternaria aunque cada cadena conserve su estructura interna. Por eso conviene compararlo con los RMSD por cadena y con distancias entre centros de masa:
 
-~~~bash
+```bash
 gmx distance     -s md.tpr     -f md_fit.xtc     -n index.ndx     -select 'com of group "Chain_A" plus com of group "Chain_B"'     -oall chain_A_chain_B_distance.xvg
-~~~
+```
 
 ## Dinámica de una proteína en agua
 
@@ -2225,7 +2225,7 @@ Este sistema contiene una proteína formada por aminoácidos estándar, agua e i
 
 El flujo general es:
 
-~~~text
+```text
 estructura inicial
     ↓
 revisión y preparación
@@ -2245,7 +2245,7 @@ equilibración NPT
 dinámica de producción
     ↓
 corrección de PBC y análisis
-~~~
+```
 
 ### 1. Definir qué estructura se simulará
 
@@ -2274,10 +2274,10 @@ Revise como mínimo:
 
 Conserve el archivo original y trabaje sobre una copia:
 
-~~~bash
+```bash
 mkdir -p 00_entrada 01_preparacion 02_em 03_nvt 04_npt 05_md 06_analisis
 cp protein.pdb 00_entrada/protein_original.pdb
-~~~
+```
 
 ### 2. Campo de fuerza y modelo de agua
 
@@ -2294,9 +2294,9 @@ No seleccione OPLS-AA, CHARMM, AMBER o GROMOS solo por el número que ocupa en e
 
 Liste las opciones disponibles:
 
-~~~bash
+```bash
 gmx pdb2gmx -h
-~~~
+```
 
 También puede iniciar **pdb2gmx** sin **-ff** para seleccionar el campo de fuerza interactivamente.
 
@@ -2308,9 +2308,9 @@ Las conformaciones alternativas deben resolverse antes de **pdb2gmx**. No deben 
 
 Verificación inicial:
 
-~~~bash
+```bash
 grep '^ATOM\|^HETATM\|^TER\|^SSBOND' 00_entrada/protein_original.pdb     > 01_preparacion/structure_records.txt
-~~~
+```
 
 Este comando solo extrae registros para inspección; no genera por sí mismo un PDB listo para simular.
 
@@ -2318,17 +2318,17 @@ Este comando solo extrae registros para inspección; no genera por sí mismo un 
 
 Ejemplo interactivo:
 
-~~~bash
+```bash
 cd 01_preparacion
 
 gmx pdb2gmx     -f ../00_entrada/protein_original.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp
-~~~
+```
 
 Ejemplo con campo de fuerza y agua indicados explícitamente:
 
-~~~bash
+```bash
 gmx pdb2gmx     -f ../00_entrada/protein_original.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -ff charmm36-jul2022     -water tip3p
-~~~
+```
 
 El identificador **charmm36-jul2022** es un ejemplo. Debe coincidir con un campo instalado y con el protocolo elegido.
 
@@ -2347,9 +2347,9 @@ Opciones útiles:
 
 Consulte las opciones exactas de la instalación:
 
-~~~bash
+```bash
 gmx pdb2gmx -h
-~~~
+```
 
 **pdb2gmx** no asigna estados de protonación mediante una simulación de pH constante. Aplica plantillas y decisiones del usuario. Para histidina deben evaluarse las formas protonadas en Nδ, Nε o en ambos nitrógenos según su entorno.
 
@@ -2365,15 +2365,15 @@ Revise cuidadosamente la salida. Debe comprobar:
 
 Compruebe el archivo:
 
-~~~bash
+```bash
 gmx check -f protein_processed.gro
-~~~
+```
 
 ### 5. Contenido esperado de la topología
 
 Un **topol.top** típico incluye:
 
-~~~ini
+```ini
 ; Campo de fuerza
 #include "charmm36-jul2022.ff/forcefield.itp"
 
@@ -2391,17 +2391,17 @@ Proteína monomérica en agua
 
 [ molecules ]
 Protein    1
-~~~
+```
 
 La estructura exacta depende de la salida de **pdb2gmx**. No reescriba manualmente nombres sin cambiar también la definición **[ moleculetype ]** correspondiente.
 
 El archivo de restricciones suele estar incluido dentro del ITP de la proteína:
 
-~~~ini
+```ini
 #ifdef POSRES
 #include "posre_protein.itp"
 #endif
-~~~
+```
 
 La inclusión debe permanecer dentro del ámbito del tipo molecular al que pertenecen sus índices.
 
@@ -2409,25 +2409,25 @@ La inclusión debe permanecer dentro del ámbito del tipo molecular al que perte
 
 Para una proteína soluble aproximadamente globular:
 
-~~~bash
+```bash
 gmx editconf     -f protein_processed.gro     -o protein_box.gro     -c     -d 1.0     -bt dodecahedron
-~~~
+```
 
 **-d 1.0** establece una distancia mínima de 1.0 nm, equivalente a 10 Å, entre el soluto y la caja. Debe ser compatible con los radios de corte y con el tamaño y movimiento esperados de la proteína.
 
 Una caja dodecaédrica suele contener menos agua que una cúbica. Una caja cúbica puede ser más simple de visualizar, pero normalmente aumenta el número de átomos:
 
-~~~bash
+```bash
 gmx editconf     -f protein_processed.gro     -o protein_box_cubic.gro     -c     -d 1.0     -bt cubic
-~~~
+```
 
 No use este protocolo de caja acuosa para una proteína transmembrana: necesita una bicapa, orientación y composición lipídica apropiadas.
 
 ### 7. Solvatación
 
-~~~bash
+```bash
 gmx solvate     -cp protein_box.gro     -cs spc216.gro     -o protein_solv.gro     -p topol.top
-~~~
+```
 
 **gmx solvate** actualiza la cantidad de solvente en **[ molecules ]**. Revise el final de **topol.top** y confirme que el agua utilizada es compatible con la topología elegida.
 
@@ -2437,7 +2437,7 @@ Compruebe que la proteína no cruza de forma problemática la caja y que no exis
 
 Archivo mínimo **ions.mdp**:
 
-~~~ini
+```ini
 integrator      = steep
 nsteps          = 0
 emtol           = 1000.0
@@ -2447,19 +2447,19 @@ coulombtype     = PME
 rcoulomb        = 1.0
 rvdw            = 1.0
 pbc             = xyz
-~~~
+```
 
 Genere el TPR:
 
-~~~bash
+```bash
 gmx grompp     -f ions.mdp     -c protein_solv.gro     -p topol.top     -o ions.tpr
-~~~
+```
 
 Neutralización con NaCl y concentración nominal de 0.15 mol L⁻¹:
 
-~~~bash
+```bash
 gmx genion     -s ions.tpr     -o protein_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
-~~~
+```
 
 Seleccione el grupo de agua, normalmente **SOL**. No memorice su número: depende del sistema.
 
@@ -2471,9 +2471,9 @@ Si el experimento requiere otra sal, deben existir parámetros compatibles para 
 
 Genere una topología expandida:
 
-~~~bash
+```bash
 gmx grompp     -f em.mdp     -c protein_solv_ions.gro     -p topol.top     -o em_test.tpr     -pp processed.top
-~~~
+```
 
 **processed.top** permite revisar las inclusiones y macros después del preprocesamiento.
 
@@ -2492,7 +2492,7 @@ No use **-maxwarn** para forzar la creación del TPR.
 
 Archivo **em.mdp**:
 
-~~~ini
+```ini
 title            = Minimización de proteína en agua
 integrator       = steep
 nsteps           = 50000
@@ -2507,25 +2507,25 @@ rcoulomb         = 1.0
 vdwtype          = Cut-off
 rvdw             = 1.0
 pbc              = xyz
-~~~
+```
 
 Ejecución:
 
-~~~bash
+```bash
 mkdir -p ../02_em
 cd ../02_em
 
 gmx grompp     -f ../01_preparacion/em.mdp     -c ../01_preparacion/protein_solv_ions.gro     -p ../01_preparacion/topol.top     -o em.tpr
 
 gmx mdrun -deffnm em -v
-~~~
+```
 
 Extraiga la energía potencial:
 
-~~~bash
+```bash
 (echo Potential; echo 0) |
 gmx energy     -f em.edr     -o ../06_analisis/em_potential.xvg
-~~~
+```
 
 La minimización elimina contactos desfavorables; no equilibra temperatura, presión ni distribución conformacional. Revise energía potencial, fuerza máxima, átomo asociado a esa fuerza y posibles valores NaN.
 
@@ -2535,7 +2535,7 @@ NVT estabiliza la temperatura con volumen fijo. Use restricciones posicionales i
 
 Parámetros principales:
 
-~~~ini
+```ini
 title         = Equilibración NVT
 define        = -DPOSRES
 
@@ -2557,31 +2557,31 @@ ref-t         = 300 300
 
 pcoupl        = no
 pbc           = xyz
-~~~
+```
 
 Con **dt = 0.002 ps** y **nsteps = 50000**, la duración es 100 ps. El paso de 0.002 ps equivale a 2 fs.
 
-~~~bash
+```bash
 mkdir -p ../03_nvt
 cd ../03_nvt
 
 gmx grompp     -f ../01_preparacion/nvt.mdp     -c ../02_em/em.gro     -r ../02_em/em.gro     -p ../01_preparacion/topol.top     -o nvt.tpr
 
 gmx mdrun -deffnm nvt -v
-~~~
+```
 
 Analice la temperatura:
 
-~~~bash
+```bash
 (echo Temperature; echo 0) |
 gmx energy     -f nvt.edr     -o ../06_analisis/nvt_temperature.xvg
-~~~
+```
 
 ### 12. Equilibración NPT
 
 NPT ajusta presión, densidad y volumen. Continúe desde el checkpoint de NVT y no regenere velocidades:
 
-~~~ini
+```ini
 title            = Equilibración NPT
 define           = -DPOSRES
 
@@ -2605,25 +2605,25 @@ ref-p            = 1.0
 compressibility  = 4.5e-5
 
 pbc              = xyz
-~~~
+```
 
 Aquí se simulan 500 ps. **ref-p** se expresa en bar y la compresibilidad en bar⁻¹. El valor 4.5 × 10⁻⁵ bar⁻¹ es habitual para agua líquida cerca de condiciones ambientales.
 
-~~~bash
+```bash
 mkdir -p ../04_npt
 cd ../04_npt
 
 gmx grompp     -f ../01_preparacion/npt.mdp     -c ../03_nvt/nvt.gro     -r ../03_nvt/nvt.gro     -t ../03_nvt/nvt.cpt     -p ../01_preparacion/topol.top     -o npt.tpr
 
 gmx mdrun -deffnm npt -v
-~~~
+```
 
 Analice temperatura, presión, densidad y volumen:
 
-~~~bash
+```bash
 (echo Temperature; echo Pressure; echo Density; echo Volume; echo 0) |
 gmx energy     -f npt.edr     -o ../06_analisis/npt_thermodynamics.xvg
-~~~
+```
 
 La presión instantánea fluctúa intensamente. Evalúe promedios por bloques, densidad y deriva temporal.
 
@@ -2633,7 +2633,7 @@ Retire **define = -DPOSRES** salvo que mantener restricciones forme parte explí
 
 Parámetros principales:
 
-~~~ini
+```ini
 title            = Producción de proteína en agua
 
 integrator       = md
@@ -2656,18 +2656,18 @@ ref-p            = 1.0
 compressibility  = 4.5e-5
 
 pbc              = xyz
-~~~
+```
 
 Con 50000000 pasos de 0.002 ps se simulan 100 ns. Agregue los parámetros de PME, Verlet y control de salida validados en el tutorial principal; no mezcle MDP de campos de fuerza diferentes sin revisar cortes y modificadores.
 
-~~~bash
+```bash
 mkdir -p ../05_md
 cd ../05_md
 
 gmx grompp     -f ../01_preparacion/md.mdp     -c ../04_npt/npt.gro     -t ../04_npt/npt.cpt     -p ../01_preparacion/topol.top     -o md.tpr
 
 gmx mdrun -deffnm md -v
-~~~
+```
 
 Compruebe en el registro:
 
@@ -2681,56 +2681,56 @@ Compruebe en el registro:
 
 Corrija PBC antes de analizar:
 
-~~~bash
+```bash
 echo Protein |
 gmx trjconv     -s md.tpr     -f md.xtc     -o md_protein_center.gro     -center     -pbc mol     -ur compact
-~~~
+```
 
 Para conservar una trayectoria XTC:
 
-~~~bash
+```bash
 (echo Protein; echo Protein) |
 gmx trjconv     -s md.tpr     -f md.xtc     -o md_protein_center.xtc     -center     -pbc mol     -ur compact
-~~~
+```
 
 Ajuste rotación y traslación:
 
-~~~bash
+```bash
 (echo Backbone; echo Protein) |
 gmx trjconv     -s md.tpr     -f md_protein_center.xtc     -o md_protein_fit.xtc     -fit rot+trans
-~~~
+```
 
 RMSD del backbone:
 
-~~~bash
+```bash
 (echo Backbone; echo Backbone) |
 gmx rms     -s md.tpr     -f md_protein_fit.xtc     -o ../06_analisis/rmsd_backbone.xvg     -tu ns
-~~~
+```
 
 RMSF por residuo:
 
-~~~bash
+```bash
 echo C-alpha |
 gmx rmsf     -s md.tpr     -f md_protein_fit.xtc     -o ../06_analisis/rmsf_calpha.xvg     -res
-~~~
+```
 
 Radio de giro:
 
-~~~bash
+```bash
 gmx gyrate     -s md.tpr     -f md_protein_fit.xtc     -sel 'group "Protein"'     -o ../06_analisis/gyrate_protein.xvg
-~~~
+```
 
 Estructura secundaria:
 
-~~~bash
+```bash
 gmx dssp     -s md.tpr     -f md_protein_fit.xtc     -sel 'group "Protein"'     -o ../06_analisis/secondary_structure.dat
-~~~
+```
 
 La disponibilidad y las opciones de **gmx dssp** deben comprobarse con:
 
-~~~bash
+```bash
 gmx dssp -h
-~~~
+```
 
 Una meseta de RMSD no demuestra convergencia. Compare bloques temporales, réplicas independientes y observables complementarios.
 
@@ -2755,7 +2755,7 @@ Divida la producción en bloques temporales comparables. Por ejemplo, para una t
 
 El área accesible al solvente, SASA, depende de la superficie molecular y de una sonda que representa aproximadamente una molécula de agua. No equivale al área geométrica total ni mide por sí sola desplegamiento.
 
-~~~bash
+```bash
 gmx sasa \
     -s md.tpr \
     -f md_protein_fit.xtc \
@@ -2763,33 +2763,33 @@ gmx sasa \
     -output 'group "Protein"' \
     -o ../06_analisis/sasa_total.xvg \
     -or ../06_analisis/sasa_residue.xvg
-~~~
+```
 
 Compruebe la sintaxis de la versión instalada con **gmx sasa -h**. Para interpretar cambios conviene separar, cuando sea pertinente, superficie hidrofóbica e hidrofílica mediante grupos definidos y documentados.
 
 Los puentes de hidrógeno intraproteicos pueden calcularse con:
 
-~~~bash
+```bash
 gmx hbond \
     -s md.tpr \
     -f md_protein_fit.xtc \
     -r 'group "Protein"' \
     -t 'group "Protein"' \
     -num ../06_analisis/hbonds_intraprotein.xvg
-~~~
+```
 
 La interfaz de **gmx hbond** cambió entre versiones. Revise **gmx hbond -h** y registre los cortes geométricos utilizados. Un mayor número de puentes no significa automáticamente una estructura más estable: importa qué interacciones aparecen, su ocupación y si conectan regiones funcionales.
 
 Para una distancia entre dominios, residuos catalíticos o extremos de una compuerta, cree grupos específicos en **index.ndx** y use:
 
-~~~bash
+```bash
 gmx distance \
     -s md.tpr \
     -f md_protein_fit.xtc \
     -n index.ndx \
     -select 'com of group "Domain_A" plus com of group "Domain_B"' \
     -oall ../06_analisis/domain_distance.xvg
-~~~
+```
 
 Una distancia entre centros de masa puede ocultar rotaciones. Cuando la geometría sea funcional, combine distancias, ángulos y contactos definidos a partir de residuos concretos.
 
@@ -2799,23 +2799,23 @@ La estabilidad del plegamiento no queda descrita por un RMSD global. Los cambios
 
 Diagrama de Ramachandran muestreado durante la trayectoria:
 
-~~~bash
+```bash
 gmx rama \
     -s md.tpr \
     -f md_protein_fit.xtc \
     -o ../06_analisis/ramachandran.xvg
-~~~
+```
 
 Matriz media de distancias entre residuos:
 
-~~~bash
+```bash
 echo Protein | \
 gmx mdmat \
     -s md.tpr \
     -f md_protein_fit.xtc \
     -mean ../06_analisis/mean_distance_map.xpm \
     -frames ../06_analisis/distance_map_frames.xpm
-~~~
+```
 
 La opción **-frames** puede generar archivos grandes; úsela solo cuando se necesite evolución temporal. Para contactos funcionales es preferible definir pares de residuos y calcular ocupaciones con un corte explícito, en lugar de interpretar visualmente toda la matriz.
 
@@ -2825,34 +2825,34 @@ La estructura secundaria ya puede obtenerse con **gmx dssp**. Resuma la ocupaci�
 
 El análisis de componentes principales, PCA, intenta separar movimientos colectivos de gran amplitud de fluctuaciones locales. Después de eliminar traslación y rotación, se construye la matriz de covarianza de las coordenadas:
 
-\[
+$$
 C_{ij}=\left\langle
 \left(x_i-\langle x_i\rangle\right)
 \left(x_j-\langle x_j\rangle\right)
 \right\rangle
-\]
+$$
 
-Su diagonalización produce autovectores \(\mathbf{v}_k\) y autovalores \(\lambda_k\):
+Su diagonalización produce autovectores $\mathbf{v}_k$ y autovalores $\lambda_k$:
 
-\[
+$$
 \mathbf{C}\mathbf{v}_k=\lambda_k\mathbf{v}_k
-\]
+$$
 
-- \(\mathbf{v}_k\) define una dirección colectiva en el espacio de coordenadas;
-- \(\lambda_k\) es la varianza a lo largo de esa dirección;
+- $\mathbf{v}_k$ define una dirección colectiva en el espacio de coordenadas;
+- $\lambda_k$ es la varianza a lo largo de esa dirección;
 - los componentes se ordenan de mayor a menor varianza;
-- la fracción de fluctuación explicada por el componente \(k\) es:
+- la fracción de fluctuación explicada por el componente $k$ es:
 
-\[
+$$
 f_k=\frac{\lambda_k}{\sum_j\lambda_j}
-\]
+$$
 
-La proyección del fotograma \(t\) sobre el componente \(k\) es:
+La proyección del fotograma $t$ sobre el componente $k$ es:
 
-\[
+$$
 p_k(t)=\mathbf{v}_k^{\mathrm{T}}
 \left[\mathbf{x}(t)-\langle\mathbf{x}\rangle\right]
-\]
+$$
 
 “Principal” significa mayor varianza, no mayor importancia biológica. PC1 puede representar una relajación inicial, difusión no convergida o un movimiento inducido por una mala preparación. La interpretación funcional requiere localizar qué dominios se mueven, comprobar recurrencia y contrastar réplicas o datos experimentales.
 
@@ -2864,7 +2864,7 @@ Use una trayectoria con la proteína entera y sin saltos periódicos. No es nece
 
 Construcción y diagonalización de la matriz de covarianza:
 
-~~~bash
+```bash
 gmx covar \
     -s md.tpr \
     -f md_protein_center.xtc \
@@ -2872,7 +2872,7 @@ gmx covar \
     -v ../06_analisis/pca_eigenvec.trr \
     -av ../06_analisis/pca_average.pdb \
     -l ../06_analisis/pca_covar.log
-~~~
+```
 
 Seleccione **Backbone** para el ajuste y **Backbone** para la matriz. Si se elige otro grupo, debe conservarse exactamente la misma selección en las proyecciones posteriores.
 
@@ -2880,7 +2880,7 @@ La covarianza cartesiana estándar no está ponderada por masa salvo que se soli
 
 Proyección sobre PC1 y PC2:
 
-~~~bash
+```bash
 gmx anaeig \
     -v ../06_analisis/pca_eigenvec.trr \
     -s md.tpr \
@@ -2888,11 +2888,11 @@ gmx anaeig \
     -first 1 \
     -last 2 \
     -2d ../06_analisis/pca_pc1_pc2.xvg
-~~~
+```
 
 Evolución temporal de PC1:
 
-~~~bash
+```bash
 gmx anaeig \
     -v ../06_analisis/pca_eigenvec.trr \
     -s md.tpr \
@@ -2900,11 +2900,11 @@ gmx anaeig \
     -first 1 \
     -last 1 \
     -proj ../06_analisis/pca_pc1_time.xvg
-~~~
+```
 
 Estructuras extremas interpoladas a lo largo de PC1:
 
-~~~bash
+```bash
 gmx anaeig \
     -v ../06_analisis/pca_eigenvec.trr \
     -s md.tpr \
@@ -2913,7 +2913,7 @@ gmx anaeig \
     -last 1 \
     -extr ../06_analisis/pca_pc1_extremes.pdb \
     -nframes 30
-~~~
+```
 
 Las estructuras intermedias generadas con **-extr** son una interpolación para visualizar el vector. No constituyen una trayectoria física ni prueban que la proteína recorra suavemente ese camino.
 
@@ -2932,11 +2932,11 @@ Un mapa PC1–PC2 con varias nubes puede indicar estados conformacionales, pero 
 
 El contenido coseno ayuda a detectar modos parecidos a una difusión aleatoria finita:
 
-~~~bash
+```bash
 gmx analyze \
     -f ../06_analisis/pca_pc1_time.xvg \
     -cc ../06_analisis/pca_pc1_cosine.xvg
-~~~
+```
 
 Un contenido coseno alto sugiere muestreo insuficiente del modo, pero no demuestra que la dirección carezca de significado físico. Compare además PCA calculados por separado sobre mitades de la trayectoria y sobre réplicas. El solapamiento entre subespacios es más exigente que comparar solamente autovalores.
 
@@ -2948,7 +2948,7 @@ El agrupamiento busca estructuras representativas; PCA reduce dimensionalidad. N
 
 Ejemplo de agrupamiento por RMSD del backbone:
 
-~~~bash
+```bash
 echo Backbone | \
 gmx cluster \
     -s md.tpr \
@@ -2959,23 +2959,23 @@ gmx cluster \
     -g ../06_analisis/cluster.log \
     -sz ../06_analisis/cluster_sizes.xvg \
     -cl ../06_analisis/cluster_representatives.pdb
-~~~
+```
 
 El corte de 0.20 nm es solo un punto de partida. Debe evaluarse su sensibilidad: un corte pequeño fragmenta el conjunto y uno grande mezcla estados distintos. Informe selección, métrica, método y corte.
 
-Un paisaje de energía libre aparente en dos coordenadas \(q_1,q_2\) se obtiene de la probabilidad muestreada:
+Un paisaje de energía libre aparente en dos coordenadas $q_1,q_2$ se obtiene de la probabilidad muestreada:
 
-\[
+$$
 F(q_1,q_2)=-k_{\mathrm B}T\ln P(q_1,q_2)+C
-\]
+$$
 
 Con PC1 y PC2 puede estimarse mediante:
 
-~~~bash
+```bash
 gmx sham \
     -f ../06_analisis/pca_pc1_pc2.xvg \
     -ls ../06_analisis/pca_free_energy.xpm
-~~~
+```
 
 El resultado depende del binning, el muestreo y las coordenadas elegidas. Un mínimo oscuro no es una energía absoluta ni demuestra un estado termodinámico convergido. Regiones no visitadas no tienen probabilidad estimable; no deben interpretarse como barreras cuantificadas.
 
@@ -2992,9 +2992,9 @@ Una simulación gana valor cuando sus observables se conectan con mediciones ind
 
 La relación idealizada entre desplazamiento cuadrático medio isotrópico y factor B es:
 
-\[
+$$
 B=\frac{8\pi^2}{3}\langle u^2\rangle
-\]
+$$
 
 No compare directamente RMSF de solución con factores B cristalográficos como si fueran la misma magnitud. El factor B incluye contribuciones del cristal, refinamiento y desorden, mientras que RMSF depende del alineamiento, la ventana temporal y el campo de fuerza. Son comparables principalmente como perfiles cualitativos o mediante un modelo explícito.
 
@@ -3029,10 +3029,10 @@ Si la estructura proviene de homología, predicción o modelado de bucles:
 
 Ejemplo de liberación gradual:
 
-~~~ini
+```ini
 ; Etapa inicial
 define = -DPOSRES
-~~~
+```
 
 Puede generar archivos de restricciones con constantes decrecientes, por ejemplo 1000, 500, 100 y 0 kJ mol⁻¹ nm⁻², manteniendo la duración y los criterios documentados. Cada etapa debe continuar desde las coordenadas y velocidades de la anterior.
 
@@ -3108,7 +3108,7 @@ Este ejemplo describe la construcción de una capa de 1-octanol en contacto con 
 
 El flujo recomendado es:
 
-~~~text
+```text
 parametrización del 1-octanol
     ↓
 validación de una molécula aislada
@@ -3124,7 +3124,7 @@ incorporación del agua
 EM → NVT → NPT o NVT de interfaz
     ↓
 producción y perfiles a lo largo de z
-~~~
+```
 
 ### 1. Decidir qué sistema físico se quiere representar
 
@@ -3157,9 +3157,9 @@ El 1-octanol no es un residuo proteico estándar y no debe procesarse con **gmx 
 
 SMILES del 1-octanol:
 
-~~~text
+```text
 CCCCCCCCO
-~~~
+```
 
 La fórmula **CCCCCCCCOH** puede ser interpretada por algunos programas, pero el SMILES convencional es **CCCCCCCCO**; el hidrógeno del grupo hidroxilo se agrega según la valencia.
 
@@ -3177,7 +3177,7 @@ No mezcle una topología generada para CHARMM con un campo AMBER, GROMOS u OPLS.
 
 Una organización sencilla es:
 
-~~~text
+```text
 00_parametros/
     octanol.gro
     octanol.itp
@@ -3190,13 +3190,13 @@ Una organización sencilla es:
 06_md/
 07_analisis/
 topol.top
-~~~
+```
 
 ### 3. Revisar la topología molecular
 
 El archivo **octanol.itp** debe contener un único **[ moleculetype ]** y las secciones moleculares correspondientes:
 
-~~~ini
+```ini
 [ moleculetype ]
 ; nombre    nrexcl
 OCT         3
@@ -3216,34 +3216,34 @@ OCT         3
 
 [ dihedrals ]
 ; ...
-~~~
+```
 
 Si el generador entrega tipos atómicos nuevos, colóquelos en un archivo separado que se incluya inmediatamente después del campo de fuerza y antes de **octanol.itp**:
 
-~~~ini
+```ini
 #include "campo_de_fuerza.ff/forcefield.itp"
 #include "00_parametros/octanol_atomtypes.itp"
 #include "00_parametros/octanol.itp"
-~~~
+```
 
 No coloque **[ atomtypes ]** después de haber comenzado una definición **[ moleculetype ]**. El preprocesador de topologías exige un orden específico de directivas.
 
 Compruebe que la coordenada de una molécula aislada tenga exactamente los mismos átomos, nombres y orden que la sección **[ atoms ]**:
 
-~~~bash
+```bash
 gmx check -f 00_parametros/octanol.gro
-~~~
+```
 
 Para inspeccionar la topología expandida:
 
-~~~bash
+```bash
 gmx grompp \
     -f em_single.mdp \
     -c 00_parametros/octanol.gro \
     -p topol_single.top \
     -o octanol_single.tpr \
     -pp octanol_single_processed.top
-~~~
+```
 
 No use **-maxwarn** para ocultar incompatibilidades.
 
@@ -3251,45 +3251,45 @@ No use **-maxwarn** para ocultar incompatibilidades.
 
 El número de moléculas no debe elegirse de manera arbitraria. A partir de una densidad objetivo:
 
-\[
+$$
 N = \frac{\rho V N_\mathrm{A}}{M}
-\]
+$$
 
 donde:
 
-- \(N\) es el número de moléculas;
-- \(\rho\) es la densidad;
-- \(V\) es el volumen;
-- \(N_\mathrm{A}\) es la constante de Avogadro;
-- \(M\) es la masa molar.
+- $N$ es el número de moléculas;
+- $\rho$ es la densidad;
+- $V$ es el volumen;
+- $N_\mathrm{A}$ es la constante de Avogadro;
+- $M$ es la masa molar.
 
-Para usar \(\rho\) en g·cm⁻³, \(V\) en nm³ y \(M\) en g·mol⁻¹:
+Para usar $\rho$ en g·cm⁻³, $V$ en nm³ y $M$ en g·mol⁻¹:
 
-\[
+$$
 N = \frac{\rho\,V\,10^{-21}\,N_\mathrm{A}}{M}
-\]
+$$
 
 porque:
 
-\[
+$$
 1\ \mathrm{nm^3}=10^{-21}\ \mathrm{cm^3}
-\]
+$$
 
-Para 1-octanol, \(M = 130.23\ \mathrm{g\,mol^{-1}}\). Usando como ejemplo \(\rho \approx 0.827\ \mathrm{g\,cm^{-3}}\) y una caja de 5 × 5 × 5 nm:
+Para 1-octanol, $M = 130.23\ \mathrm{g\,mol^{-1}}$. Usando como ejemplo $\rho \approx 0.827\ \mathrm{g\,cm^{-3}}$ y una caja de 5 × 5 × 5 nm:
 
-\[
+$$
 V=125\ \mathrm{nm^3}
-\]
+$$
 
-\[
+$$
 N \approx 478\ \text{moléculas}
-\]
+$$
 
 Por lo tanto, 500 moléculas son razonables como punto de partida para una caja cercana a 5 nm por lado. En cambio, 500 moléculas en 10 × 10 × 10 nm corresponden aproximadamente a:
 
-\[
+$$
 \rho \approx 0.108\ \mathrm{g\,cm^{-3}}
-\]
+$$
 
 Ese sistema está muy subdensificado y contiene grandes huecos. La presión NPT inicial puede ser extrema y la caja tendría que contraerse de manera drástica.
 
@@ -3299,16 +3299,16 @@ La densidad experimental utilizada debe corresponder a la temperatura del protoc
 
 Centre una molécula y asegúrese de que las coordenadas estén expresadas en nanómetros:
 
-~~~bash
+```bash
 gmx editconf \
     -f 00_parametros/octanol.gro \
     -o 00_parametros/octanol_centered.gro \
     -center 0 0 0
-~~~
+```
 
 Inserte las moléculas en una caja inicial de 5 × 5 × 5 nm:
 
-~~~bash
+```bash
 mkdir -p 01_octanol_liquido
 
 gmx insert-molecules \
@@ -3318,7 +3318,7 @@ gmx insert-molecules \
     -try 500 \
     -seed 2026 \
     -o 01_octanol_liquido/octanol_box.gro
-~~~
+```
 
 **gmx insert-molecules** evita solapamientos mediante radios atómicos, pero no garantiza que el número solicitado pueda insertarse. Revise la línea final y use el número realmente añadido en **[ molecules ]**.
 
@@ -3334,7 +3334,7 @@ No use una semilla aleatoria indefinida si desea reproducibilidad.
 
 Topología inicial:
 
-~~~ini
+```ini
 #include "campo_de_fuerza.ff/forcefield.itp"
 #include "00_parametros/octanol_atomtypes.itp"
 #include "00_parametros/octanol.itp"
@@ -3345,7 +3345,7 @@ Topología inicial:
 [ molecules ]
 ; molécula    cantidad
 OCT           500
-~~~
+```
 
 El nombre **OCT** debe ser idéntico al definido en **[ moleculetype ]**.
 
@@ -3353,7 +3353,7 @@ El nombre **OCT** debe ser idéntico al definido en **[ moleculetype ]**.
 
 Archivo **em_octanol.mdp**:
 
-~~~ini
+```ini
 title           = Minimización del líquido de 1-octanol
 integrator      = steep
 nsteps          = 50000
@@ -3368,11 +3368,11 @@ rcoulomb        = 1.2
 vdwtype         = Cut-off
 rvdw            = 1.2
 pbc             = xyz
-~~~
+```
 
 Los cortes son ejemplos. Deben reemplazarse por los valores recomendados para el campo de fuerza seleccionado.
 
-~~~bash
+```bash
 mkdir -p 03_em
 
 gmx grompp \
@@ -3385,7 +3385,7 @@ gmx grompp \
 gmx mdrun \
     -deffnm 03_em/octanol_em \
     -v
-~~~
+```
 
 Revise energía potencial, fuerza máxima, contactos anómalos y valores NaN. La convergencia numérica de la minimización no demuestra que la densidad o la estructura del líquido sean correctas.
 
@@ -3395,7 +3395,7 @@ Una trayectoria de 1 ps es insuficiente para equilibrar un líquido construido p
 
 Ejemplo NVT:
 
-~~~ini
+```ini
 title           = NVT del 1-octanol
 integrator      = md
 dt              = 0.002
@@ -3413,11 +3413,11 @@ ref-t           = 300
 
 pcoupl          = no
 pbc             = xyz
-~~~
+```
 
 Con 250000 pasos de 0.002 ps se simulan 500 ps.
 
-~~~bash
+```bash
 mkdir -p 04_nvt
 
 gmx grompp \
@@ -3429,11 +3429,11 @@ gmx grompp \
 gmx mdrun \
     -deffnm 04_nvt/octanol_nvt \
     -v
-~~~
+```
 
 Ejemplo NPT isotrópico:
 
-~~~ini
+```ini
 title            = NPT del 1-octanol
 integrator       = md
 dt               = 0.002
@@ -3454,11 +3454,11 @@ ref-p             = 1.0
 compressibility   = 8.0e-5
 
 pbc              = xyz
-~~~
+```
 
 Aquí se simulan 5 ns. La compresibilidad es un valor inicial ilustrativo y debe reemplazarse por un valor justificado para el líquido y las condiciones elegidas.
 
-~~~bash
+```bash
 mkdir -p 05_npt
 
 gmx grompp \
@@ -3471,16 +3471,16 @@ gmx grompp \
 gmx mdrun \
     -deffnm 05_npt/octanol_npt \
     -v
-~~~
+```
 
 Controle densidad, volumen, presión y energía:
 
-~~~bash
+```bash
 (echo Density; echo Volume; echo Pressure; echo Potential; echo 0) | \
 gmx energy \
     -f 05_npt/octanol_npt.edr \
     -o 07_analisis/octanol_bulk_properties.xvg
-~~~
+```
 
 La presión instantánea tiene fluctuaciones grandes. Compare promedios por bloques y compruebe que densidad y volumen hayan alcanzado una región estacionaria.
 
@@ -3490,13 +3490,13 @@ Use la última configuración equilibrada, no un PDB extraído arbitrariamente d
 
 Primero consulte las dimensiones finales:
 
-~~~bash
+```bash
 gmx check -f 05_npt/octanol_npt.gro
-~~~
+```
 
 Supóngase, solo como ejemplo, que la caja equilibrada mide aproximadamente 5 × 5 × 5 nm. Amplíe únicamente z para crear espacio para el agua:
 
-~~~bash
+```bash
 mkdir -p 02_interfaz
 
 gmx editconf \
@@ -3504,9 +3504,9 @@ gmx editconf \
     -o 02_interfaz/octanol_slab_box.gro \
     -box 5 5 12 \
     -center 2.5 2.5 6.0
-~~~
+```
 
-Use los valores reales de \(L_x\) y \(L_y\) de la fase equilibrada. Cambiarlos en este paso impone una deformación lateral. La región vacía debe quedar distribuida a ambos lados de la lámina para generar dos interfaces equivalentes.
+Use los valores reales de $L_x$ y $L_y$ de la fase equilibrada. Cambiarlos en este paso impone una deformación lateral. La región vacía debe quedar distribuida a ambos lados de la lámina para generar dos interfaces equivalentes.
 
 Compruebe visualmente:
 
@@ -3519,7 +3519,7 @@ Compruebe visualmente:
 
 Incluya la topología de agua compatible con el campo de fuerza antes de la sección **[ system ]**:
 
-~~~ini
+```ini
 #include "campo_de_fuerza.ff/forcefield.itp"
 #include "00_parametros/octanol_atomtypes.itp"
 #include "00_parametros/octanol.itp"
@@ -3531,28 +3531,28 @@ Interfaz 1-octanol–agua
 [ molecules ]
 ; molécula    cantidad
 OCT           500
-~~~
+```
 
 Solvate usando explícitamente una caja de agua:
 
-~~~bash
+```bash
 gmx solvate \
     -cp 02_interfaz/octanol_slab_box.gro \
     -cs spc216.gro \
     -o 02_interfaz/octanol_water.gro \
     -p topol.top
-~~~
+```
 
 **spc216.gro** aporta una configuración geométrica de agua de tres sitios; la interacción efectiva queda definida por la topología incluida. Verifique que el modelo de agua sea el recomendado para el campo de fuerza.
 
 **gmx solvate** elimina moléculas que solapan con el octanol y actualiza el número de agua en **[ molecules ]**. La salida final debe quedar, por ejemplo:
 
-~~~ini
+```ini
 [ molecules ]
 ; molécula    cantidad
 OCT           500
 SOL           4442
-~~~
+```
 
 El valor 4442 no es universal. Depende de las dimensiones finales, la densidad de la lámina y los criterios geométricos de solvatación. Use el número informado por su propia ejecución.
 
@@ -3560,15 +3560,15 @@ Revise el orden: las coordenadas contienen primero OCT y después SOL, por lo qu
 
 Compruebe el sistema:
 
-~~~bash
+```bash
 gmx check -f 02_interfaz/octanol_water.gro
-~~~
+```
 
 ### 10. Minimización y equilibración de la interfaz
 
 La interfaz recién construida contiene contactos y una distribución no equilibrada de ambos líquidos. Ejecute nuevamente EM, NVT y una equilibración apropiada de volumen o área.
 
-~~~bash
+```bash
 gmx grompp \
     -f em_interface.mdp \
     -c 02_interfaz/octanol_water.gro \
@@ -3579,11 +3579,11 @@ gmx grompp \
 gmx mdrun \
     -deffnm 03_em/interface_em \
     -v
-~~~
+```
 
 NVT:
 
-~~~bash
+```bash
 gmx grompp \
     -f nvt_interface.mdp \
     -c 03_em/interface_em.gro \
@@ -3593,7 +3593,7 @@ gmx grompp \
 gmx mdrun \
     -deffnm 04_nvt/interface_nvt \
     -v
-~~~
+```
 
 Para una interfaz plana existen dos estrategias principales:
 
@@ -3604,13 +3604,13 @@ Para una interfaz plana existen dos estrategias principales:
 
 Ejemplo NPT semiisotrópico:
 
-~~~ini
+```ini
 pcoupl            = C-rescale
 pcoupltype        = semiisotropic
 tau-p             = 5.0
 ref-p             = 1.0 1.0
 compressibility   = 4.5e-5 4.5e-5
-~~~
+```
 
 Los dos valores corresponden al plano xy y al eje z. No copie automáticamente la compresibilidad del agua para todo el sistema: debe justificarse según el protocolo y comprobarse que la caja no derive o colapse.
 
@@ -3618,7 +3618,7 @@ El acoplamiento por tensión superficial también existe, pero no debe utilizars
 
 Para producción, continúe desde el checkpoint:
 
-~~~bash
+```bash
 gmx grompp \
     -f md_interface.mdp \
     -c 05_npt/interface_npt.gro \
@@ -3629,7 +3629,7 @@ gmx grompp \
 gmx mdrun \
     -deffnm 06_md/interface_md \
     -v
-~~~
+```
 
 ### 11. Controles mínimos de la trayectoria
 
@@ -3637,20 +3637,20 @@ Corrija únicamente la representación periódica necesaria para visualizar. No 
 
 Extraiga una configuración:
 
-~~~bash
+```bash
 echo System | \
 gmx trjconv \
     -s 06_md/interface_md.tpr \
     -f 06_md/interface_md.xtc \
     -o 07_analisis/interface_last.gro \
     -dump 100000
-~~~
+```
 
 El tiempo de **-dump** se expresa en ps. En este ejemplo, 100000 ps equivalen a 100 ns.
 
 Perfil de densidad de masa a lo largo de z:
 
-~~~bash
+```bash
 gmx density \
     -s 06_md/interface_md.tpr \
     -f 06_md/interface_md.xtc \
@@ -3659,7 +3659,7 @@ gmx density \
     -sl 200 \
     -dens mass \
     -o 07_analisis/density_z.xvg
-~~~
+```
 
 Cree grupos separados para OCT y SOL y analice ambos perfiles. Un sistema bifásico equilibrado debe mostrar:
 
@@ -3681,7 +3681,7 @@ Los perfiles de densidad de OCT y SOL permiten estimar la presencia de agua en l
 
 Puede analizarse el ángulo entre el vector C1–O del 1-octanol y el eje z:
 
-~~~bash
+```bash
 gmx gangle \
     -s 06_md/interface_md.tpr \
     -f 06_md/interface_md.xtc \
@@ -3690,7 +3690,7 @@ gmx gangle \
     -group1 'vector connecting atomnr START END' \
     -g2 z \
     -oav 07_analisis/octanol_orientation.xvg
-~~~
+```
 
 La selección debe adaptarse a los índices reales. Para obtener una distribución molecular completa puede ser necesario definir pares equivalentes para todas las moléculas.
 
@@ -3698,33 +3698,33 @@ La selección debe adaptarse a los índices reales. Para obtener una distribuci�
 
 Para una lámina con dos interfaces planas normales a z:
 
-\[
+$$
 \gamma =
 \frac{L_z}{2}
 \left[
 P_{zz}-
 \frac{P_{xx}+P_{yy}}{2}
 \right]
-\]
+$$
 
-El factor 1/2 aparece porque la caja periódica contiene dos interfaces. \(P_{xx}\), \(P_{yy}\) y \(P_{zz}\) son los componentes diagonales del tensor de presión.
+El factor 1/2 aparece porque la caja periódica contiene dos interfaces. $P_{xx}$, $P_{yy}$ y $P_{zz}$ son los componentes diagonales del tensor de presión.
 
 Extraiga los componentes con **gmx energy**:
 
-~~~bash
+```bash
 (echo Pres-XX; echo Pres-YY; echo Pres-ZZ; echo Box-Z; echo 0) | \
 gmx energy \
     -f 06_md/interface_md.edr \
     -o 07_analisis/pressure_tensor.xvg
-~~~
+```
 
 La tensión interfacial converge lentamente porque el tensor de presión es ruidoso. Deben usarse trayectorias suficientemente largas, promedios por bloques y unidades consistentes. En GROMACS, presión se informa en bar y longitud en nm; el resultado no queda automáticamente en mN·m⁻¹ sin conversión.
 
 La equivalencia útil es:
 
-\[
+$$
 1\ \mathrm{bar\,nm}=0.1\ \mathrm{mN\,m^{-1}}
-\]
+$$
 
 #### Coeficiente de partición
 
@@ -3771,7 +3771,6 @@ Continúe únicamente cuando:
 7. [Opciones de archivos MDP](https://manual.gromacs.org/current/user-guide/mdp-options.html)
 
 
-
 ## Proteína de membrana: construcción de una bicapa e inserción de una acuaporina
 
 ### Introducción
@@ -3789,7 +3788,7 @@ Ambos modelos responden preguntas diferentes. No deben mezclarse archivos de fue
 
 Flujo general:
 
-~~~text
+```text
 estructura y pregunta biológica
     ↓
 unidad biológica y protonación
@@ -3807,7 +3806,7 @@ EM y equilibración con restricciones decrecientes
 producción
     ↓
 control de proteína, bicapa, agua, iones y poro
-~~~
+```
 
 ### 1. Definir el objetivo antes de construir el sistema
 
@@ -3847,10 +3846,10 @@ CHARMM-GUI puede aplicar operaciones de simetría si la información está dispo
 
 Conserve el archivo original:
 
-~~~bash
+```bash
 mkdir -p 00_entrada 01_charmmgui 02_em 03_equilibracion 04_md 05_analisis
 cp aquaporin_input.pdb 00_entrada/aquaporin_original.pdb
-~~~
+```
 
 Revise:
 
@@ -3874,7 +3873,7 @@ En Membrane Builder:
 
 - el plano de la membrana es **xy**;
 - la normal de la bicapa es el eje **z**;
-- el centro hidrofóbico se sitúa aproximadamente en \(z=0\).
+- el centro hidrofóbico se sitúa aproximadamente en $z=0$.
 
 Una estructura obtenida de OPM o PPM puede usarse como orientación inicial. Una estructura descargada directamente de RCSB no está necesariamente orientada respecto de una membrana.
 
@@ -3934,37 +3933,37 @@ La caja debe contener suficientes lípidos alrededor de la proteína para reduci
 
 Como criterio inicial:
 
-\[
+$$
 L_x \gtrsim d_x + 2b
-\]
+$$
 
-\[
+$$
 L_y \gtrsim d_y + 2b
-\]
+$$
 
-donde \(d_x\) y \(d_y\) son las dimensiones proyectadas de la proteína y \(b\) es el espesor del anillo lipídico deseado. Para una proteína que pueda inclinarse o cambiar de conformación, debe añadirse margen adicional.
+donde $d_x$ y $d_y$ son las dimensiones proyectadas de la proteína y $b$ es el espesor del anillo lipídico deseado. Para una proteína que pueda inclinarse o cambiar de conformación, debe añadirse margen adicional.
 
 La cantidad aproximada de lípidos de una monocapa homogénea puede estimarse como:
 
-\[
+$$
 N_{\mathrm{lip}} \approx
 \frac{A_{xy}-A_{\mathrm{prot}}}
      {a_{\mathrm{lip}}}
-\]
+$$
 
 donde:
 
-- \(A_{xy}=L_xL_y\);
-- \(A_{\mathrm{prot}}\) es el área proyectada ocupada por la proteína;
-- \(a_{\mathrm{lip}}\) es el área por lípido esperada en esas condiciones.
+- $A_{xy}=L_xL_y$;
+- $A_{\mathrm{prot}}$ es el área proyectada ocupada por la proteína;
+- $a_{\mathrm{lip}}$ es el área por lípido esperada en esas condiciones.
 
 La ecuación es orientativa. En una mezcla lipídica, alrededor de una proteína irregular o en una membrana asimétrica no existe una única área por lípido que resuelva el empaquetamiento.
 
 La altura de agua debe evitar contactos periódicos entre dominios extramembrana. CHARMM-GUI expresa normalmente estas dimensiones en Å:
 
-\[
+$$
 10\ \text{Å}=1\ \text{nm}
-\]
+$$
 
 GROMACS utiliza nanómetros en coordenadas y parámetros espaciales.
 
@@ -3980,9 +3979,9 @@ La temperatura no debe elegirse solo por el valor predeterminado del servidor. D
 
 Conversión:
 
-\[
+$$
 T(\mathrm{K})=T(^{\circ}\mathrm{C})+273.15
-\]
+$$
 
 | °C | K |
 |---:|---:|
@@ -4001,11 +4000,11 @@ CHARMM-GUI puede neutralizar el sistema y agregar NaCl, KCl u otras sales. Disti
 - **concentración salina nominal:** pares iónicos adicionales según el volumen accesible;
 - **fuerza iónica:** depende de carga y concentración de todas las especies.
 
-\[
+$$
 I=\frac{1}{2}\sum_i c_i z_i^2
-\]
+$$
 
-donde \(c_i\) es la concentración molar y \(z_i\) la carga del ion.
+donde $c_i$ es la concentración molar y $z_i$ la carga del ion.
 
 Una solución 0.15 M de NaCl se usa frecuentemente como aproximación fisiológica, pero “0.15 M” e “isotónica” no son sinónimos generales. MgCl₂ o CaCl₂ producen otra fuerza iónica y otra osmolaridad. Los iones divalentes también pueden interactuar fuertemente con lípidos aniónicos.
 
@@ -4035,23 +4034,23 @@ La disponibilidad exacta de lípidos y opciones cambia con la versión del servi
 
 Descomprima sin modificar el original:
 
-~~~bash
+```bash
 mkdir -p 01_charmmgui
 tar -xzf charmm-gui.tgz -C 01_charmmgui
 cd 01_charmmgui
-~~~
+```
 
 Localice la carpeta de GROMACS:
 
-~~~bash
+```bash
 find . -maxdepth 3 -type f \
     \( -name 'topol.top' -o -name 'index.ndx' -o -name '*.mdp' -o -name 'README*' \) \
     -print
-~~~
+```
 
 Los nombres pueden variar entre trabajos. Una salida típica contiene:
 
-~~~text
+```text
 topol.top
 index.ndx
 step5_input.gro o step5_charmm2gmx.pdb
@@ -4063,17 +4062,17 @@ step7_production.mdp
 archivos .itp
 directorio del campo de fuerza
 README o script de ejecución
-~~~
+```
 
 No regenere la topología con **pdb2gmx**. CHARMM-GUI ya produjo una topología consistente con la proteína, los lípidos, el agua y los iones. Ejecutar **pdb2gmx** sobre el sistema ensamblado elimina esa coherencia.
 
 Antes de correr:
 
-~~~bash
+```bash
 gmx --version
 head -n 80 topol.top
 grep -R "^define\|^integrator\|^dt\|^nsteps\|^tcoupl\|^pcoupl\|^pcoupltype" ./*.mdp
-~~~
+```
 
 Compruebe:
 
@@ -4102,7 +4101,7 @@ No ejecute el script sin leerlo. Los nombres de archivos y el número de etapas 
 
 Adapte **step5_input.gro** al nombre real del archivo descargado:
 
-~~~bash
+```bash
 gmx grompp \
     -f step6.0_minimization.mdp \
     -c step5_input.gro \
@@ -4115,20 +4114,20 @@ gmx grompp \
 gmx mdrun \
     -deffnm step6.0_minimization \
     -v
-~~~
+```
 
 La opción **-r** proporciona las coordenadas de referencia para las restricciones posicionales. Si el MDP o la topología usan esas restricciones y **-r** se omite, **grompp** puede fallar o aplicar una referencia incorrecta.
 
 Revise:
 
-~~~bash
+```bash
 gmx check -f step6.0_minimization.gro
 
 (echo Potential; echo 0) | \
 gmx energy \
     -f step6.0_minimization.edr \
     -o ../05_analisis/em_potential.xvg
-~~~
+```
 
 ### 14. Equilibración escalonada sin CSH
 
@@ -4136,7 +4135,7 @@ CHARMM-GUI suele generar varias etapas que reducen gradualmente restricciones so
 
 Script Bash, versión 4 o superior:
 
-~~~bash
+```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -4176,14 +4175,14 @@ do
 
     PREVIOUS="${NAME}"
 done
-~~~
+```
 
 Guárdelo como **run_equilibration.sh** y ejecute:
 
-~~~bash
+```bash
 chmod +x run_equilibration.sh
 ./run_equilibration.sh
-~~~
+```
 
 El script usa arreglos de Bash para preservar correctamente cada argumento. No es compatible con un intérprete POSIX mínimo como **dash**; debe ejecutarse con Bash.
 
@@ -4191,18 +4190,18 @@ Si el archivo inicial se llama **step5_charmm2gmx.pdb**, cambie **REFERENCE**. S
 
 Para revisar sin ejecutar:
 
-~~~bash
+```bash
 bash -n run_equilibration.sh
-~~~
+```
 
 ### 15. Qué cambia entre las etapas de equilibración
 
 Inspeccione las diferencias:
 
-~~~bash
+```bash
 diff -u step6.1_equilibration.mdp step6.2_equilibration.mdp
 diff -u step6.5_equilibration.mdp step6.6_equilibration.mdp
-~~~
+```
 
 Normalmente cambian una o más de estas variables:
 
@@ -4229,11 +4228,11 @@ Una etapa corta puede ser suficiente para resolver contactos, pero no demuestra 
 
 Para una bicapa en el plano xy se utiliza habitualmente acoplamiento semiisotrópico:
 
-~~~ini
+```ini
 pcoupltype       = semiisotropic
 ref-p            = 1.0 1.0
 compressibility  = 4.5e-5 4.5e-5
-~~~
+```
 
 El primer valor corresponde conjuntamente a x/y y el segundo a z. El acoplamiento isotrópico obliga a que todas las dimensiones respondan de la misma manera y no suele ser apropiado para una bicapa plana.
 
@@ -4247,25 +4246,25 @@ La **repartición de masa de hidrógeno** (*hydrogen mass repartitioning*, HMR) 
 
 Para una vibración aproximadamente armónica:
 
-\[
+$$
 \omega=\sqrt{\frac{k}{\mu}},
 \qquad
 \mu=\frac{m_1m_2}{m_1+m_2}
-\]
+$$
 
-donde \(k\) es la constante de fuerza y \(\mu\) la masa reducida. Al aumentar la masa del hidrógeno aumenta \(\mu\) y disminuye \(\omega\). Para un factor de repartición \(f\):
+donde $k$ es la constante de fuerza y $\mu$ la masa reducida. Al aumentar la masa del hidrógeno aumenta $\mu$ y disminuye $\omega$. Para un factor de repartición $f$:
 
-\[
+$$
 m'_{H}=f\,m_H,
 \qquad
 m'_X=m_X-\sum_H\left(m'_H-m_H\right)
-\]
+$$
 
-El segundo término se suma sobre los hidrógenos unidos al átomo pesado \(X\). Con \(f=3\), un hidrógeno de aproximadamente \(1.008\ \mathrm{u}\) pasa a aproximadamente \(3.024\ \mathrm{u}\). La masa total se conserva. HMR no cambia las cargas, los parámetros de Lennard-Jones ni la función de energía potencial; sí cambia la matriz de masas y, por lo tanto, puede modificar propiedades dinámicas.
+El segundo término se suma sobre los hidrógenos unidos al átomo pesado $X$. Con $f=3$, un hidrógeno de aproximadamente $1.008\ \mathrm{u}$ pasa a aproximadamente $3.024\ \mathrm{u}$. La masa total se conserva. HMR no cambia las cargas, los parámetros de Lennard-Jones ni la función de energía potencial; sí cambia la matriz de masas y, por lo tanto, puede modificar propiedades dinámicas.
 
 #### Qué permite y qué no permite HMR
 
-En sistemas atomísticos convencionales, GROMACS indica que combinar un factor 3 con enlaces a hidrógeno restringidos permite **habitualmente** usar \(\Delta t=0.004\ \mathrm{ps}=4\ \mathrm{fs}\). No es una garantía de estabilidad para cualquier topología. HMR:
+En sistemas atomísticos convencionales, GROMACS indica que combinar un factor 3 con enlaces a hidrógeno restringidos permite **habitualmente** usar $\Delta t=0.004\ \mathrm{ps}=4\ \mathrm{fs}$. No es una garantía de estabilidad para cualquier topología. HMR:
 
 - reduce aproximadamente a la mitad el número de pasos necesario para simular el mismo tiempo físico;
 - puede acercarse a una aceleración de dos veces, aunque el rendimiento real depende de GPU, CPU, PME, restricciones y comunicaciones;
@@ -4279,13 +4278,13 @@ Por este último motivo, HMR es especialmente atractivo para propiedades estruct
 
 Desde GROMACS 2024, **gmx grompp** puede efectuar HMR a partir de una topología ordinaria mediante una sola opción del MDP. Para GROMACS 2026.3, el bloque mínimo es:
 
-~~~ini
+```ini
 integrator              = md
 dt                      = 0.004
 constraints             = h-bonds
 constraint-algorithm    = lincs
 mass-repartition-factor = 3
-~~~
+```
 
 **No combine este método con `define = -DHEAVY_H`, con masas ya modificadas por CHARMM-GUI ni con una edición manual de los ITP.** La opción nativa debe aplicarse al sistema completo. Reparticionar solo lípidos o solo proteína deja otros hidrógenos con movimientos rápidos y elimina la justificación física del paso de 4 fs.
 
@@ -4295,25 +4294,25 @@ mass-repartition-factor = 3
 
 Duplique el MDP de producción para conservar un control de 2 fs:
 
-~~~bash
+```bash
 cp step7_production.mdp step7_production_hmr.mdp
-~~~
+```
 
 En **step7_production_hmr.mdp**, mantenga los parámetros de CHARMM-GUI para electrostática, van der Waals, temperatura y presión, y cambie únicamente lo necesario para la comparación:
 
-~~~ini
+```ini
 dt                      = 0.004
 constraints             = h-bonds
 mass-repartition-factor = 3
-~~~
+```
 
-No aproveche el cambio a HMR para acortar cortes, cambiar el barostato o sustituir los parámetros no enlazados. El estudio de membranas que evaluó HMR encontró resultados razonables con el protocolo validado, pero no respaldó el corte de \(9\ \text{Å}=0.9\ \mathrm{nm}\) que también ensayó. En CHARMM36 deben conservarse los cortes y el esquema de conmutación recomendados para esa versión del campo de fuerza.
+No aproveche el cambio a HMR para acortar cortes, cambiar el barostato o sustituir los parámetros no enlazados. El estudio de membranas que evaluó HMR encontró resultados razonables con el protocolo validado, pero no respaldó el corte de $9\ \text{Å}=0.9\ \mathrm{nm}$ que también ensayó. En CHARMM36 deben conservarse los cortes y el esquema de conmutación recomendados para esa versión del campo de fuerza.
 
 El tiempo simulado es:
 
-\[
+$$
 t_{\mathrm{total}}=n_{\mathrm{steps}}\,\Delta t
-\]
+$$
 
 Para 10 ns:
 
@@ -4322,25 +4321,25 @@ Para 10 ns:
 | 0.002 ps (2 fs) | 5 000 000 | 10 ns |
 | 0.004 ps (4 fs) | 2 500 000 | 10 ns |
 
-Los intervalos de salida también dependen de \(\Delta t\):
+Los intervalos de salida también dependen de $\Delta t$:
 
-\[
+$$
 \Delta t_{\mathrm{salida}}=\mathrm{nst}\times\Delta t
-\]
+$$
 
 Si se desea guardar cada 10 ps con 4 fs, use por ejemplo:
 
-~~~ini
+```ini
 nstlog              = 2500
 nstenergy           = 2500
 nstxout-compressed  = 2500
-~~~
+```
 
 #### Generación y comprobación del TPR
 
 Ejemplo para producción después de una equilibración que ya empleó HMR:
 
-~~~bash
+```bash
 gmx grompp \
     -f step7_production_hmr.mdp \
     -c step6.6_equilibration.gro \
@@ -4351,14 +4350,14 @@ gmx grompp \
     -pp processed_hmr.top \
     -po mdout_hmr.mdp \
     -o step7_1_hmr.tpr
-~~~
+```
 
 Revise los parámetros efectivamente procesados:
 
-~~~bash
+```bash
 grep -E '^(dt|nsteps|constraints|mass-repartition-factor)' mdout_hmr.mdp
 gmx dump -s step7_1_hmr.tpr > step7_1_hmr.dump
-~~~
+```
 
 El archivo **processed_hmr.top** permite auditar la topología preprocesada, mientras que **gmx dump** permite inspeccionar el TPR. No edite ninguno para ejecutar la simulación; corrija siempre el MDP o la topología fuente y vuelva a ejecutar **grompp**.
 
@@ -4376,20 +4375,20 @@ Antes de una producción larga:
 
 Una prueba de 1 ns a 4 fs contiene 250 000 pasos:
 
-~~~bash
+```bash
 gmx mdrun \
     -s step7_1_hmr.tpr \
     -deffnm hmr_test \
     -nsteps 250000 \
     -v
-~~~
+```
 
 Busque problemas evidentes:
 
-~~~bash
+```bash
 grep -Ei 'LINCS|constraint|nan|fatal|warning' hmr_test.log
 gmx energy -f hmr_test.edr -o hmr_test_control.xvg
-~~~
+```
 
 Seleccione al menos temperatura, energía potencial, presión, volumen y dimensiones de caja. Si 4 fs falla, no oculte el problema aumentando indiscriminadamente el orden de LINCS. Revise estructura, contactos, topología, restricciones y equilibración. Un paso de 3 fs puede ser una alternativa; si tampoco es estable o la topología no es compatible, use 2 fs.
 
@@ -4399,7 +4398,7 @@ Compare al menos una réplica de referencia a 2 fs y masas normales con una rép
 
 - área por lípido o área xy;
 - espesor y perfiles de densidad;
-- parámetro de orden \(S_{CD}\);
+- parámetro de orden $S_{CD}$;
 - compresibilidad areal;
 - RMSD, RMSF e inclinación de la proteína;
 - contactos lípido–proteína;
@@ -4428,24 +4427,24 @@ La discusión histórica del foro incluye métodos dependientes del campo de fue
 
 Dividir una producción en segmentos no cambia por sí mismo la física. Facilita checkpoints, colas HPC, copias de seguridad y reanudación. El tiempo total es:
 
-\[
+$$
 t_{\mathrm{total}} =
 N_{\mathrm{segmentos}}\,
 n_{\mathrm{steps}}\,
 \Delta t
-\]
+$$
 
-Si cada segmento contiene 5000000 pasos con \(\Delta t=0.002\ \mathrm{ps}\):
+Si cada segmento contiene 5000000 pasos con $\Delta t=0.002\ \mathrm{ps}$:
 
-\[
+$$
 t_{\mathrm{segmento}}=10\ \mathrm{ns}
-\]
+$$
 
 Diez segmentos suman 100 ns.
 
 Script Bash:
 
-~~~bash
+```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -4487,21 +4486,21 @@ do
             -v
     fi
 done
-~~~
+```
 
 Guárdelo como **run_production.sh**:
 
-~~~bash
+```bash
 chmod +x run_production.sh
 bash -n run_production.sh
 ./run_production.sh
-~~~
+```
 
 Para ejecutar solo los segmentos 4 a 7:
 
-~~~bash
+```bash
 FIRST_SEGMENT=4 LAST_SEGMENT=7 ./run_production.sh
-~~~
+```
 
 Si la producción no usa restricciones, **-r** puede ser innecesario, pero conservarlo no reemplaza la revisión del MDP y de las macros activas.
 
@@ -4511,13 +4510,13 @@ En un clúster, el script debe ejecutarse dentro del sistema de colas. No lance 
 
 Si existe un checkpoint del mismo segmento:
 
-~~~bash
+```bash
 gmx mdrun \
     -deffnm step7_4 \
     -cpi step7_4.cpt \
     -append \
     -v
-~~~
+```
 
 No vuelva a ejecutar **grompp** desde la última estructura si el objetivo es continuar exactamente el mismo segmento. El checkpoint conserva estado del integrador, velocidades y otra información necesaria para una continuación reproducible.
 
@@ -4527,7 +4526,7 @@ Conserve siempre la trayectoria original. Genere derivados para visualización y
 
 Primero haga moléculas enteras y centre la proteína:
 
-~~~bash
+```bash
 (echo Protein; echo System) | \
 gmx trjconv \
     -s step7_1.tpr \
@@ -4536,29 +4535,29 @@ gmx trjconv \
     -pbc mol \
     -center \
     -ur compact
-~~~
+```
 
 Luego ajuste la proteína si el análisis requiere eliminar traslación y rotación:
 
-~~~bash
+```bash
 (echo Backbone; echo System) | \
 gmx trjconv \
     -s step7_1.tpr \
     -f 05_analisis/md_center.xtc \
     -o 05_analisis/md_fit.xtc \
     -fit rot+trans
-~~~
+```
 
 No use una trayectoria ajustada para difusión lateral de lípidos ni para fluctuaciones de caja. El ajuste cambia las coordenadas colectivas que esos análisis necesitan.
 
 Si la producción está segmentada:
 
-~~~bash
+```bash
 gmx trjcat \
     -f step7_1.xtc step7_2.xtc step7_3.xtc step7_4.xtc \
     -o md_all.xtc \
     -cat
-~~~
+```
 
 Compruebe continuidad temporal y descarte marcos duplicados si los segmentos se solapan.
 
@@ -4566,25 +4565,25 @@ Compruebe continuidad temporal y descarte marcos duplicados si los segmentos se 
 
 RMSD del backbone:
 
-~~~bash
+```bash
 (echo Backbone; echo Backbone) | \
 gmx rms \
     -s step7_1.tpr \
     -f 05_analisis/md_fit.xtc \
     -o 05_analisis/rmsd_backbone.xvg \
     -tu ns
-~~~
+```
 
 RMSF por residuo:
 
-~~~bash
+```bash
 echo C-alpha | \
 gmx rmsf \
     -s step7_1.tpr \
     -f 05_analisis/md_fit.xtc \
     -o 05_analisis/rmsf_calpha.xvg \
     -res
-~~~
+```
 
 Para una acuaporina tetramérica, calcule además:
 
@@ -4602,32 +4601,32 @@ Un RMSD estable del tetrámero puede ocultar que un monómero se deforma; cuatro
 
 El área instantánea proyectada es:
 
-\[
+$$
 A_{xy}(t)=L_x(t)L_y(t)
-\]
+$$
 
 Extraiga las dimensiones:
 
-~~~bash
+```bash
 (echo Box-X; echo Box-Y; echo Box-Z; echo Volume; echo 0) | \
 gmx energy \
     -f step7_1.edr \
     -o 05_analisis/box_dimensions.xvg
-~~~
+```
 
 Para una bicapa homogénea, simétrica y sin proteína:
 
-\[
+$$
 APL(t)=\frac{A_{xy}(t)}{N_{\mathrm{lip,leaflet}}}
-\]
+$$
 
 Con una proteína:
 
-\[
+$$
 APL_{\mathrm{aprox}}(t)=
 \frac{A_{xy}(t)-A_{\mathrm{prot}}(t)}
      {N_{\mathrm{lip,leaflet}}}
-\]
+$$
 
 La corrección depende de cómo se defina el área proyectada de la proteína. En bicapas mixtas no existe una única APL rigurosa para todas las especies. Para análisis local conviene usar una partición de Voronoi u otra herramienta específica.
 
@@ -4637,13 +4636,13 @@ No divida por el número total de lípidos de las dos monocapas: el denominador 
 
 En un ensamble apropiado puede estimarse:
 
-\[
+$$
 K_A=
 \frac{k_\mathrm{B}T\langle A\rangle}
      {\langle A^2\rangle-\langle A\rangle^2}
-\]
+$$
 
-donde \(A=L_xL_y\). La estimación es sensible a:
+donde $A=L_xL_y$. La estimación es sensible a:
 
 - duración de la trayectoria;
 - barostato;
@@ -4658,7 +4657,7 @@ Use promedios por bloques y no compare directamente valores obtenidos con ensamb
 
 Calcule perfiles a lo largo de z:
 
-~~~bash
+```bash
 gmx density \
     -s step7_1.tpr \
     -f md_all.xtc \
@@ -4667,7 +4666,7 @@ gmx density \
     -sl 200 \
     -dens number \
     -o 05_analisis/density_z.xvg
-~~~
+```
 
 Cree grupos para:
 
@@ -4680,9 +4679,9 @@ Cree grupos para:
 
 Una definición simple del espesor entre cabezas es la distancia entre los máximos de densidad de fósforo de ambas monocapas:
 
-\[
+$$
 d_{PP}=z_{P,\mathrm{sup}}-z_{P,\mathrm{inf}}
-\]
+$$
 
 Es una definición global. Una membrana deformada alrededor de la proteína requiere mapas locales de espesor.
 
@@ -4690,30 +4689,30 @@ Es una definición global. Una membrana deformada alrededor de la proteína requ
 
 El parámetro de orden deuterio se expresa como:
 
-\[
+$$
 S_{CD}=
 \frac{1}{2}
 \left\langle 3\cos^2\theta-1 \right\rangle
-\]
+$$
 
-donde \(\theta\) es el ángulo entre un enlace de la cadena y la normal de la membrana.
+donde $\theta$ es el ángulo entre un enlace de la cadena y la normal de la membrana.
 
 Consulte primero la sintaxis disponible:
 
-~~~bash
+```bash
 gmx order -h
-~~~
+```
 
 Ejemplo general:
 
-~~~bash
+```bash
 gmx order \
     -s step7_1.tpr \
     -f md_all.xtc \
     -n lipid_chains.ndx \
     -d z \
     -od 05_analisis/order_parameter.xvg
-~~~
+```
 
 El archivo de índice debe definir los átomos de cadena en el orden requerido. No mezcle carbonos de especies lipídicas diferentes en una misma curva sin justificarlo.
 
@@ -4721,22 +4720,22 @@ El archivo de índice debe definir los átomos de cadena en el orden requerido. 
 
 Para difusión bidimensional:
 
-\[
+$$
 MSD_{xy}(t)=
 \left\langle
 [x(t)-x(0)]^2+[y(t)-y(0)]^2
 \right\rangle
-\]
+$$
 
 En el régimen difusivo:
 
-\[
+$$
 MSD_{xy}(t)=4D_{xy}t
-\]
+$$
 
 Comando:
 
-~~~bash
+```bash
 gmx msd \
     -s step7_1.tpr \
     -f md_all.xtc \
@@ -4744,7 +4743,7 @@ gmx msd \
     -sel 'res_com of group "POPC"' \
     -lateral z \
     -o 05_analisis/msd_popc_xy.xvg
-~~~
+```
 
 Compruebe la sintaxis con **gmx msd -h**, porque cambió respecto de versiones antiguas. El ajuste no debe incluir el régimen balístico inicial ni una región donde el MSD todavía sea subdifusivo. La difusión lipídica converge lentamente y depende del tamaño del sistema.
 
@@ -4752,7 +4751,7 @@ Compruebe la sintaxis con **gmx msd -h**, porque cambió respecto de versiones a
 
 Defina un vector entre centros de masa de dos grupos situados en extremos opuestos del poro y calcule su ángulo con z:
 
-~~~bash
+```bash
 gmx gangle \
     -s step7_1.tpr \
     -f md_all.xtc \
@@ -4761,7 +4760,7 @@ gmx gangle \
     -group1 'com of group "Pore_lower" plus com of group "Pore_upper"' \
     -g2 z \
     -oav 05_analisis/pore_tilt.xvg
-~~~
+```
 
 La selección debe adaptarse a residuos conservados de la acuaporina. Para el tetrámero, genere una curva por monómero.
 
@@ -4780,7 +4779,7 @@ Una disminución local del radio no implica cierre funcional si el agua mantiene
 
 Puentes de hidrógeno proteína–agua:
 
-~~~bash
+```bash
 gmx hbond \
     -s step7_1.tpr \
     -f 05_analisis/md_fit.xtc \
@@ -4788,13 +4787,13 @@ gmx hbond \
     -r 'group "Protein"' \
     -t 'group "Water"' \
     -num 05_analisis/protein_water_hbonds.xvg
-~~~
+```
 
 Verifique la sintaxis exacta con:
 
-~~~bash
+```bash
 gmx hbond -h
-~~~
+```
 
 En acuaporinas importa no solo la ocupación, sino la orientación de las moléculas de agua cerca de los motivos NPA. El cambio de orientación contribuye al mecanismo de exclusión de protones. Este análisis requiere vectores dipolares o enlaces O–H y una coordenada axial referida al poro.
 
@@ -4804,47 +4803,47 @@ Contar moléculas dentro de un cilindro en cada fotograma no equivale a contar p
 
 Defina tres estados respecto del centro del canal:
 
-~~~text
+```text
 A: z < -z0
 P: -z0 ≤ z ≤ z0 y dentro del radio del poro
 B: z > z0
-~~~
+```
 
 Una permeación A→B requiere la secuencia A→P→B para la misma molécula, sin reiniciar el conteo por fluctuaciones en el límite. Use coordenadas relativas al centro de cada monómero y corrija PBC.
 
 El flujo neto bajo un gradiente puede expresarse como:
 
-\[
+$$
 J=\frac{N_{A\rightarrow B}-N_{B\rightarrow A}}{t}
-\]
+$$
 
 Una estimación directa de permeabilidad osmótica necesita además el gradiente de concentración:
 
-\[
+$$
 P_f=\frac{J}{\Delta c}
-\]
+$$
 
-Las unidades dependen de si \(J\) se expresa como moléculas por tiempo, moles por tiempo o volumen por tiempo. En equilibrio, donde no hay flujo neto sostenido, se utilizan formulaciones basadas en fluctuaciones colectivas; no debe aplicarse la ecuación anterior con \(\Delta c=0\).
+Las unidades dependen de si $J$ se expresa como moléculas por tiempo, moles por tiempo o volumen por tiempo. En equilibrio, donde no hay flujo neto sostenido, se utilizan formulaciones basadas en fluctuaciones colectivas; no debe aplicarse la ecuación anterior con $\Delta c=0$.
 
 ### 31. Permeabilidad colectiva en equilibrio
 
-Para una coordenada colectiva \(n(t)\) que registra el desplazamiento neto de agua a través del canal:
+Para una coordenada colectiva $n(t)$ que registra el desplazamiento neto de agua a través del canal:
 
-\[
+$$
 \left\langle
 [n(t)-n(0)]^2
 \right\rangle
 \xrightarrow[t\ \mathrm{grande}]{}
 2D_n t
-\]
+$$
 
 La permeabilidad osmótica de canal único puede relacionarse con:
 
-\[
+$$
 p_f=v_wD_n
-\]
+$$
 
-donde \(v_w\) es el volumen molecular del agua y \(D_n\) es el coeficiente de difusión de la coordenada colectiva. La definición exacta de \(n(t)\), el tratamiento de PBC y el intervalo de ajuste deben mantenerse constantes al comparar sistemas.
+donde $v_w$ es el volumen molecular del agua y $D_n$ es el coeficiente de difusión de la coordenada colectiva. La definición exacta de $n(t)$, el tratamiento de PBC y el intervalo de ajuste deben mantenerse constantes al comparar sistemas.
 
 No calcule una permeabilidad confiable a partir de unos pocos cruces. Use réplicas, intervalos de confianza y análisis por bloques.
 
@@ -4852,26 +4851,26 @@ No calcule una permeabilidad confiable a partir de unos pocos cruces. Use répli
 
 Los contactos persistentes pueden revelar sitios anulares o específicos. Un contacto simple puede definirse por una distancia máxima:
 
-~~~bash
+```bash
 gmx select \
     -s step7_1.tpr \
     -f md_all.xtc \
     -n index.ndx \
     -select 'resname POPC and within 0.45 of group "Protein"' \
     -os 05_analisis/lipid_contacts_size.xvg
-~~~
+```
 
 Este resultado informa cuántos átomos o posiciones cumplen la selección, según la salida elegida; no es automáticamente un número de lípidos únicos. Para residencia lipídica deben seguirse identidades moleculares y tolerar interrupciones cortas.
 
 En una mezcla, analice enriquecimiento relativo:
 
-\[
+$$
 E_i=
 \frac{x_i^{\mathrm{contacto}}}
      {x_i^{\mathrm{membrana}}}
-\]
+$$
 
-donde \(E_i>1\) sugiere enriquecimiento de la especie \(i\) alrededor de la proteína. El resultado depende del corte, del área considerada y del muestreo.
+donde $E_i>1$ sugiere enriquecimiento de la especie $i$ alrededor de la proteína. El resultado depende del corte, del área considerada y del muestreo.
 
 ### 33. Potencial electrostático y sistemas con voltaje
 
@@ -4879,9 +4878,9 @@ El potencial promedio a lo largo de z puede calcularse con **gmx potential** a p
 
 Para estudiar flujo iónico bajo potencial sostenido puede utilizarse el protocolo de electrofisiología computacional de GROMACS, que emplea típicamente dos bicapas, dos compartimientos y un desequilibrio de carga:
 
-\[
+$$
 \Delta U=\frac{\Delta q}{C_{\mathrm{membrana}}}
-\]
+$$
 
 Este montaje no es necesario para permeación de agua en equilibrio y no debe añadirse sin una pregunta electrofisiológica explícita.
 
@@ -4956,25 +4955,25 @@ VMD y otros visores pueden no inferir correctamente enlaces entre partículas CG
 
 Las representaciones deben basarse en nombres reales de partículas y residuos. Ejemplos habituales en Martini incluyen:
 
-~~~text
+```text
 name BB
 resname POPC
 resname W
 resname NA CL
-~~~
+```
 
 Los nombres dependen de la versión y del constructor. Compruébelos en la coordenada y en los ITP.
 
 Para reducir memoria, genere una trayectoria de visualización:
 
-~~~bash
+```bash
 gmx trjconv \
     -s cg_md.tpr \
     -f cg_md.xtc \
     -o cg_visualization.xtc \
     -n cg_visualization.ndx \
     -dt 1000
-~~~
+```
 
 No use la trayectoria reducida para análisis que requieran resolución temporal mayor.
 
@@ -5032,46 +5031,45 @@ Inicie la producción cuando:
 12. [Opciones MDP de GROMACS 2026.3: mass-repartition-factor](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html#mdp-value-mass-repartition-factor)
 
 
-
 ## Energía libre de perturbación: energía libre de solvatación
 
 ### Caso de estudio: formaldehído en agua
 
 La energía libre de solvatación describe el cambio de energía libre asociado con transferir una especie química desde una fase de referencia —habitualmente gas ideal— hasta una solución a dilución infinita:
 
-\[
+$$
 \Delta G_{\mathrm{solv}} =
 G_{\mathrm{soluto,solución}}-
 G_{\mathrm{soluto,gas}}
-\]
+$$
 
-Una \(\Delta G_{\mathrm{solv}}<0\) indica que la transferencia al solvente es favorable bajo la convención y los estados estándar especificados. La magnitud depende de la identidad química, el estado de protonación, el solvente, la temperatura, el campo de fuerza, los estados estándar, el tratamiento electrostático, el tamaño de caja y el muestreo.
+Una $\Delta G_{\mathrm{solv}}<0$ indica que la transferencia al solvente es favorable bajo la convención y los estados estándar especificados. La magnitud depende de la identidad química, el estado de protonación, el solvente, la temperatura, el campo de fuerza, los estados estándar, el tratamiento electrostático, el tamaño de caja y el muestreo.
 
-Este tutorial muestra un cálculo alquímico de una molécula neutra. El formaldehído sirve para ilustrar la mecánica de GROMACS, pero presenta una limitación química crítica: en agua reacciona para formar metanodiol. El resultado obtenido con una topología no reactiva corresponde al formaldehído molecular \(\mathrm{H_2CO}\), no al equilibrio químico completo de una solución de formaldehído.
+Este tutorial muestra un cálculo alquímico de una molécula neutra. El formaldehído sirve para ilustrar la mecánica de GROMACS, pero presenta una limitación química crítica: en agua reacciona para formar metanodiol. El resultado obtenido con una topología no reactiva corresponde al formaldehído molecular $\mathrm{H_2CO}$, no al equilibrio químico completo de una solución de formaldehído.
 
 ### 1. Fundamento del método
 
-Los estados físicos A y B pueden tener distribuciones configuracionales con poca superposición. Se construye entonces un camino alquímico mediante \(\lambda\):
+Los estados físicos A y B pueden tener distribuciones configuracionales con poca superposición. Se construye entonces un camino alquímico mediante $\lambda$:
 
-\[
+$$
 H(\mathbf{x};\lambda)
-\]
+$$
 
 Una interpolación conceptual sencilla es:
 
-\[
+$$
 H(\lambda)=(1-\lambda)H_A+\lambda H_B
-\]
+$$
 
 Los estados intermedios no necesitan ser físicamente realizables. Solo deben conectar los extremos mediante una ruta reversible con superposición estadística suficiente.
 
 Para un desacoplamiento en solución:
 
-~~~text
+```text
 λ = 0                         λ = 1
 soluto completamente          soluto sin interacciones
 acoplado al agua              no enlazadas con el agua
-~~~
+```
 
 Las interacciones internas del soluto se mantienen. La molécula desacoplada sigue presente en las coordenadas, pero no ejerce interacciones de Coulomb ni Lennard-Jones sobre el solvente.
 
@@ -5079,7 +5077,7 @@ Las interacciones internas del soluto se mantienen. La molécula desacoplada sig
 
 La ecuación de Zwanzig es:
 
-\[
+$$
 \Delta G_{A\rightarrow B}
 =
 -k_\mathrm{B}T
@@ -5087,13 +5085,13 @@ La ecuación de Zwanzig es:
 \left\langle
 \exp[-\beta(U_B-U_A)]
 \right\rangle_A
-\]
+$$
 
-con \(\beta=1/(k_\mathrm{B}T)\), o \(\beta=1/(RT)\) para cantidades molares. Es exacta en el límite de muestreo infinito, pero ineficiente cuando A y B tienen poca superposición.
+con $\beta=1/(k_\mathrm{B}T)$, o $\beta=1/(RT)$ para cantidades molares. Es exacta en el límite de muestreo infinito, pero ineficiente cuando A y B tienen poca superposición.
 
 En integración termodinámica:
 
-\[
+$$
 \Delta G_{A\rightarrow B}
 =
 \int_0^1
@@ -5101,7 +5099,7 @@ En integración termodinámica:
 \frac{\partial H}{\partial\lambda}
 \right\rangle_\lambda
 d\lambda
-\]
+$$
 
 TI requiere una grilla que resuelva la curvatura del integrando y una integración numérica apropiada.
 
@@ -5118,24 +5116,24 @@ Definamos:
 
 La simulación calcula:
 
-\[
+$$
 \Delta G_{0\rightarrow1}
 =
 G_{\mathrm{desacoplado}}-
 G_{\mathrm{acoplado}}
 =
 \Delta G_{\mathrm{desacoplamiento}}
-\]
+$$
 
 Por lo tanto:
 
-\[
+$$
 \boxed{
 \Delta G_{\mathrm{solv}}
 =
 -\Delta G_{0\rightarrow1}
 }
-\]
+$$
 
 Si se invierten **couple-lambda0** y **couple-lambda1**, también se invierte el signo. Antes de interpretar un número, escriba qué representa cada extremo.
 
@@ -5150,13 +5148,13 @@ Una secuencia habitual es:
 
 Si desaparece primero el volumen excluido, el solvente puede ocupar la posición del soluto mientras todavía existen cargas puntuales.
 
-\[
+$$
 \Delta G_{\mathrm{desacoplamiento}}
 =
 \Delta G_{\mathrm{Coulomb}}
 +
 \Delta G_{\mathrm{LJ}}
-\]
+$$
 
 Esta separación permite identificar qué componente necesita mayor densidad de estados λ.
 
@@ -5164,12 +5162,12 @@ Esta separación permite identificar qué componente necesita mayor densidad de 
 
 La interpolación lineal de Lennard-Jones puede producir divergencias cuando dos partículas se superponen. Los potenciales soft-core mantienen finita la energía en estados intermedios.
 
-~~~ini
+```ini
 sc-alpha       = 0.5
 sc-power       = 1
 sc-sigma       = 0.3
 sc-coul        = no
-~~~
+```
 
 Son valores iniciales, no constantes universales. **sc-power** requiere un entero y **sc-sigma** se expresa en nm. Como Coulomb se elimina antes que Lennard-Jones, no se activa soft-core electrostático.
 
@@ -5179,11 +5177,11 @@ Agregar estados uniformemente no garantiza precisión. Conviene aumentar su dens
 
 Grilla inicial de 19 estados:
 
-~~~ini
+```ini
 coul-lambdas = 0.00 0.25 0.50 0.75 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00
 
 vdw-lambdas  = 0.00 0.00 0.00 0.00 0.00 0.05 0.10 0.15 0.20 0.30 0.40 0.50 0.60 0.70 0.80 0.85 0.90 0.95 1.00
-~~~
+```
 
 Los índices 0–4 descargan el soluto y los índices 4–18 eliminan Lennard-Jones. El estado 4 es común a ambas etapas. La grilla debe reajustarse después de analizar solapamiento y errores por intervalo.
 
@@ -5193,7 +5191,7 @@ La topología debe ser compatible con el campo de fuerza y el modelo de agua. No
 
 Compruebe:
 
-- fórmula \(\mathrm{CH_2O}\);
+- fórmula $\mathrm{CH_2O}$;
 - geometría trigonal plana;
 - carga neta cero;
 - nombres y orden de átomos;
@@ -5205,7 +5203,7 @@ Compruebe:
 
 Organización sugerida:
 
-~~~text
+```text
 00_parametros/
     formaldehyde.gro
     formaldehyde.itp
@@ -5215,11 +5213,11 @@ Organización sugerida:
 03_fep/
 04_analisis/
 topol.top
-~~~
+```
 
 Topología general:
 
-~~~ini
+```ini
 #include "campo_de_fuerza.ff/forcefield.itp"
 #include "00_parametros/formaldehyde_atomtypes.itp"
 #include "00_parametros/formaldehyde.itp"
@@ -5231,30 +5229,30 @@ Formaldehído molecular en agua
 [ molecules ]
 FOR    1
 SOL    NUMERO_DE_AGUAS
-~~~
+```
 
 **FOR** debe coincidir con **[ moleculetype ]**. Si existen varias moléculas FOR, **couple-moltype = FOR** perturbará todas. Para desacoplar una sola copia se necesita un tipo molecular exclusivo.
 
 ### 8. Construcción de la caja
 
-~~~bash
+```bash
 gmx editconf \
     -f 00_parametros/formaldehyde.gro \
     -o 01_preparacion/formaldehyde_box.gro \
     -c \
     -d 1.2 \
     -bt dodecahedron
-~~~
+```
 
 La distancia de 1.2 nm es inicial. Debe reducir interacciones con imágenes periódicas y ser coherente con los cortes.
 
-~~~bash
+```bash
 gmx solvate \
     -cp 01_preparacion/formaldehyde_box.gro \
     -cs spc216.gro \
     -o 01_preparacion/formaldehyde_water.gro \
     -p topol.top
-~~~
+```
 
 **spc216.gro** aporta coordenadas de agua de tres sitios. El modelo físico queda determinado por la topología incluida.
 
@@ -5262,7 +5260,7 @@ Para una sola molécula no hace falta insertarla en una caja vacía y luego rede
 
 ### 9. Minimización
 
-~~~ini
+```ini
 title           = EM de formaldehído en agua
 integrator      = steep
 nsteps          = 50000
@@ -5277,11 +5275,11 @@ rcoulomb        = 1.2
 vdwtype         = Cut-off
 rvdw            = 1.2
 pbc             = xyz
-~~~
+```
 
 Los cortes deben adaptarse al campo de fuerza.
 
-~~~bash
+```bash
 mkdir -p 02_equilibracion
 
 gmx grompp \
@@ -5294,7 +5292,7 @@ gmx grompp \
 gmx mdrun \
     -deffnm 02_equilibracion/em \
     -v
-~~~
+```
 
 Terminar por alcanzar **nsteps** sin cumplir **emtol** no significa convergencia. Una fuerza máxima de miles de kJ·mol⁻¹·nm⁻¹ debe investigarse.
 
@@ -5302,7 +5300,7 @@ Terminar por alcanzar **nsteps** sin cumplir **emtol** no significa convergencia
 
 NVT:
 
-~~~ini
+```ini
 title         = NVT previa a FEP
 integrator    = md
 dt            = 0.002
@@ -5319,9 +5317,9 @@ tau-t         = 1.0
 ref-t         = 298.15
 pcoupl        = no
 pbc           = xyz
-~~~
+```
 
-~~~bash
+```bash
 gmx grompp \
     -f nvt.mdp \
     -c 02_equilibracion/em.gro \
@@ -5329,11 +5327,11 @@ gmx grompp \
     -o 02_equilibracion/nvt.tpr
 
 gmx mdrun -deffnm 02_equilibracion/nvt -v
-~~~
+```
 
 NPT:
 
-~~~ini
+```ini
 title            = NPT previa a FEP
 integrator       = md
 dt               = 0.002
@@ -5353,9 +5351,9 @@ tau-p             = 5.0
 ref-p             = 1.0
 compressibility   = 4.5e-5
 pbc               = xyz
-~~~
+```
 
-~~~bash
+```bash
 gmx grompp \
     -f npt.mdp \
     -c 02_equilibracion/nvt.gro \
@@ -5364,7 +5362,7 @@ gmx grompp \
     -o 02_equilibracion/npt.tpr
 
 gmx mdrun -deffnm 02_equilibracion/npt -v
-~~~
+```
 
 Cuarenta picosegundos no constituyen una duración universal de equilibración. Evalúe densidad, volumen, energía y relajación del solvente.
 
@@ -5372,7 +5370,7 @@ Cuarenta picosegundos no constituyen una duración universal de equilibración. 
 
 Mantenga los parámetros no enlazados del protocolo validado y añada:
 
-~~~ini
+```ini
 free-energy            = yes
 couple-moltype         = FOR
 
@@ -5395,7 +5393,7 @@ sc-coul                = no
 nstdhdl                = 100
 dhdl-derivatives       = yes
 separate-dhdl-file     = yes
-~~~
+```
 
 **calc-lambda-neighbors = 1** calcula diferencias con estados vecinos para BAR. **nstdhdl** debe ser múltiplo de **nstcalcenergy**.
 
@@ -5412,30 +5410,30 @@ Ambos contienen **LAMBDA_STATE**.
 
 Equilibración por ventana:
 
-~~~ini
+```ini
 nsteps       = 250000
 nstdhdl      = 0
 gen-vel      = yes
 gen-temp     = 298.15
 gen-seed     = -1
-~~~
+```
 
 Producción por ventana:
 
-~~~ini
+```ini
 nsteps       = 2500000
 nstdhdl      = 100
 gen-vel      = no
 continuation = yes
-~~~
+```
 
-Con \(dt=0.002\ \mathrm{ps}\), corresponden a 0.5 ns y 5 ns. Son puntos de partida, no garantías de convergencia.
+Con $dt=0.002\ \mathrm{ps}$, corresponden a 0.5 ns y 5 ns. Son puntos de partida, no garantías de convergencia.
 
 ### 13. Crear y ejecutar las ventanas
 
 Script para Bash 4 o superior:
 
-~~~bash
+```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -5478,13 +5476,13 @@ do
         -dhdl "${DIRECTORY}/dhdl.xvg" \
         -v
 done
-~~~
+```
 
-~~~bash
+```bash
 chmod +x run_fep.sh
 bash -n run_fep.sh
 ./run_fep.sh
-~~~
+```
 
 Las ventanas son independientes después de generar sus TPR y pueden ejecutarse como un array de trabajos. No use el mismo directorio o nombre de salida para ventanas diferentes.
 
@@ -5492,7 +5490,7 @@ Las ventanas son independientes después de generar sus TPR y pueden ejecutarse 
 
 Ejemplo mínimo basado en **SLURM_ARRAY_TASK_ID**:
 
-~~~bash
+```bash
 STATE="${SLURM_ARRAY_TASK_ID}"
 DIRECTORY=$(printf "03_fep/lambda_%02d" "${STATE}")
 
@@ -5500,26 +5498,26 @@ gmx mdrun \
     -deffnm "${DIRECTORY}/production" \
     -dhdl "${DIRECTORY}/dhdl.xvg" \
     -v
-~~~
+```
 
 Los TPR deben haberse generado previamente. Los recursos, GPU, partición y tiempo dependen del clúster.
 
 Registre:
 
-~~~text
+```text
 estado | coul-lambda | vdw-lambda | semilla | duración | estado del trabajo
-~~~
+```
 
 ### 15. Continuar una ventana
 
-~~~bash
+```bash
 gmx mdrun \
     -deffnm 03_fep/lambda_07/production \
     -cpi 03_fep/lambda_07/production.cpt \
     -append \
     -dhdl 03_fep/lambda_07/dhdl.xvg \
     -v
-~~~
+```
 
 No regenere el TPR si solo continúa el mismo Hamiltoniano. Si cambia MDP, duración o λ, documente el nuevo segmento.
 
@@ -5527,7 +5525,7 @@ No regenere el TPR si solo continúa el mismo Hamiltoniano. Si cambia MDP, durac
 
 Los directorios llevan ceros iniciales para que el glob preserve el orden:
 
-~~~bash
+```bash
 mkdir -p 04_analisis
 
 gmx bar \
@@ -5537,23 +5535,23 @@ gmx bar \
     -oi 04_analisis/bar_integral.xvg \
     -oh 04_analisis/bar_histograms.xvg \
     -prec 3
-~~~
+```
 
 **-b 500** descarta 500 ps de cada archivo. Determine el descarte mediante la relajación real de las ventanas, no por copia del ejemplo.
 
 Con la convención usada:
 
-\[
+$$
 \Delta G_{\mathrm{solv}}
 =
 -\Delta G_{\mathrm{BAR}}
-\]
+$$
 
 ### 17. Diagnóstico de BAR
 
 Revise por cada par:
 
-- \(\Delta G\) parcial;
+- $\Delta G$ parcial;
 - incertidumbre;
 - entropías relativas **s_A** y **s_B**;
 - desviación esperada por muestra;
@@ -5568,11 +5566,11 @@ El error de BAR no incluye automáticamente error del campo de fuerza, modelo de
 
 Repita BAR con distintos descartes:
 
-~~~bash
+```bash
 gmx bar -b 250  -f 03_fep/lambda_*/dhdl.xvg
 gmx bar -b 500  -f 03_fep/lambda_*/dhdl.xvg
 gmx bar -b 1000 -f 03_fep/lambda_*/dhdl.xvg
-~~~
+```
 
 Una estimación defendible debe mostrar:
 
@@ -5589,7 +5587,7 @@ Use semillas distintas y vuelva a equilibrar las ventanas para cada réplica. Tr
 
 ### 19. Refinar la grilla
 
-Agregue estados entre \(\lambda_i\) y \(\lambda_{i+1}\) si los histogramas apenas se superponen, el error parcial domina, **s_A/s_B** aumentan abruptamente o el solvente entra y sale de forma discontinua.
+Agregue estados entre $\lambda_i$ y $\lambda_{i+1}$ si los histogramas apenas se superponen, el error parcial domina, **s_A/s_B** aumentan abruptamente o el solvente entra y sale de forma discontinua.
 
 No agregue ventanas donde el solapamiento ya es alto si el cuello de botella está en otra región. Redistribuya el cálculo.
 
@@ -5597,33 +5595,33 @@ No agregue ventanas donde el solapamiento ya es alto si el cuello de botella est
 
 GROMACS informa energías molares en kJ·mol⁻¹.
 
-\[
+$$
 1\ \mathrm{kcal\,mol^{-1}}
 =
 4.184\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
-\[
+$$
 1\ \mathrm{eV\ por\ molécula}
 =
 96.485332\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
-\[
+$$
 1\ E_h
 =
 2625.50\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
 Por tanto:
 
-\[
+$$
 -0.151256\ \mathrm{eV}
 \times
 96.485332
 =
 -14.59399\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
 El valor anterior, −14.5934028 kJ·mol⁻¹, difiere ligeramente por el factor de conversión empleado. Esa diferencia es despreciable frente a la incertidumbre física, pero debe usarse una constante consistente.
 
@@ -5631,42 +5629,42 @@ El valor anterior, −14.5934028 kJ·mol⁻¹, difiere ligeramente por el factor
 
 A 298.15 K:
 
-\[
+$$
 RT=
 (8.314462618\times10^{-3})
 (298.15)
 =
 2.47896\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
-Una unidad \(k_\mathrm{B}T\) por partícula equivale numéricamente a una unidad \(RT\) por mol.
+Una unidad $k_\mathrm{B}T$ por partícula equivale numéricamente a una unidad $RT$ por mol.
 
-\[
+$$
 -14.594\ \mathrm{kJ\,mol^{-1}}
 \approx
 -5.89\ k_\mathrm{B}T
-\]
+$$
 
 No multiplique por el número de Avogadro una energía ya expresada por mol.
 
 ### 22. Tiempo y λ
 
-\[
+$$
 1000\ \mathrm{ps}=1\ \mathrm{ns}
-\]
+$$
 
 Con:
 
-~~~ini
+```ini
 dt     = 0.002
 nsteps = 2500000
-~~~
+```
 
-\[
+$$
 t=0.002\ \mathrm{ps}\times2500000
 =5000\ \mathrm{ps}
 =5\ \mathrm{ns}
-\]
+$$
 
 λ es adimensional; **init-lambda-state** es un índice entero.
 
@@ -5676,14 +5674,14 @@ Una referencia experimental puede usar gas ideal a 1 atm o 1 bar, solución a 1 
 
 La conversión gas–solución contiene:
 
-\[
+$$
 \Delta G^\circ_{\mathrm{corr}}
 =
 RT\ln
 \left(
 \frac{C^\circ RT}{p^\circ}
 \right)
-\]
+$$
 
 A 298.15 K, la magnitud entre 1 atm y 1 mol·L⁻¹ es aproximadamente 7.9 kJ·mol⁻¹. El signo depende de la dirección y de la definición original.
 
@@ -5701,11 +5699,11 @@ No compare transformaciones que cambian la carga neta sin un protocolo específi
 
 En agua:
 
-\[
+$$
 \mathrm{H_2CO + H_2O
 \rightleftharpoons
 CH_2(OH)_2}
-\]
+$$
 
 El producto es metanodiol o metilenglicol. Según la concentración también pueden existir oligómeros.
 
@@ -5713,19 +5711,19 @@ Un campo de fuerza clásico de topología fija no rompe el enlace C=O, no forma 
 
 Este cálculo estima:
 
-\[
+$$
 \mathrm{H_2CO(g)}
 \rightarrow
 \mathrm{H_2CO(aq)}
-\]
+$$
 
 para formaldehído mantenido artificialmente como tal. No estima directamente:
 
-\[
+$$
 \mathrm{H_2CO(g)+H_2O(l)}
 \rightarrow
 \mathrm{CH_2(OH)_2(aq)}
-\]
+$$
 
 ni la solubilidad total de formaldehído.
 
@@ -5733,17 +5731,17 @@ ni la solubilidad total de formaldehído.
 
 El proceso efectivo puede descomponerse:
 
-\[
+$$
 \Delta G^\circ_{\mathrm{global}}
 =
 \Delta G^\circ_{\mathrm{solv}}(\mathrm{H_2CO})
 +
 \Delta G^\circ_{\mathrm{hidratación,aq}}
-\]
+$$
 
 Alternativas:
 
-- calcular solo solvatación física de \(\mathrm{H_2CO}\) y declararlo;
+- calcular solo solvatación física de $\mathrm{H_2CO}$ y declararlo;
 - parametrizar metanodiol como especie diferente;
 - calcular la hidratación covalente mediante QM/MM o estructura electrónica;
 - combinar solvatación y reacción en un ciclo termodinámico;
@@ -5755,11 +5753,11 @@ El tutorial oficial de GROMACS usa etanol, una elección más clara para enseña
 
 El texto anterior cita:
 
-\[
+$$
 -0.151256\ \mathrm{eV}
 =
 -14.59399\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
 Antes de compararlo con BAR deben coincidir:
 
@@ -5778,9 +5776,9 @@ La página general del proyecto NIST no reemplaza el registro específico con su
 
 Un resultado como:
 
-\[
+$$
 -22.94\pm1.04\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
 solo es interpretable si se informa:
 
@@ -5801,7 +5799,7 @@ El ± suele representar incertidumbre estadística condicionada al muestreo. No 
 
 ### 29. Controles adicionales
 
-~~~bash
+```bash
 gmx trjconv \
     -s 03_fep/lambda_00/production.tpr \
     -f 03_fep/lambda_00/production.xtc \
@@ -5813,7 +5811,7 @@ gmx trjconv \
     -f 03_fep/lambda_18/production.xtc \
     -o 04_analisis/lambda_18_snapshot.gro \
     -dump 5000
-~~~
+```
 
 Controle temperatura, volumen, errores LINCS, integridad del soluto, respuesta del solvente, ausencia de singularidades, producción de archivos de diferencias de energía y estado λ informado en el log.
 
@@ -5834,7 +5832,7 @@ En el extremo desacoplado el solvente puede ocupar el espacio del soluto. Es un 
 - Tratar muestras correlacionadas como independientes.
 - Informar solamente el error de BAR.
 - Confundir eV por molécula con kJ·mol⁻¹.
-- Multiplicar otra vez por \(N_A\).
+- Multiplicar otra vez por $N_A$.
 - Ignorar el estado estándar.
 - Perturbar varias copias del mismo **moleculetype**.
 - Cambiar carga neta sin correcciones.
@@ -5860,7 +5858,7 @@ Informe:
 - método de análisis y descarte;
 - réplicas y semillas;
 - correcciones;
-- signo de \(\Delta G\);
+- signo de $\Delta G$;
 - especie química calculada.
 
 ### 32. Criterios de aceptación
@@ -5879,7 +5877,7 @@ El cálculo es técnicamente defendible cuando:
 - el dato experimental usa una convención comparable;
 - la especie simulada coincide con la experimental.
 
-Para formaldehído acuoso en equilibrio, el último criterio no se cumple si solo se modela \(\mathrm{H_2CO}\) mediante una topología clásica fija.
+Para formaldehído acuoso en equilibrio, el último criterio no se cumple si solo se modela $\mathrm{H_2CO}$ mediante una topología clásica fija.
 
 ### Fuentes
 
@@ -5894,7 +5892,6 @@ Para formaldehído acuoso en equilibrio, el último criterio no se cumple si sol
 9. [Proyecto NIST sobre energías libres de solvatación](https://www.nist.gov/programs-projects/solvation-free-energies)
 
 
-
 ## Energía de unión mediante gmx_MMPBSA
 
 ### 1. Qué calcula este método
@@ -5905,7 +5902,7 @@ MM/PBSA y MM/GBSA no son FEP. No contienen estados λ, no hacen desaparecer el l
 
 El esquema básico es:
 
-\[
+$$
 \Delta G_{\mathrm{bind}}
 =
 G_{\mathrm{complejo}}
@@ -5913,22 +5910,22 @@ G_{\mathrm{complejo}}
 G_{\mathrm{receptor}}
 -
 G_{\mathrm{ligando}}
-\]
+$$
 
 Para cada especie:
 
-\[
+$$
 G=
 E_{\mathrm{MM}}
 +
 G_{\mathrm{solv}}
 -
 TS
-\]
+$$
 
 La energía de mecánica molecular puede escribirse:
 
-\[
+$$
 E_{\mathrm{MM}}
 =
 E_{\mathrm{bonded}}
@@ -5936,21 +5933,21 @@ E_{\mathrm{bonded}}
 E_{\mathrm{vdW}}
 +
 E_{\mathrm{elec}}
-\]
+$$
 
 y la contribución de solvatación:
 
-\[
+$$
 G_{\mathrm{solv}}
 =
 G_{\mathrm{polar}}
 +
 G_{\mathrm{nonpolar}}
-\]
+$$
 
 Por tanto:
 
-\[
+$$
 \Delta G_{\mathrm{bind}}
 =
 \Delta E_{\mathrm{MM}}
@@ -5960,17 +5957,17 @@ Por tanto:
 \Delta G_{\mathrm{nonpolar}}
 -
 T\Delta S
-\]
+$$
 
 Si no se calcula entropía, el resultado contiene solo:
 
-\[
+$$
 \Delta G_{\mathrm{bind}}^{*}
 =
 \Delta E_{\mathrm{MM}}
 +
 \Delta G_{\mathrm{solv}}
-\]
+$$
 
 El asterisco recuerda que no es una energía libre absoluta completa. Muchos informes la llaman “binding free energy”, pero físicamente es una estimación end-state sin el término entrópico explícito.
 
@@ -6013,18 +6010,18 @@ La aproximación omite o simplifica agua explícita, reorganización del solvent
 
 En el protocolo de trayectoria única, **single trajectory, ST**, receptor y ligando se extraen de cada instantánea del complejo:
 
-~~~text
+```text
 trayectoria del complejo
         ├── complejo
         ├── receptor extraído
         └── ligando extraído
-~~~
+```
 
 Esto mantiene correspondencia conformacional entre los tres términos y favorece la cancelación:
 
-\[
+$$
 \Delta E_{\mathrm{bonded}}\approx0
-\]
+$$
 
 Ventajas:
 
@@ -6043,7 +6040,7 @@ ST no cuantifica adecuadamente una reorganización grande inducida por unión.
 
 En el protocolo **multiple trajectory, MT**, complejo, receptor y ligando provienen de simulaciones separadas:
 
-\[
+$$
 \Delta G_{\mathrm{bind}}
 =
 \langle G_C\rangle_C
@@ -6051,7 +6048,7 @@ En el protocolo **multiple trajectory, MT**, complejo, receptor y ligando provie
 \langle G_R\rangle_R
 -
 \langle G_L\rangle_L
-\]
+$$
 
 Puede incorporar reorganización conformacional, pero aumenta mucho la varianza porque se pierde cancelación entre configuraciones correlacionadas.
 
@@ -6078,14 +6075,14 @@ GROMACS 2026 está dentro del rango probado. Esto no garantiza que cualquier top
 
 Archivos necesarios para ST:
 
-~~~text
+```text
 md.tpr              estructura y masas del complejo
 md_fit.xtc          trayectoria corregida
 index.ndx           grupos receptor y ligando
 topol.top           topología completa de GROMACS
 reference.pdb       referencia con cadenas y numeración, recomendada
 mmpbsa.in           opciones del cálculo
-~~~
+```
 
 La topología del ligando debe estar incluida en **topol.top**. La ruta actual no reconstruye ligandos desde un PDB sin parámetros.
 
@@ -6093,7 +6090,7 @@ La topología del ligando debe estar incluida en **topol.top**. La ruta actual n
 
 Conda o Mamba, Python 3.12:
 
-~~~bash
+```bash
 conda create -n gmxMMPBSA python=3.12 -y
 conda activate gmxMMPBSA
 
@@ -6104,47 +6101,47 @@ conda install -c conda-forge \
 
 python -m pip install gmx_MMPBSA
 python -m pip check
-~~~
+```
 
 Si GROMACS 2026 ya está instalado en el sistema y disponible en **PATH**, no instale otra copia sin necesidad. Verifique:
 
-~~~bash
+```bash
 gmx --version
 gmx_MMPBSA --version
 gmx_MMPBSA -h
 python -m pip check
-~~~
+```
 
 Para una instalación completamente aislada:
 
-~~~bash
+```bash
 conda install -c conda-forge "gromacs>=2022,<2027" pocl -y
-~~~
+```
 
 La interfaz gráfica requiere PyQt6:
 
-~~~bash
+```bash
 conda install -c conda-forge pyqt6 -y
-~~~
+```
 
 No es necesaria en un nodo HPC sin entorno gráfico.
 
 ### 8. Probar la instalación
 
-~~~bash
+```bash
 gmx_MMPBSA_test -h
-~~~
+```
 
 Ejecute primero una prueba pequeña proporcionada por el paquete. Esto permite separar problemas de instalación de problemas propios de la topología.
 
 Compruebe además:
 
-~~~bash
+```bash
 command -v gmx
 command -v gmx_MMPBSA
 command -v ante-MMPBSA.py
 echo "${AMBERHOME:-AMBERHOME no definido}"
-~~~
+```
 
 La instalación debe encontrar AmberTools y GROMACS dentro del entorno activo o mediante las opciones de configuración correspondientes.
 
@@ -6158,31 +6155,31 @@ Cree un índice que contenga grupos separados y sin solapamiento:
 
 Forma interactiva:
 
-~~~bash
+```bash
 gmx make_ndx \
     -f md.tpr \
     -o index.ndx
-~~~
+```
 
 Ejemplo dentro de **make_ndx**, si el ligando se llama LIG:
 
-~~~text
+```text
 r LIG
 Protein | r LIG
 name NOMBRE_GRUPO_RECEPTOR Receptor
 name NOMBRE_GRUPO_LIGANDO Ligando
 name NOMBRE_GRUPO_COMPLEJO Complejo
 q
-~~~
+```
 
 Los números reales dependen del índice creado. Verifique:
 
-~~~bash
+```bash
 gmx make_ndx \
     -f md.tpr \
     -n index.ndx \
     -o index_check.ndx
-~~~
+```
 
 No use números copiados de otro sistema. La opción actual **-cg** acepta números de grupo basados en cero o nombres.
 
@@ -6192,7 +6189,7 @@ La documentación requiere una trayectoria sin problemas de PBC y ajustada. El l
 
 Primero centre el complejo:
 
-~~~bash
+```bash
 (echo Complejo; echo System) | \
 gmx trjconv \
     -s md.tpr \
@@ -6202,11 +6199,11 @@ gmx trjconv \
     -pbc mol \
     -center \
     -ur compact
-~~~
+```
 
 Luego elimine rotación y traslación:
 
-~~~bash
+```bash
 (echo Backbone; echo System) | \
 gmx trjconv \
     -s md.tpr \
@@ -6214,7 +6211,7 @@ gmx trjconv \
     -n index.ndx \
     -o md_fit.xtc \
     -fit rot+trans
-~~~
+```
 
 Compruebe visualmente que:
 
@@ -6230,7 +6227,7 @@ Para MM/PBSA se elimina el solvente durante la preparación interna. No genere u
 
 Genere un PDB de referencia con el complejo completo:
 
-~~~bash
+```bash
 echo Complejo | \
 gmx trjconv \
     -s md.tpr \
@@ -6238,7 +6235,7 @@ gmx trjconv \
     -n index.ndx \
     -o reference.pdb \
     -dump 0
-~~~
+```
 
 Revise cadenas, numeración, nombres de residuos y átomos. La opción **-cr reference.pdb** es recomendada porque evita asignaciones automáticas incorrectas, especialmente en complejos con varias cadenas.
 
@@ -6246,18 +6243,18 @@ Revise cadenas, numeración, nombres de residuos y átomos. La opción **-cr ref
 
 La versión actual puede generar plantillas:
 
-~~~bash
+```bash
 gmx_MMPBSA --create_input gb
 gmx_MMPBSA --create_input pb
 gmx_MMPBSA --create_input gb decomp
 gmx_MMPBSA --create_input gb nmode
-~~~
+```
 
 Revise siempre la plantilla generada por la versión instalada:
 
-~~~bash
+```bash
 gmx_MMPBSA --input-file-help
-~~~
+```
 
 No reutilice el archivo **pbsa.mdp** de **g_mmpbsa**. La sintaxis actual usa bloques namelist como **&general**, **&gb**, **&pb** y **&decomp**.
 
@@ -6265,7 +6262,7 @@ No reutilice el archivo **pbsa.mdp** de **g_mmpbsa**. La sintaxis actual usa blo
 
 Archivo **mmpbsa_gb.in**:
 
-~~~text
+```text
 &general
   sys_name="Complejo_proteina_ligando",
   startframe=1,
@@ -6279,26 +6276,26 @@ Archivo **mmpbsa_gb.in**:
   igb=8,
   saltcon=0.150,
 /
-~~~
+```
 
 Con **igb=8**, la documentación recomienda **PBRadii=4**, correspondiente a mbondi3.
 
 **startframe**, **endframe** e **interval** se refieren a índices de marcos procesados, no necesariamente a ps. El número analizado es aproximadamente:
 
-\[
+$$
 N_{\mathrm{frames}}
 =
 \left\lfloor
 \frac{f_{\mathrm{final}}-f_{\mathrm{inicial}}}
      {\mathrm{interval}}
 \right\rfloor+1
-\]
+$$
 
 No elija 500 marcos consecutivos y los trate como 500 observaciones independientes.
 
 ### 14. Ejecutar MM/GBSA
 
-~~~bash
+```bash
 gmx_MMPBSA -O \
     -i mmpbsa_gb.in \
     -cs md.tpr \
@@ -6310,7 +6307,7 @@ gmx_MMPBSA -O \
     -o FINAL_RESULTS_MMGBSA.dat \
     -eo FINAL_RESULTS_MMGBSA.csv \
     -nogui
-~~~
+```
 
 Significado de las opciones principales:
 
@@ -6332,13 +6329,13 @@ Significado de las opciones principales:
 
 Genere primero la plantilla de su versión:
 
-~~~bash
+```bash
 gmx_MMPBSA --create_input pb
-~~~
+```
 
 Ejemplo inicial **mmpbsa_pb.in**:
 
-~~~text
+```text
 &general
   sys_name="Complejo_proteina_ligando_PB",
   startframe=1,
@@ -6351,11 +6348,11 @@ Ejemplo inicial **mmpbsa_pb.in**:
   istrng=0.150,
   fillratio=4.0,
 /
-~~~
+```
 
 Ejecución:
 
-~~~bash
+```bash
 gmx_MMPBSA -O \
     -i mmpbsa_pb.in \
     -cs md.tpr \
@@ -6367,7 +6364,7 @@ gmx_MMPBSA -O \
     -o FINAL_RESULTS_MMPBSA.dat \
     -eo FINAL_RESULTS_MMPBSA.csv \
     -nogui
-~~~
+```
 
 PB suele ser más costoso. Pruebe primero pocos marcos y revise convergencia numérica antes de lanzar el conjunto completo.
 
@@ -6389,11 +6386,11 @@ No ajuste el dieléctrico interno solo para acercar el resultado a un dato exper
 
 La fuerza iónica se define:
 
-\[
+$$
 I=\frac{1}{2}\sum_i c_i z_i^2
-\]
+$$
 
-Para NaCl ideal 1:1, 0.15 M produce \(I=0.15\ \mathrm{M}\). Para una sal divalente la concentración molar y la fuerza iónica no son iguales.
+Para NaCl ideal 1:1, 0.15 M produce $I=0.15\ \mathrm{M}$. Para una sal divalente la concentración molar y la fuerza iónica no son iguales.
 
 ### 17. Radios atómicos
 
@@ -6436,7 +6433,7 @@ Siempre inspeccione el log y las topologías intermedias creadas.
 
 No elimine la membrana conceptualmente y aplique un modelo acuoso homogéneo sin evaluar el efecto. La versión actual incluye opciones PB para membranas:
 
-~~~text
+```text
 &pb
   memopt=1,
   emem=7.0,
@@ -6448,7 +6445,7 @@ No elimine la membrana conceptualmente y aplique un modelo acuoso homogéneo sin
   radiopt=0,
   istrng=0.150,
 /
-~~~
+```
 
 Es un esquema orientativo. Debe adaptarse a la orientación de la bicapa, nombres de átomos, espesor, presencia de poro y modelo experimental. Una membrana implícita mal centrada puede producir un resultado peor que un modelo acuoso simplificado claramente declarado.
 
@@ -6456,23 +6453,23 @@ Es un esquema orientativo. Debe adaptarse a la orientación de la bicapa, nombre
 
 Sin entropía:
 
-\[
+$$
 \Delta G_{\mathrm{estimada}}
 =
 \Delta E_{\mathrm{MM}}
 +
 \Delta G_{\mathrm{solv}}
-\]
+$$
 
 Con entropía:
 
-\[
+$$
 \Delta G_{\mathrm{bind}}
 =
 \Delta H_{\mathrm{aprox}}
 -
 T\Delta S
-\]
+$$
 
 Métodos disponibles:
 
@@ -6482,13 +6479,13 @@ Métodos disponibles:
 
 NMODE es costoso y sensible a minimización. El consumo total de memoria crece aproximadamente como:
 
-\[
+$$
 RAM_{\mathrm{total}}
 =
 RAM_{\mathrm{por\ marco}}
 \times
 N_{\mathrm{procesos}}
-\]
+$$
 
 No paralelice NMODE hasta agotar memoria.
 
@@ -6496,7 +6493,7 @@ No paralelice NMODE hasta agotar memoria.
 
 La aproximación IE usa fluctuaciones de la energía de interacción:
 
-\[
+$$
 -T\Delta S_{\mathrm{IE}}
 =
 k_\mathrm{B}T
@@ -6508,21 +6505,21 @@ k_\mathrm{B}T
 \Delta E_{\mathrm{int}}
 \right]
 \right\rangle
-\]
+$$
 
 con:
 
-\[
+$$
 \Delta E_{\mathrm{int}}
 =
 E_{\mathrm{int}}
 -
 \left\langle E_{\mathrm{int}}\right\rangle
-\]
+$$
 
 Entrada:
 
-~~~text
+```text
 &general
   sys_name="Complejo_IE",
   startframe=1,
@@ -6538,21 +6535,21 @@ Entrada:
   igb=8,
   saltcon=0.150,
 /
-~~~
+```
 
-Debe informarse \(\sigma_{IE}\), la desviación de la energía de interacción. La documentación desaconseja IE cuando:
+Debe informarse $\sigma_{IE}$, la desviación de la energía de interacción. La documentación desaconseja IE cuando:
 
-\[
+$$
 \sigma_{IE}\gtrsim3.6\ \mathrm{kcal\,mol^{-1}}
-\]
+$$
 
 porque el promedio exponencial se vuelve difícil de converger. Esto equivale aproximadamente a:
 
-\[
+$$
 3.6\ \mathrm{kcal\,mol^{-1}}
 =
 15.1\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
 **ie_segment** es un diagnóstico de la cola de la curva acumulativa; no reemplaza el resultado calculado sobre todo el conjunto seleccionado.
 
@@ -6560,13 +6557,13 @@ porque el promedio exponencial se vuelve difícil de converger. Esto equivale ap
 
 Genere una plantilla:
 
-~~~bash
+```bash
 gmx_MMPBSA --create_input gb decomp
-~~~
+```
 
 Ejemplo:
 
-~~~text
+```text
 &general
   sys_name="Descomposicion",
   startframe=1,
@@ -6585,11 +6582,11 @@ Ejemplo:
   dec_verbose=1,
   print_res="within 4",
 /
-~~~
+```
 
 Ejecución:
 
-~~~bash
+```bash
 gmx_MMPBSA -O \
     -i mmpbsa_decomp.in \
     -cs md.tpr \
@@ -6603,7 +6600,7 @@ gmx_MMPBSA -O \
     -eo FINAL_RESULTS_DECOMP.csv \
     -deo FINAL_DECOMP_MMPBSA.csv \
     -nogui
-~~~
+```
 
 **print_res="within 4"** selecciona residuos próximos dentro de 4 Å en la sintaxis del programa. El conjunto impreso debe contener al menos un residuo del receptor y uno del ligando.
 
@@ -6622,18 +6619,18 @@ La descomposición:
 
 El alanine scanning computacional estima el cambio al mutar un residuo:
 
-\[
+$$
 \Delta\Delta G_{\mathrm{bind}}
 =
 \Delta G_{\mathrm{bind}}^{\mathrm{mutante}}
 -
 \Delta G_{\mathrm{bind}}^{\mathrm{WT}}
-\]
+$$
 
 Interpretación:
 
-- \(\Delta\Delta G>0\): la mutación debilita la unión en esta convención;
-- \(\Delta\Delta G<0\): la mutación la favorece.
+- $\Delta\Delta G>0$: la mutación debilita la unión en esta convención;
+- $\Delta\Delta G<0$: la mutación la favorece.
 
 Es una mutación end-state sobre estructuras existentes. No reemplaza una dinámica completa del mutante si este reorganiza la proteína.
 
@@ -6641,7 +6638,7 @@ Es una mutación end-state sobre estructuras existentes. No reemplaza una dinám
 
 Ejecución serial:
 
-~~~bash
+```bash
 gmx_MMPBSA -O \
     -i mmpbsa_gb.in \
     -cs md.tpr \
@@ -6651,11 +6648,11 @@ gmx_MMPBSA -O \
     -cp topol.top \
     -cr reference.pdb \
     -nogui
-~~~
+```
 
 Con MPI:
 
-~~~bash
+```bash
 mpirun -np 4 gmx_MMPBSA -O \
     -i mmpbsa_gb.in \
     -cs md.tpr \
@@ -6665,7 +6662,7 @@ mpirun -np 4 gmx_MMPBSA -O \
     -cp topol.top \
     -cr reference.pdb \
     -nogui
-~~~
+```
 
 No use **gmx_mpi** dentro de esta ejecución MPI. La documentación indica usar **gmx**, porque las herramientas auxiliares de GROMACS no se benefician del MPI de **mdrun** y pueden entrar en conflicto con **mpirun**.
 
@@ -6673,23 +6670,23 @@ El escalamiento deja de mejorar cuando el número de procesos se aproxima al nú
 
 ### 25. Análisis gráfico
 
-~~~bash
+```bash
 gmx_MMPBSA_ana \
     -f FINAL_RESULTS_MMPBSA.dat
-~~~
+```
 
 El analizador permite revisar términos, evolución temporal, descomposición y exportar gráficos. En HPC use los archivos DAT y CSV, y abra el analizador en una estación con entorno gráfico.
 
 Conserve:
 
-~~~text
+```text
 FINAL_RESULTS_MMPBSA.dat
 FINAL_RESULTS_MMPBSA.csv
 FINAL_DECOMP_MMPBSA.dat
 FINAL_DECOMP_MMPBSA.csv
 gmx_MMPBSA.log
 mmpbsa.in
-~~~
+```
 
 No conserve únicamente una captura del valor final.
 
@@ -6697,19 +6694,19 @@ No conserve únicamente una captura del valor final.
 
 Las salidas heredadas de AmberTools suelen expresarse en kcal·mol⁻¹. Verifique siempre el encabezado del archivo.
 
-\[
+$$
 1\ \mathrm{kcal\,mol^{-1}}
 =
 4.184\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
 Ejemplo:
 
-\[
+$$
 -28.6\ \mathrm{kcal\,mol^{-1}}
 =
 -119.7\ \mathrm{kJ\,mol^{-1}}
-\]
+$$
 
 No mezcle resultados antiguos de **g_mmpbsa**, que normalmente se informaban en kJ·mol⁻¹, con resultados de **gmx_MMPBSA** sin convertir unidades.
 
@@ -6723,32 +6720,32 @@ En parámetros PB y GB aparecen además:
 
 Bajo estados estándar compatibles:
 
-\[
+$$
 \Delta G^\circ_{\mathrm{bind}}
 =
 RT\ln K_d
 =
 -RT\ln K_a
-\]
+$$
 
 A 298.15 K:
 
-\[
+$$
 RT=2.47896\ \mathrm{kJ\,mol^{-1}}
 =0.59248\ \mathrm{kcal\,mol^{-1}}
-\]
+$$
 
 Entonces:
 
-\[
+$$
 K_d=
 \exp
 \left(
 \frac{\Delta G^\circ_{\mathrm{bind}}}{RT}
 \right)
-\]
+$$
 
-Esta conversión solo es válida para una energía libre estándar completa. No convierta directamente un MM/GBSA sin entropía ni correcciones en un \(K_d\) “predicho”.
+Esta conversión solo es válida para una energía libre estándar completa. No convierta directamente un MM/GBSA sin entropía ni correcciones en un $K_d$ “predicho”.
 
 Para rankings, compare correlación y error frente a datos experimentales usando la misma serie química y protocolo.
 
@@ -6767,13 +6764,13 @@ Evalúe:
 
 Ejemplo conceptual:
 
-~~~text
+```text
 0–20 ns
 20–40 ns
 40–60 ns
 60–80 ns
 80–100 ns
-~~~
+```
 
 Calcule MM/PBSA por bloque. Una media estable con bloques discrepantes no implica convergencia.
 
@@ -6842,12 +6839,12 @@ Para comparar una serie:
 
 Reporte:
 
-\[
+$$
 \Delta\Delta G_i
 =
 \Delta G_i-
 \Delta G_{\mathrm{referencia}}
-\]
+$$
 
 Las diferencias relativas suelen ser más útiles que valores absolutos, pero no eliminan sesgos específicos de cada grupo funcional.
 
@@ -6869,7 +6866,7 @@ Las diferencias relativas suelen ser más útiles que valores absolutos, pero no
 - Tratar concentración de sal como fuerza iónica para sales multivalentes.
 - Elegir dieléctricos para reproducir un resultado esperado.
 - Interpretar TOTAL sin conocer sus unidades.
-- Convertir un resultado sin entropía directamente en \(K_d\).
+- Convertir un resultado sin entropía directamente en $K_d$.
 - Tratar marcos correlacionados como réplicas.
 - Usar descomposición como prueba causal.
 - Paralelizar NMODE hasta agotar memoria.
@@ -6935,13 +6932,13 @@ La **energía de interacción lineal** (LIE) es un método de estado final para 
 1. el ligando unido al receptor y rodeado por solvente e iones;
 2. el mismo ligando libre en solvente, con el mismo estado de protonación y un protocolo compatible.
 
-LIE es más económico que una transformación alquímica completa porque no introduce estados intermedios de \(\lambda\). A cambio, es un modelo semiempírico: no debe interpretarse como una energía libre rigurosa ni utilizarse con coeficientes tomados arbitrariamente de otros sistemas. Su utilidad principal es comparar ligandos relacionados para un mismo receptor y dentro del dominio químico e interaccional empleado para calibrar el modelo.
+LIE es más económico que una transformación alquímica completa porque no introduce estados intermedios de $\lambda$. A cambio, es un modelo semiempírico: no debe interpretarse como una energía libre rigurosa ni utilizarse con coeficientes tomados arbitrariamente de otros sistemas. Su utilidad principal es comparar ligandos relacionados para un mismo receptor y dentro del dominio químico e interaccional empleado para calibrar el modelo.
 
 ## Fundamento teórico
 
 En la forma más habitual,
 
-\[
+$$
 \Delta G_{\mathrm{bind}}^{\mathrm{LIE}}
 =
 \alpha\left(
@@ -6957,40 +6954,40 @@ En la forma más habitual,
 \right)
 +
 \gamma .
-\]
+$$
 
 Aquí:
 
-- \(L\) es el ligando y \(E\) es su entorno;
+- $L$ es el ligando y $E$ es su entorno;
 - en el estado unido, el entorno incluye receptor, agua, iones y cualquier cofactor que no forme parte del ligando;
 - en el estado libre, el entorno incluye agua e iones;
-- los corchetes \(\langle\cdots\rangle\) representan promedios de conjunto, aproximados mediante promedios temporales sobre trayectorias equilibradas;
-- \(\alpha\) y \(\beta\) son coeficientes adimensionales para las contribuciones de Lennard-Jones y electrostática;
-- \(\gamma\) es un intercepto opcional, expresado en kJ mol\(^{-1}\).
+- los corchetes $\langle\cdots\rangle$ representan promedios de conjunto, aproximados mediante promedios temporales sobre trayectorias equilibradas;
+- $\alpha$ y $\beta$ son coeficientes adimensionales para las contribuciones de Lennard-Jones y electrostática;
+- $\gamma$ es un intercepto opcional, expresado en kJ mol$^{-1}$.
 
-La contribución electrostática procede de una aproximación de respuesta lineal. El valor histórico \(\beta=0{,}5\) corresponde al caso ideal de respuesta lineal, pero no es universal. La documentación de GROMACS 2026.3 conserva como valores predeterminados \(\alpha=0{,}181\) y \(\beta=0{,}5\); deben considerarse valores iniciales o de referencia, no una validación del modelo para cualquier ligando.
+La contribución electrostática procede de una aproximación de respuesta lineal. El valor histórico $\beta=0{,}5$ corresponde al caso ideal de respuesta lineal, pero no es universal. La documentación de GROMACS 2026.3 conserva como valores predeterminados $\alpha=0{,}181$ y $\beta=0{,}5$; deben considerarse valores iniciales o de referencia, no una validación del modelo para cualquier ligando.
 
 LIE no calcula de manera explícita todos los términos entrópicos, reorganizaciones internas, cambios conformacionales o contribuciones de estado estándar. Se presupone que una parte de esos efectos queda representada de forma efectiva por los coeficientes y el intercepto. Por eso un resultado aislado obtenido con los valores predeterminados debe describirse como **estimación LIE no calibrada**.
 
 ## Unidades y comparación con datos experimentales
 
-GROMACS informa las energías de interacción en **kJ mol\(^{-1}\)**. Como \(\alpha\) y \(\beta\) son adimensionales, \(\Delta G_{\mathrm{bind}}^{\mathrm{LIE}}\) y \(\gamma\) conservan esas unidades.
+GROMACS informa las energías de interacción en **kJ mol$^{-1}$**. Como $\alpha$ y $\beta$ son adimensionales, $\Delta G_{\mathrm{bind}}^{\mathrm{LIE}}$ y $\gamma$ conservan esas unidades.
 
-\[
+$$
 1\ \mathrm{kcal\ mol^{-1}}=4{,}184\ \mathrm{kJ\ mol^{-1}}.
-\]
+$$
 
 Para transformar una constante experimental de disociación en una energía libre estándar,
 
-\[
-\Delta G^\circ_{mathrm{bind}}
+$$
+\Delta G^\circ_{\mathrm{bind}}
 =
 RT\ln\left(\frac{K_d}{C^\circ}\right)
 =
 -RT\ln\left(K_a C^\circ\right),
-\]
+$$
 
-donde \(C^\circ=1\ \mathrm{mol\ L^{-1}}\). La razón dentro del logaritmo debe ser adimensional. Deben registrarse la temperatura, la fuerza iónica, el pH y el estado de protonación del ligando; comparar directamente valores obtenidos bajo condiciones experimentales distintas puede introducir un error mayor que el que se intenta modelar.
+donde $C^\circ=1\ \mathrm{mol\ L^{-1}}$. La razón dentro del logaritmo debe ser adimensional. Deben registrarse la temperatura, la fuerza iónica, el pH y el estado de protonación del ligando; comparar directamente valores obtenidos bajo condiciones experimentales distintas puede introducir un error mayor que el que se intenta modelar.
 
 ## Diseño de las simulaciones
 
@@ -7011,31 +7008,31 @@ La orden **gmx lie** necesita términos de interacción no enlazante entre el li
 
 Para crear un índice estático a partir del TPR del complejo:
 
-~~~bash
+```bash
 gmx select -s md_bound.tpr -on lie_bound.ndx \
   -select '"LIG" resname LIG; "Environment" not resname LIG'
-~~~
+```
 
 Para el ligando libre:
 
-~~~bash
+```bash
 gmx select -s md_free.tpr -on lie_free.ndx \
   -select '"LIG" resname LIG; "Environment" not resname LIG'
-~~~
+```
 
 Se debe reemplazar **LIG** por el nombre real del residuo o por una selección inequívoca. Si existen varias moléculas con ese mismo nombre, hay que decidir si constituyen un único ligando termodinámico o si deben analizarse por separado. Verifique siempre los grupos:
 
-~~~bash
+```bash
 gmx check -f md_bound.xtc
 gmx make_ndx -f md_bound.tpr -n lie_bound.ndx
-~~~
+```
 
 Dentro de una copia del MDP de producción, agregue:
 
-~~~ini
+```ini
 ; Grupos no superpuestos que cubren el sistema
 energygrps = LIG Environment
-~~~
+```
 
 El resto del MDP usado para recalcular energías debe conservar el campo de fuerzas, los cortes, las reglas de dispersión, el modificador de potencial y el tratamiento electrostático de la simulación de producción. Cambiar esos parámetros durante el análisis define otro descriptor y rompe la comparabilidad con un modelo calibrado previamente.
 
@@ -7049,39 +7046,39 @@ Esto no significa que deba eliminarse PME de una simulación moderna. Significa 
 
 Incluir grupos de energía durante una producción puede limitar la aceleración por GPU. Una alternativa práctica es recalcular las energías sobre las trayectorias ya producidas. Genere TPR de análisis separados para el complejo y el ligando libre:
 
-~~~bash
+```bash
 gmx grompp -f lie_bound.mdp -c md_bound.gro -t md_bound.cpt \
   -p topol_bound.top -n lie_bound.ndx -o lie_bound.tpr
 
 gmx grompp -f lie_free.mdp -c md_free.gro -t md_free.cpt \
   -p topol_free.top -n lie_free.ndx -o lie_free.tpr
-~~~
+```
 
 Luego efectúe el recálculo en CPU:
 
-~~~bash
+```bash
 gmx mdrun -s lie_bound.tpr -rerun md_bound.xtc \
   -deffnm lie_bound -nb cpu -pme cpu
 
 gmx mdrun -s lie_free.tpr -rerun md_free.xtc \
   -deffnm lie_free -nb cpu -pme cpu
-~~~
+```
 
 **mdrun -rerun** evalúa la energía de cada marco de la trayectoria suministrada; no genera un nuevo muestreo. Los archivos TPR deben conservar la misma topología, orden de átomos y parámetros no enlazantes usados para producir cada trayectoria. Los valores cinéticos y de temperatura obtenidos en un recálculo de este tipo no son relevantes para LIE.
 
 Antes de continuar, compruebe que existen los términos esperados:
 
-~~~bash
+```bash
 gmx energy -f lie_free.edr -o /dev/null
 gmx energy -f lie_bound.edr -o /dev/null
-~~~
+```
 
 Deben aparecer nombres equivalentes a:
 
-~~~text
+```text
 Coul-SR:LIG-Environment
 LJ-SR:LIG-Environment
-~~~
+```
 
 Si no aparecen, el TPR no contenía una definición válida de **energygrps** o el cálculo se ejecutó con una ruta que no produjo la descomposición solicitada.
 
@@ -7089,36 +7086,36 @@ Si no aparecen, el TPR no contenía una definición válida de **energygrps** o 
 
 Primero obtenga los promedios del ligando libre en solvente. El inicio del intervalo productivo se expresa en picosegundos:
 
-~~~bash
+```bash
 printf "Coul-SR:LIG-Environment\nLJ-SR:LIG-Environment\n0\n" | \
   gmx energy -f lie_free.edr -o free_interactions.xvg -b 20000
-~~~
+```
 
 Tome de la salida los promedios **Average** y asígnelos, sin cambiar signos ni unidades:
 
-~~~bash
+```bash
 FREE_COUL=-104.226
 FREE_LJ=-183.449
-~~~
+```
 
 Los números anteriores son únicamente ejemplos. No deben copiarse para otro ligando.
 
 Calcule después la estimación sobre el estado unido:
 
-~~~bash
+```bash
 gmx lie -f lie_bound.edr -o lie.xvg -b 20000 \
   -Elj "$FREE_LJ" -Eqq "$FREE_COUL" \
   -Clj 0.181 -Cqq 0.5 -ligand LIG
-~~~
+```
 
 Significado de las opciones principales:
 
 | Opción | Significado | Unidad |
 | --- | --- | --- |
-| **-Elj** | Promedio LJ ligando–solvente del estado libre | kJ mol\(^{-1}\) |
-| **-Eqq** | Promedio Coulomb ligando–solvente del estado libre | kJ mol\(^{-1}\) |
-| **-Clj** | Coeficiente \(\alpha\) | adimensional |
-| **-Cqq** | Coeficiente \(\beta\) | adimensional |
+| **-Elj** | Promedio LJ ligando–solvente del estado libre | kJ mol$^{-1}$ |
+| **-Eqq** | Promedio Coulomb ligando–solvente del estado libre | kJ mol$^{-1}$ |
+| **-Clj** | Coeficiente $\alpha$ | adimensional |
+| **-Cqq** | Coeficiente $\beta$ | adimensional |
 | **-ligand** | Nombre del grupo de energía del ligando | — |
 | **-b**, **-e** | Inicio y final del intervalo analizado | ps, de forma predeterminada |
 | **-dt** | Separación temporal entre marcos utilizados | ps |
@@ -7131,14 +7128,14 @@ También es recomendable extraer los cuatro promedios por separado y verificar m
 
 Para predicción cuantitativa, construya una tabla con un conjunto de ligandos de afinidad experimental conocida:
 
-| Ligando | \(\Delta V_{\mathrm{vdW}}\) | \(\Delta V_{\mathrm{elec}}\) | \(\Delta G^\circ_{\mathrm{exp}}\) |
+| Ligando | $\Delta V_{\mathrm{vdW}}$ | $\Delta V_{\mathrm{elec}}$ | $\Delta G^\circ_{\mathrm{exp}}$ |
 | --- | ---: | ---: | ---: |
-| compuesto 1 | unido − libre | unido − libre | kJ mol\(^{-1}\) |
-| compuesto 2 | unido − libre | unido − libre | kJ mol\(^{-1}\) |
+| compuesto 1 | unido − libre | unido − libre | kJ mol$^{-1}$ |
+| compuesto 2 | unido − libre | unido − libre | kJ mol$^{-1}$ |
 
 Ajuste entonces
 
-\[
+$$
 \Delta G^\circ_{\mathrm{exp}}
 =
 \alpha\Delta V_{\mathrm{vdW}}
@@ -7146,9 +7143,9 @@ Ajuste entonces
 \beta\Delta V_{\mathrm{elec}}
 +
 \gamma .
-\]
+$$
 
-No es correcto promediar valores de \(\alpha\) o \(\beta\) publicados para proteínas, campos de fuerzas o familias químicas diferentes. Con pocos compuestos, ajustar simultáneamente tres parámetros produce sobreajuste; en ese caso conviene fijar uno de los coeficientes con una justificación previa o ampliar el conjunto. Deben informarse, como mínimo, validación cruzada o conjunto externo, MAE, RMSE, correlación y dominio de aplicabilidad.
+No es correcto promediar valores de $\alpha$ o $\beta$ publicados para proteínas, campos de fuerzas o familias químicas diferentes. Con pocos compuestos, ajustar simultáneamente tres parámetros produce sobreajuste; en ese caso conviene fijar uno de los coeficientes con una justificación previa o ampliar el conjunto. Deben informarse, como mínimo, validación cruzada o conjunto externo, MAE, RMSE, correlación y dominio de aplicabilidad.
 
 Una predicción nueva es más confiable cuando el ligando se parece al conjunto de calibración no sólo en estructura, sino también en sus patrones de interacción con el receptor. Un compuesto con carga, pose o química diferente puede estar fuera del dominio aunque su esqueleto molecular parezca similar.
 
@@ -7158,7 +7155,7 @@ Use series temporales y promedios por bloques para cada uno de los cuatro térmi
 
 Una aproximación útil para la propagación de la incertidumbre es
 
-\[
+$$
 \sigma^2_{\Delta G}
 \approx
 \alpha^2\sigma^2_{\Delta V_{\mathrm{vdW}}}
@@ -7167,9 +7164,9 @@ Una aproximación útil para la propagación de la incertidumbre es
 +
 2\alpha\beta\operatorname{Cov}
 \left(\Delta V_{\mathrm{vdW}},\Delta V_{\mathrm{elec}}\right).
-\]
+$$
 
-Esta expresión debe emplear errores de los promedios que tengan en cuenta la autocorrelación, no la desviación estándar de los marcos como si fueran observaciones independientes. Si \(\alpha\), \(\beta\) y \(\gamma\) fueron ajustados, su incertidumbre también contribuye al error predictivo.
+Esta expresión debe emplear errores de los promedios que tengan en cuenta la autocorrelación, no la desviación estándar de los marcos como si fueran observaciones independientes. Si $\alpha$, $\beta$ y $\gamma$ fueron ajustados, su incertidumbre también contribuye al error predictivo.
 
 Como diagnóstico mínimo:
 
