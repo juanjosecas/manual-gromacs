@@ -7,6 +7,7 @@ on:
       - 'Manual de Referencia - Gromacs/Manual de Referencia -  Gromacs.md'
       - 'index.md'
       - '_config.yml'
+      - 'Gemfile'
       - '_layouts/**'
       - 'assets/**'
       - '.github/workflows/pages.yml'
@@ -33,6 +34,8 @@ jobs:
 
       - name: Compilar el sitio con Jekyll
         uses: actions/jekyll-build-pages@v1
+        env:
+          JEKYLL_ENV: production
         with:
           source: ./
           destination: ./_site
