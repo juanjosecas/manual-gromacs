@@ -930,6 +930,245 @@ GROMACS no parametriza automáticamente moléculas orgánicas arbitrarias. La to
 
 No deben mezclarse tipos atómicos, reglas de combinación, cargas o términos de CHARMM y AMBER sin una transformación validada.
 
+### Parametrización del ligando con ACPYPE
+
+**ACPYPE** (*AnteChamber PYthon Parser interfacE*) automatiza la parametrización mediante herramientas de AmberTools y convierte el resultado a formatos utilizables por GROMACS. Para una molécula pequeña ejecuta, en esencia:
+
+1. **Antechamber**, que asigna tipos atómicos GAFF o GAFF2 y cargas parciales;
+2. **parmchk2**, que busca parámetros ausentes y genera las adiciones necesarias;
+3. **tleap**, que construye la topología y las coordenadas AMBER;
+4. la conversión de la topología AMBER al formato de GROMACS.
+
+#### Correspondencia con el campo de fuerza
+
+Los parámetros producidos de esta manera pertenecen a la familia **AMBER**:
+
+| Opción de ACPYPE | Parametrización | Uso previsto |
+| --- | --- | --- |
+| `-a gaff` | General Amber Force Field, GAFF | Moléculas orgánicas pequeñas dentro de un sistema AMBER compatible. |
+| `-a gaff2` | General Amber Force Field 2, GAFF2 | Opción preferente para moléculas pequeñas cuando se utiliza una parametrización AMBER moderna. |
+| `-a amber` | Tipos AMBER para residuos reconocidos y GAFF como respaldo | Péptidos o sistemas que pueden compararse con plantillas AMBER; no es la opción habitual para un ligando arbitrario. |
+| `-a amber2` | Tipos AMBER y GAFF2 como respaldo | Variante equivalente basada en GAFF2. |
+
+La opción **`-o gmx`** solicita archivos con sintaxis de GROMACS; **no convierte GAFF2 en CHARMM, CGenFF, OPLS-AA o GROMOS**. Del mismo modo, que ACPYPE pueda escribir un archivo denominado CHARMM significa que cambia el formato, no que los parámetros hayan sido desarrollados bajo CGenFF.
+
+Una combinación coherente es, por ejemplo:
+
+```text
+proteína: AMBER14SB o un port AMBER validado para GROMACS
+ligando:  GAFF2 generado mediante ACPYPE/Antechamber
+agua:     modelo recomendado para el campo AMBER elegido
+```
+
+No mezcle directamente una proteína CHARMM36 con un ligando GAFF2. Las familias pueden diferir en cargas, torsiones, reglas de combinación y factores de escala para interacciones 1–4. Un TPR que compila sin errores no demuestra compatibilidad física.
+
+En los ports AMBER para GROMACS deben conservarse las convenciones AMBER declaradas en **`[ defaults ]`**, incluidas las reglas de combinación y los factores **fudgeLJ/fudgeQQ**. No copie el bloque **`[ defaults ]`** de la topología completa de ACPYPE dentro de una topología ya creada por **pdb2gmx**.
+
+#### Instalación reproducible
+
+Una instalación aislada mediante conda puede prepararse con:
+
+```bash
+conda create -n acpype -c conda-forge \
+    acpype ambertools openbabel
+
+conda activate acpype
+acpype -h
+antechamber -h
+obabel -V
+```
+
+Registre las versiones exactas:
+
+```bash
+conda list | grep -E 'acpype|ambertools|openbabel'
+```
+
+La distribución actual de ACPYPE también puede instalarse mediante `pip` en plataformas para las que existan ruedas con las herramientas de AmberTools incorporadas. La disponibilidad depende del sistema operativo y de la arquitectura; para un protocolo reproducible conviene registrar tanto la versión de ACPYPE como la de AmberTools realmente utilizada.
+
+#### Preparación del archivo de entrada
+
+Para la parametrización es preferible un archivo MOL2 o SDF con:
+
+- orden de enlaces correcto;
+- aromaticidad revisada;
+- protonación y tautomería definidas;
+- estereoquímica correcta;
+- coordenadas tridimensionales razonables;
+- carga formal conocida.
+
+Un PDB no representa de manera inequívoca órdenes de enlace ni carga formal. Si solo se dispone de PDB, la conversión mediante Open Babel debe revisarse antes de ejecutar ACPYPE:
+
+```bash
+obabel ligand.pdb \
+    -O LIG.mol2 \
+    -h
+```
+
+Si se parte de SDF:
+
+```bash
+obabel ligand.sdf \
+    -O LIG.mol2
+```
+
+No use automáticamente **`--gen3d`** sobre una geometría experimental o una pose de docking que se desea conservar. La generación tridimensional crea otra conformación.
+
+#### Ejecución con GAFF2
+
+Para un ligando neutro llamado **LIG**:
+
+```bash
+acpype \
+    -i LIG.mol2 \
+    -b LIG \
+    -c abcg2 \
+    -n 0 \
+    -a gaff2 \
+    -o gmx
+```
+
+La documentación actual de ACPYPE recomienda **`abcg2`** como método de cargas para GAFF2. El método AM1-BCC clásico puede solicitarse con:
+
+```bash
+acpype \
+    -i LIG.mol2 \
+    -b LIG \
+    -c bcc \
+    -n 0 \
+    -a gaff2 \
+    -o gmx
+```
+
+No combine cargas generadas mediante métodos diferentes dentro de una misma serie de ligandos si se pretende comparar resultados. El método, la versión de AmberTools y la geometría usada para calcular las cargas forman parte del protocolo.
+
+La opción **`-n`** es la carga neta entera del microestado simulado. Ejemplos:
+
+```bash
+# Catión monovalente
+acpype -i LIG_plus.mol2 -b LIP -c abcg2 -n 1 -a gaff2 -o gmx
+
+# Anión monovalente
+acpype -i LIG_minus.mol2 -b LIM -c abcg2 -n -1 -a gaff2 -o gmx
+```
+
+No utilice `-n 0` porque sea el valor del ejemplo. Una carga neta incorrecta cambia todas las cargas parciales y la electrostática del ligando.
+
+Para cargas obtenidas por otro procedimiento cuántico o ajustadas externamente, prepare un MOL2 que ya contenga esas cargas y consulte la opción:
+
+```bash
+acpype -i LIG_charged.mol2 -b LIG -c user -n 0 -a gaff2 -o gmx
+```
+
+La carga indicada mediante **`-n`** debe coincidir con la suma de las cargas suministradas.
+
+#### Archivos generados
+
+La ejecución crea normalmente el directorio **`LIG.acpype/`**. Entre los archivos relevantes pueden encontrarse:
+
+```text
+LIG_GMX.gro       coordenadas para GROMACS
+LIG_GMX.itp       tipos, cargas y parámetros del ligando
+LIG_GMX.top       topología completa para probar el ligando aislado
+LIG_AC.mol2       molécula procesada por Antechamber
+LIG_AC.frcmod     parámetros complementarios producidos por parmchk2
+```
+
+Los nombres exactos pueden variar entre versiones. Conserve también la salida estándar y los archivos de registro: allí aparecen advertencias de Antechamber, convergencia de cargas y parámetros inferidos por analogía.
+
+#### Validación del resultado
+
+Antes de incorporarlo al complejo, revise:
+
+- suma de cargas parciales y carga neta;
+- tipos atómicos asignados;
+- orden de enlaces y aromaticidad;
+- geometría de anillos, amidas y centros quirales;
+- parámetros informados como ausentes o inferidos;
+- nombres y orden de átomos entre GRO, MOL2 e ITP;
+- energía y geometría después de una minimización corta;
+- presencia de fuerzas excesivas, NaN o advertencias de **grompp**.
+
+Prueba independiente del ligando:
+
+```bash
+cd LIG.acpype
+
+gmx grompp \
+    -f ../em_ligand.mdp \
+    -c LIG_GMX.gro \
+    -p LIG_GMX.top \
+    -pp LIG_processed.top \
+    -o LIG_em.tpr
+
+gmx mdrun \
+    -deffnm LIG_em \
+    -v
+```
+
+Una minimización exitosa solo verifica coherencia mecánica básica. No valida cargas, torsiones, estados de protonación ni la capacidad del modelo para reproducir conformaciones o propiedades experimentales.
+
+#### Incorporación en una topología AMBER de proteína–ligando
+
+No incluya **`LIG_GMX.top`** completo dentro de **topol.top**, porque contiene secciones globales que ya existen. Utilice el ITP del ligando y asegúrese de que sus tipos atómicos se definan antes de ser usados.
+
+Esquema conceptual:
+
+```ini
+; Campo de fuerza AMBER seleccionado mediante pdb2gmx
+#include "amber14sb.ff/forcefield.itp"
+
+; El ITP de ACPYPE puede contener [ atomtypes ]; debe aparecer
+; antes de cualquier [ moleculetype ] que use esos tipos.
+#include "LIG_GMX.itp"
+
+; Topología de la proteína
+#include "topol_Protein.itp"
+
+; Agua e iones compatibles con el campo de fuerza
+#include "amber14sb.ff/tip3p.itp"
+#include "amber14sb.ff/ions.itp"
+
+[ system ]
+Complejo proteína–ligando
+
+[ molecules ]
+Protein    1
+LIG        1
+```
+
+El identificador `amber14sb.ff` es ilustrativo: debe coincidir con el directorio realmente instalado. Si el ITP de ACPYPE contiene **`[ atomtypes ]`** y se incluye después de la topología de la proteína, **grompp** puede detenerse con un error de orden de directivas. Como alternativa, separe los tipos del ligando en **ligand_atomtypes.itp**, inclúyalos inmediatamente después de **forcefield.itp** y deje las secciones **`[ moleculetype ]`**, **`[ atoms ]`**, enlaces, ángulos y diedros en **LIG.itp**.
+
+El orden de **`[ molecules ]`** debe reproducir el orden de las moléculas en el archivo de coordenadas. El nombre **LIG** debe coincidir exactamente con el valor definido en **`[ moleculetype ]`**, no solo con el nombre de residuo mostrado en el GRO.
+
+Genere siempre una topología preprocesada para auditar la integración:
+
+```bash
+gmx grompp \
+    -f em.mdp \
+    -c complex.gro \
+    -p topol.top \
+    -pp complex_processed.top \
+    -o complex_em.tpr
+```
+
+No use **`-maxwarn`** para ignorar cargas inesperadas, átomos ausentes, directivas fuera de orden o parámetros duplicados.
+
+#### Cuándo ACPYPE no es suficiente
+
+ACPYPE y GAFF2 requieren una revisión adicional o una estrategia diferente para:
+
+- metales coordinados y compuestos organometálicos;
+- enlaces covalentes entre ligando y proteína;
+- estados electrónicos abiertos;
+- moléculas con química poco representada por GAFF2;
+- sistemas para los que se necesita compatibilidad estricta con CHARMM/CGenFF, OPLS o GROMOS;
+- torsiones críticas que deben validarse contra cálculos cuánticos;
+- transformaciones alquímicas donde la correspondencia atómica y la topología híbrida requieren construcción específica.
+
+Para una proteína parametrizada con CHARMM36, use una ruta CGenFF compatible. Para OPLS-AA o GROMOS, emplee parámetros desarrollados y validados bajo las convenciones respectivas. Convertir el archivo final a sintaxis de GROMACS no resuelve la incompatibilidad entre familias.
+
+
 Ejemplo mínimo de un archivo ITP:
 
 ```ini
@@ -1714,6 +1953,11 @@ Use réplicas independientes cuando la conclusión dependa del muestreo. RMSD, R
 8. [Dinámica molecular](https://manual.gromacs.org/current/reference-manual/algorithms/molecular-dynamics.html)
 9. [Condiciones periódicas de contorno](https://manual.gromacs.org/current/reference-manual/algorithms/periodic-boundary-conditions.html)
 10. [Algoritmos de restricciones](https://manual.gromacs.org/current/reference-manual/algorithms/constraint-algorithms.html)
+11. [Documentación oficial de ACPYPE](https://alanwilter.github.io/acpype/)
+12. [Repositorio oficial de ACPYPE](https://github.com/alanwilter/acpype)
+13. [Sousa da Silva y Vranken, ACPYPE — AnteChamber PYthon Parser interfacE](https://doi.org/10.1186/1756-0500-5-367)
+14. [Wang et al., Development and testing of a General Amber Force Field](https://doi.org/10.1002/jcc.20035)
+15. [AmberTools](https://ambermd.org/AmberTools.php)
 
 # Simulación de una caja de agua
 
