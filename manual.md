@@ -909,7 +909,7 @@ La opción **-p 7.4** predice una forma de protonación. Para moléculas con tau
 
 GROMACS no parametriza automáticamente moléculas orgánicas arbitrarias. La topología debe obtenerse con una herramienta apropiada para la familia del campo de fuerza:
 
-- CHARMM: parámetros compatibles con CGenFF/CHARMM.
+- CHARMM: parámetros compatibles con CGenFF/CHARMM; SwissParam puede generar una aproximación compatible con CHARMM36 para moléculas pequeñas.
 - AMBER: parámetros compatibles con GAFF u otra metodología AMBER.
 - OPLS-AA: tipos y cargas consistentes con OPLS.
 - GROMOS: parámetros desarrollados bajo las convenciones GROMOS.
@@ -1155,6 +1155,211 @@ ACPYPE y GAFF2 requieren una revisión adicional o una estrategia diferente para
 - transformaciones alquímicas donde la correspondencia atómica y la topología híbrida requieren construcción específica.
 
 Para una proteína parametrizada con CHARMM36, use una ruta CGenFF compatible. Para OPLS-AA o GROMOS, emplee parámetros desarrollados y validados bajo las convenciones respectivas. Convertir el archivo final a sintaxis de GROMACS no resuelve la incompatibilidad entre familias.
+
+### Alternativa: parametrización con SwissParam para CHARMM36
+
+[SwissParam](https://www.swissparam.ch/) es una alternativa práctica para obtener parámetros de moléculas orgánicas pequeñas en sistemas que utilizan la familia **CHARMM**. La salida actual está orientada, de manera predeterminada, a **CHARMM36** y contiene archivos preparados para GROMACS.
+
+Esta ruta es alternativa a ACPYPE, no una etapa posterior:
+
+| Sistema de la proteína | Ruta coherente para el ligando | No combinar directamente |
+| --- | --- | --- |
+| AMBER, por ejemplo AMBER14SB | ACPYPE/Antechamber con GAFF2 | SwissParam/CHARMM36 |
+| CHARMM36 | SwissParam o una parametrización CGenFF validada | ACPYPE/GAFF2 |
+
+SwissParam produce parámetros compatibles con las convenciones de CHARMM36, pero una asignación automática por analogía no equivale a una parametrización exhaustivamente validada. Para ligandos con torsiones críticas, cargas inusuales, metales, estados electrónicos especiales o química poco representada se requiere una revisión más profunda, idealmente frente a cálculos cuánticos y datos experimentales.
+
+#### Preparación del MOL2
+
+El archivo MOL2 enviado a SwissParam debe contener **todos los hidrógenos**. Antes del envío deben verificarse:
+
+- estado de protonación y tautomería;
+- carga formal;
+- órdenes de enlace y aromaticidad;
+- estereoquímica;
+- nombres atómicos únicos;
+- geometría tridimensional razonable.
+
+Si se parte de una pose de docking o de una estructura experimental, conserve esa geometría:
+
+```bash
+obabel ligand.sdf \
+    -O LIG.mol2
+```
+
+Si el archivo carece de hidrógenos:
+
+```bash
+obabel ligand.sdf \
+    -O LIG.mol2 \
+    -h
+```
+
+No utilice `--gen3d` cuando necesite preservar una pose. La protonación agregada automáticamente debe revisarse; Open Babel no sustituye la asignación química del microestado.
+
+SwissParam también acepta MOL2 generado con ChimeraX o proveniente de una base de datos química. Abra el archivo final y compruebe que las secciones `@<TRIPOS>ATOM` y `@<TRIPOS>BOND` representen correctamente la molécula.
+
+#### Uso mediante la interfaz web
+
+1. Envíe `LIG.mol2` a [SwissParam](https://www.swissparam.ch/).
+2. Descargue el archivo de resultados.
+3. Descomprímalo en un directorio separado:
+
+```bash
+mkdir -p swissparam_LIG
+tar -xzf results.tar.gz -C swissparam_LIG
+find swissparam_LIG -maxdepth 2 -type f -print
+```
+
+Para GROMACS, los archivos centrales son normalmente:
+
+```text
+lig.pdb    coordenadas del ligando con hidrógenos
+lig.itp    tipos, cargas y parámetros del ligando
+```
+
+Los nombres pueden variar; compruebe el contenido en lugar de renombrar archivos a ciegas.
+
+#### Uso desde la línea de comandos
+
+SwissParam expone un servicio HTTP. Para una molécula pequeña no covalente:
+
+```bash
+curl -fsS \
+    -F "myMol2=@LIG.mol2" \
+    "https://www.swissparam.ch:8443/startparam?approach=both"
+```
+
+El servidor devuelve un número de sesión. Sustituya `NUMERO_DE_SESION` en los comandos siguientes:
+
+```bash
+curl -fsS \
+    "https://www.swissparam.ch:8443/checksession?sessionNumber=NUMERO_DE_SESION"
+```
+
+Cuando el cálculo haya finalizado:
+
+```bash
+curl -fL \
+    "https://www.swissparam.ch:8443/retrievesession?sessionNumber=NUMERO_DE_SESION" \
+    -o LIG_swissparam.tar.gz
+
+mkdir -p swissparam_LIG
+tar -xzf LIG_swissparam.tar.gz -C swissparam_LIG
+```
+
+El argumento `approach` puede ser `both`, `mmff-based` o `match`. En este tutorial se mantiene el valor general `both`. No agregue las opciones `c22` o `c27`: solicitan convenciones CHARMM antiguas y dejarían de ser coherentes con una proteína preparada con CHARMM36.
+
+El envío mediante web o `curl` transfiere la estructura del ligando a un servidor externo. Esto debe considerarse si la molécula está sujeta a confidencialidad.
+
+#### Preparación coherente de la proteína
+
+Prepare la proteína con la versión de CHARMM36 instalada y documentada en el entorno:
+
+```bash
+gmx pdb2gmx \
+    -f protein.pdb \
+    -o protein_processed.gro \
+    -p topol.top \
+    -i posre_protein.itp \
+    -ff charmm36-jul2022 \
+    -water tip3p
+```
+
+`charmm36-jul2022` es un ejemplo de identificador. Use el nombre real del directorio `.ff` instalado. No seleccione AMBER, OPLS-AA o GROMOS para la proteína cuando el ligando proviene de SwissParam/CHARMM36.
+
+Deben mantenerse también el modelo de agua y los parámetros de iones distribuidos con el campo CHARMM seleccionado. No copie una sección `[ defaults ]` adicional desde otra topología.
+
+#### Integración del ligando en `topol.top`
+
+El archivo `lig.itp` de SwissParam puede contener `[ atomtypes ]` y `[ pairtypes ]`. Estas directivas deben aparecer antes de cualquier `[ moleculetype ]`. Por ello, el ITP del ligando debe incluirse inmediatamente después de `forcefield.itp` y antes de la topología de la proteína:
+
+```ini
+; Parámetros globales de CHARMM36
+#include "charmm36-jul2022.ff/forcefield.itp"
+
+; SwissParam: puede definir atomtypes y pairtypes
+#include "lig.itp"
+
+; Topología generada para la proteína
+#include "topol_Protein.itp"
+
+; Agua e iones del mismo campo de fuerza
+#include "charmm36-jul2022.ff/tip3p.itp"
+#include "charmm36-jul2022.ff/ions.itp"
+
+[ system ]
+Complejo proteína–ligando con CHARMM36
+
+[ molecules ]
+Protein    1
+LIG        1
+```
+
+El nombre `LIG` debe coincidir exactamente con el valor definido en `[ moleculetype ]` dentro de `lig.itp`. No lo deduzca únicamente del nombre de residuo del PDB.
+
+Si hay agua, la línea del ligando debe preceder a `SOL`:
+
+```ini
+[ molecules ]
+Protein    1
+LIG        1
+SOL        12543
+```
+
+Para varios ligandos SwissParam no deben incluirse varios ITP completos de forma secuencial si cada uno contiene sus propios bloques `[ atomtypes ]` y `[ pairtypes ]`. Separe o combine primero todos los tipos y pares en un archivo incluido antes de cualquier `[ moleculetype ]`; mantenga después una topología molecular por especie.
+
+#### Incorporación de las coordenadas
+
+Use el `lig.pdb` producido por SwissParam porque sus nombres y orden atómicos corresponden al ITP. Compruebe que la geometría siga representando la pose seleccionada. Si necesita transferir coordenadas desde otra pose, la correspondencia debe hacerse por identidad atómica, no por número de línea.
+
+La construcción del complejo debe seguir la estrategia general de este tutorial:
+
+1. proteína procesada con `pdb2gmx`;
+2. ligando con nombres y orden compatibles con `lig.itp`;
+3. proteína antes que ligando si ese es el orden de `[ molecules ]`;
+4. inspección visual del sitio de unión;
+5. solvatación e incorporación posterior de iones.
+
+No utilice `gmx insert-molecules` para reinsertar un ligando ya posicionado en el sitio de unión: esa operación puede cambiar la colocación que se pretende conservar.
+
+#### Restricciones de posición y validación
+
+SwissParam puede proporcionar restricciones controladas mediante `POSRES_LIGAND`. Si el ITP contiene ese bloque y se desean restricciones para proteína y ligando:
+
+```ini
+define = -DPOSRES -DPOSRES_LIGAND
+```
+
+Los nombres de las macros deben verificarse en los ITP; no suponga que todos los paquetes de salida contienen exactamente el mismo bloque.
+
+Antes de solvatar el sistema, genere una topología preprocesada:
+
+```bash
+gmx grompp \
+    -f em.mdp \
+    -c complex.gro \
+    -p topol.top \
+    -pp complex_processed.top \
+    -o complex_em.tpr
+```
+
+Revise:
+
+- carga total del ligando y del sistema;
+- correspondencia entre átomos de `lig.pdb` y `lig.itp`;
+- ausencia de tipos o parámetros duplicados;
+- orden de las directivas en `complex_processed.top`;
+- geometría del ligando después de una minimización;
+- fuerzas máximas, enlaces, ángulos y torsiones críticas.
+
+No use `-maxwarn` para ocultar errores de orden, cargas inesperadas o parámetros duplicados. Una minimización exitosa demuestra consistencia mecánica básica, no calidad química suficiente.
+
+Documentación utilizada:
+
+- [SwissParam: integración con GROMACS](https://www.swissparam.ch/howto_gromacs.php)
+- [SwissParam: uso desde la línea de comandos](https://www.swissparam.ch/command-line.php)
+- [SwissParam: preparación correcta de archivos MOL2](https://www.swissparam.ch/howto_mol2.php)
 
 Ejemplo mínimo de un archivo ITP:
 
