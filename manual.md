@@ -1715,8 +1715,7 @@ Este valor es habitual antes de equilibrar, pero no garantiza que la estructura 
 Extraiga la energía potencial:
 
 ```bash
-(echo Potential; echo 0) |
-gmx energy -f em.edr -o ../06_analisis/em_potential.xvg
+(echo Potential; echo 0) | gmx energy -f em.edr -o ../06_analisis/em_potential.xvg
 ```
 
 Compruebe:
@@ -1731,7 +1730,7 @@ No use **-maxwarn** para ocultar advertencias de **grompp**. Debe entenderse la 
 
 ## Equilibración NVT
 
-En el conjunto canónico NVT permanecen fijos el número de partículas $N$, el volumen $V$ y la temperatura objetivo $T$. El termostato modifica la dinámica para muestrear la distribución correspondiente; no debe interpretarse como una simple corrección periódica de velocidades.
+NVT significa número de partículas, volumen y temperatura fijos. En el conjunto canónico NVT permanecen fijos el número de partículas $N$, el volumen $V$ y la temperatura objetivo $T$. El termostato modifica la dinámica para muestrear la distribución correspondiente; no debe interpretarse como una simple corrección periódica de velocidades. Se usa para estabilizar la temperatura antes de permitir que el volumen fluctúe en NPT.
 
 La probabilidad de un microestado de energía $E$ es proporcional a
 
@@ -1799,7 +1798,13 @@ Ejecución:
 mkdir -p ../03_nvt
 cd ../03_nvt
 
-gmx grompp     -f ../01_preparacion/nvt.mdp     -c ../02_em/em.gro     -r ../02_em/em.gro     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o nvt.tpr
+gmx grompp -f ../01_preparacion/nvt.mdp \
+    -c ../02_em/em.gro \
+    -r ../02_em/em.gro \
+    -t ../02_em/em.cpt \
+    -p ../01_preparacion/topol.top \
+    -n ../01_preparacion/index.ndx \
+    -o nvt.tpr
 
 gmx mdrun -deffnm nvt -v
 ```
@@ -1809,15 +1814,14 @@ Las velocidades se generan una sola vez. Para las etapas posteriores se conserva
 Análisis de temperatura:
 
 ```bash
-(echo Temperature; echo 0) |
-gmx energy -f nvt.edr -o ../06_analisis/nvt_temperature.xvg
+(echo Temperature; echo 0) | gmx energy -f nvt.edr -o ../06_analisis/nvt_temperature.xvg
 ```
 
 La temperatura debe evaluarse como serie temporal y promedio, no por un único valor final.
 
 ## Equilibración NPT
 
-En el conjunto isotérmico-isobárico NPT permanecen fijos $N$, la temperatura objetivo $T$ y la presión objetivo $P$, mientras el volumen fluctúa. El barostato modifica los vectores de caja y las coordenadas para permitir que la densidad se relaje.
+NPT significa número de partículas, presión y temperatura fijos. En el conjunto isotérmico-isobárico NPT permanecen fijos $N$, la temperatura objetivo $T$ y la presión objetivo $P$, mientras el volumen fluctúa. El barostato modifica los vectores de caja y las coordenadas para permitir que la densidad se relaje.
 
 La presión instantánea es una magnitud ruidosa, especialmente en cajas pequeñas. El criterio práctico no es obtener una línea plana en 1 bar, sino comprobar que volumen y densidad alcanzaron un régimen estacionario y que la presión promedio es compatible con el objetivo dentro de su incertidumbre.
 
@@ -1871,7 +1875,13 @@ Ejecución:
 mkdir -p ../04_npt
 cd ../04_npt
 
-gmx grompp     -f ../01_preparacion/npt.mdp     -c ../03_nvt/nvt.gro     -r ../03_nvt/nvt.gro     -t ../03_nvt/nvt.cpt     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o npt.tpr
+gmx grompp -f ../01_preparacion/npt.mdp \
+    -c ../03_nvt/nvt.gro \
+    -r ../03_nvt/nvt.gro \
+    -t ../03_nvt/nvt.cpt \
+    -p ../01_preparacion/topol.top \
+    -n ../01_preparacion/index.ndx \
+    -o npt.tpr
 
 gmx mdrun -deffnm npt -v
 ```
