@@ -1952,7 +1952,13 @@ Ejecución:
 mkdir -p ../05_md
 cd ../05_md
 
-gmx grompp     -f ../01_preparacion/md.mdp     -c ../04_npt/npt.gro     -t ../04_npt/npt.cpt     -p ../01_preparacion/topol.top     -n ../01_preparacion/index.ndx     -o md.tpr
+gmx grompp \
+    -f ../01_preparacion/md.mdp \
+    -c ../04_npt/npt.gro \
+    -t ../04_npt/npt.cpt \
+    -p ../01_preparacion/topol.top \
+    -n ../01_preparacion/index.ndx \
+    -o md.tpr
 
 gmx mdrun -deffnm md -v
 ```
@@ -2019,7 +2025,14 @@ Centre el complejo y lleve las moléculas a una caja compacta:
 
 ```bash
 (echo Protein_LIG; echo System) |
-gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_center.xtc     -center     -pbc mol     -ur compact     -n index.ndx
+gmx trjconv \
+    -s md.tpr \
+    -f md_whole.xtc \
+    -o md_center.xtc \
+    -center \
+    -pbc mol \
+    -ur compact \
+    -n index.ndx
 ```
 
 Elimine rotación y traslación ajustando el backbone:
@@ -2035,7 +2048,13 @@ Extracción de una estructura a 50 ns:
 
 ```bash
 echo Protein_LIG |
-gmx trjconv     -s md.tpr     -f md_fit.xtc     -o frame_50ns.pdb     -dump 50     -tu ns     -n index.ndx
+gmx trjconv \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -o frame_50ns.pdb \
+    -dump 50 \
+    -tu ns \
+    -n index.ndx
 ```
 
 ## Análisis de resultados
@@ -2058,20 +2077,35 @@ donde **M** es la masa total de los átomos seleccionados. Una meseta indica est
 mkdir -p ../06_analisis/rmsd
 
 (echo Backbone; echo Backbone) |
-gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o ../06_analisis/rmsd/rmsd_backbone.xvg     -tu ns
+gmx rms \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -o ../06_analisis/rmsd/rmsd_backbone.xvg \
+    -tu ns
 ```
 
 RMSD del ligando después de ajustar la proteína:
 
 ```bash
 (echo Backbone; echo LIG) |
-gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o ../06_analisis/rmsd/rmsd_ligand_fit_protein.xvg     -tu ns
+gmx rms \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -o ../06_analisis/rmsd/rmsd_ligand_fit_protein.xvg \
+    -tu ns
 ```
 
 ### Radio de giro
 
 ```bash
-gmx gyrate     -s md.tpr     -f md_fit.xtc     -n index.ndx     -sel 'group "Protein"'     -o ../06_analisis/gyrate_protein.xvg
+gmx gyrate \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -sel 'group "Protein"' \
+    -o ../06_analisis/gyrate_protein.xvg
 ```
 
 El radio de giro informa sobre la compacidad global. Debe interpretarse junto con RMSD, estructura secundaria y contactos internos.
@@ -2081,14 +2115,25 @@ El radio de giro informa sobre la compacidad global. Debe interpretarse junto co
 Distancia entre el centro geométrico del ligando y un átomo de referencia:
 
 ```bash
-gmx distance     -s md.tpr     -f md_fit.xtc     -n index.ndx     -select 'com of group "LIG" plus com of resid 123 and name CA'     -oall ../06_analisis/dist_lig_res123.xvg
+gmx distance \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -select 'com of group "LIG" plus com of resid 123 and name CA' \
+    -oall ../06_analisis/dist_lig_res123.xvg
 ```
 
 El residuo 123 es un ejemplo y debe reemplazarse. Para distancia mínima y número de contactos:
 
 ```bash
 (echo Protein; echo LIG) |
-gmx mindist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_analisis/mindist_protein_lig.xvg     -on ../06_analisis/contacts_protein_lig.xvg     -d 0.4
+gmx mindist \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -od ../06_analisis/mindist_protein_lig.xvg \
+    -on ../06_analisis/contacts_protein_lig.xvg \
+    -d 0.4
 ```
 
 **-d 0.4** establece un umbral de contacto de 0.4 nm, equivalente a 4 Å. Debe informarse el umbral utilizado.
@@ -2098,7 +2143,13 @@ gmx mindist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_anali
 GROMACS 2026 incluye la implementación moderna de **gmx hbond**, incorporada inicialmente en GROMACS 2024:
 
 ```bash
-gmx hbond     -s md.tpr     -f md_fit.xtc     -n index.ndx     -r 'group "Protein"'     -t 'group "LIG"'     -num ../06_analisis/hbonds_protein_lig.xvg
+gmx hbond \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -r 'group "Protein"' \
+    -t 'group "LIG"' \
+    -num ../06_analisis/hbonds_protein_lig.xvg
 ```
 
 Las selecciones de referencia y objetivo deben ser idénticas o no solaparse. Los valores recomendados por la herramienta son 0.35 nm para distancia y 30 grados para el criterio angular. Si se modifican, deben reportarse.
@@ -2108,7 +2159,14 @@ Las selecciones de referencia y objetivo deben ser idénticas o no solaparse. Lo
 Un contacto corto entre grupos cargados puede estudiarse mediante selecciones explícitas:
 
 ```bash
-gmx pairdist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -ref 'group "Protein_charged"'     -sel 'group "LIG_charged"'     -type min     -o ../06_analisis/ion_pairs.xvg
+gmx pairdist \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -ref 'group "Protein_charged"' \
+    -sel 'group "LIG_charged"' \
+    -type min \
+    -o ../06_analisis/ion_pairs.xvg
 ```
 
 Los grupos **Protein_charged** y **LIG_charged** deben construirse previamente según los átomos efectivamente cargados. Una distancia corta no demuestra por sí sola una interacción energéticamente favorable.
@@ -2116,7 +2174,14 @@ Los grupos **Protein_charged** y **LIG_charged** deben construirse previamente s
 ### Área accesible al solvente
 
 ```bash
-gmx sasa     -s md.tpr     -f md_fit.xtc     -n index.ndx     -surface 'group "Protein_LIG"'     -output 'group "Protein_LIG"'     -o ../06_analisis/sasa_complex.xvg     -or ../06_analisis/sasa_per_residue.xvg
+gmx sasa \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -surface 'group "Protein_LIG"' \
+    -output 'group "Protein_LIG"' \
+    -o ../06_analisis/sasa_complex.xvg \
+    -or ../06_analisis/sasa_per_residue.xvg
 ```
 
 SASA depende de la selección, los radios atómicos y la sonda. Una disminución del área expuesta del ligando puede acompañar su enterramiento, pero no equivale a energía de unión.
@@ -2135,13 +2200,24 @@ Los nombres disponibles dependen del contenido de EDR. Evalúe promedios por blo
 **gmx msd** usa selecciones modernas:
 
 ```bash
-gmx msd     -s md.tpr     -f md_nojump.xtc     -n index.ndx     -sel 'group "LIG"'     -o ../06_analisis/msd_ligand.xvg
+gmx msd \
+    -s md.tpr \
+    -f md_nojump.xtc \
+    -n index.ndx \
+    -sel 'group "LIG"' \
+    -o ../06_analisis/msd_ligand.xvg
 ```
 
 Difusión lateral en el plano XY:
 
 ```bash
-gmx msd     -s md.tpr     -f md_nojump.xtc     -n index.ndx     -sel 'group "LIG"'     -lateral z     -o ../06_analisis/msd_ligand_xy.xvg
+gmx msd \
+    -s md.tpr \
+    -f md_nojump.xtc \
+    -n index.ndx \
+    -sel 'group "LIG"' \
+    -lateral z \
+    -o ../06_analisis/msd_ligand_xy.xvg
 ```
 
 La estimación del coeficiente de difusión se basa en la región lineal de la relación de Einstein:
@@ -2156,7 +2232,12 @@ donde **d** es la dimensionalidad: 3 para difusión tridimensional y 2 para difu
 
 ```bash
 echo LIG |
-gmx densmap     -s md.tpr     -f md_fit.xtc     -n index.ndx     -od ../06_analisis/density_ligand.xpm     -aver z
+gmx densmap \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -od ../06_analisis/density_ligand.xpm \
+    -aver z
 ```
 
 El sistema debe estar alineado previamente. Informe el eje promediado, la resolución de la grilla y la selección.
@@ -2179,14 +2260,25 @@ Primero ajuste la trayectoria sobre una región estructuralmente estable:
 mkdir -p ../06_analisis/rmsf
 
 echo Backbone |
-gmx trjconv     -s md.tpr     -f md_center.xtc     -o ../06_analisis/rmsf/md_fit_backbone.xtc     -fit rot+trans     -n index.ndx
+gmx trjconv \
+    -s md.tpr \
+    -f md_center.xtc \
+    -o ../06_analisis/rmsf/md_fit_backbone.xtc \
+    -fit rot+trans \
+    -n index.ndx
 ```
 
 Calcule RMSF por residuo usando C-alpha:
 
 ```bash
 echo C-alpha |
-gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -o ../06_analisis/rmsf/rmsf_calpha.xvg     -res     -oq ../06_analisis/rmsf/rmsf_calpha_bfactor.pdb
+gmx rmsf \
+    -s md.tpr \
+    -f ../06_analisis/rmsf/md_fit_backbone.xtc \
+    -n index.ndx \
+    -o ../06_analisis/rmsf/rmsf_calpha.xvg \
+    -res \
+    -oq ../06_analisis/rmsf/rmsf_calpha_bfactor.pdb
 ```
 
 **-oq** escribe los valores convertidos al campo B del PDB. La relación isotrópica es:
@@ -2199,10 +2291,26 @@ Para evaluar estabilidad temporal, compare bloques de igual duración:
 
 ```bash
 echo C-alpha |
-gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -b 20     -e 40     -tu ns     -res     -o ../06_analisis/rmsf/rmsf_20_40ns.xvg
+gmx rmsf \
+    -s md.tpr \
+    -f ../06_analisis/rmsf/md_fit_backbone.xtc \
+    -n index.ndx \
+    -b 20 \
+    -e 40 \
+    -tu ns \
+    -res \
+    -o ../06_analisis/rmsf/rmsf_20_40ns.xvg
 
 echo C-alpha |
-gmx rmsf     -s md.tpr     -f ../06_analisis/rmsf/md_fit_backbone.xtc     -n index.ndx     -b 40     -e 60     -tu ns     -res     -o ../06_analisis/rmsf/rmsf_40_60ns.xvg
+gmx rmsf \
+    -s md.tpr \
+    -f ../06_analisis/rmsf/md_fit_backbone.xtc \
+    -n index.ndx \
+    -b 40 \
+    -e 60 \
+    -tu ns \
+    -res \
+    -o ../06_analisis/rmsf/rmsf_40_60ns.xvg
 ```
 
 Picos persistentes suelen corresponder a terminales, bucles o regiones expuestas. Cambios localizados cerca del sitio de unión pueden sugerir estabilización o reorganización, pero deben contrastarse con contactos, estructura secundaria, RMSD y réplicas independientes.
@@ -2374,7 +2482,12 @@ La estructura 6BKK corresponde al dominio transmembrana M2 de influenza A unido 
 Prepare la proteína sin eliminar ligandos o cofactores hasta haber registrado su identidad y posición. Luego genere la topología de las cadenas:
 
 ```bash
-gmx pdb2gmx     -f protein_only.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -water tip3p
+gmx pdb2gmx \
+    -f protein_only.pdb \
+    -o protein_processed.gro \
+    -p topol.top \
+    -i posre_protein.itp \
+    -water tip3p
 ```
 
 Seleccione un campo de fuerza compatible con la topología de amantadina. No use automáticamente CHARMM27 por aparecer en protocolos antiguos; registre el campo de fuerza concreto disponible en la instalación.
@@ -2438,7 +2551,12 @@ pbc             = xyz
 ```
 
 ```bash
-gmx grompp     -f validate.mdp     -c complex.gro     -p topol.top     -o validate.tpr     -pp processed.top
+gmx grompp \
+    -f validate.mdp \
+    -c complex.gro \
+    -p topol.top \
+    -o validate.tpr \
+    -pp processed.top
 ```
 
 La opción **-pp processed.top** guarda la topología ya expandida por el preprocesador. Resulta útil para comprobar el orden de las inclusiones, macros y restricciones activadas.
@@ -2479,7 +2597,14 @@ gmx grompp     -f ions.mdp     -c complex_solv.gro     -p topol.top     -o ions.
 Neutralización y NaCl 0.15 mol L⁻¹:
 
 ```bash
-gmx genion     -s ions.tpr     -o complex_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
+gmx genion \
+    -s ions.tpr \
+    -o complex_solv_ions.gro \
+    -p topol.top \
+    -pname NA \
+    -nname CL \
+    -neutral \
+    -conc 0.15
 ```
 
 Seleccione el grupo de solvente, normalmente **SOL**. El número del grupo depende del sistema.
@@ -2599,7 +2724,12 @@ Si los números de residuo no son únicos entre cadenas, seleccione además por 
 La minimización sigue el flujo general:
 
 ```bash
-gmx grompp     -f em.mdp     -c complex_solv_ions.gro     -p topol.top     -n index.ndx     -o em.tpr
+gmx grompp \
+    -f em.mdp \
+    -c complex_solv_ions.gro \
+    -p topol.top \
+    -n index.ndx \
+    -o em.tpr
 
 gmx mdrun -deffnm em -v
 ```
@@ -2607,7 +2737,13 @@ gmx mdrun -deffnm em -v
 NVT con restricciones:
 
 ```bash
-gmx grompp     -f nvt.mdp     -c em.gro     -r em.gro     -p topol.top     -n index.ndx     -o nvt.tpr
+gmx grompp \
+    -f nvt.mdp \
+    -c em.gro \
+    -r em.gro \
+    -p topol.top \
+    -n index.ndx \
+    -o nvt.tpr
 
 gmx mdrun -deffnm nvt -v
 ```
@@ -2615,7 +2751,14 @@ gmx mdrun -deffnm nvt -v
 NPT continuando coordenadas y velocidades:
 
 ```bash
-gmx grompp     -f npt.mdp     -c nvt.gro     -r nvt.gro     -t nvt.cpt     -p topol.top     -n index.ndx     -o npt.tpr
+gmx grompp \
+    -f npt.mdp \
+    -c nvt.gro \
+    -r nvt.gro \
+    -t nvt.cpt \
+    -p topol.top \
+    -n index.ndx \
+    -o npt.tpr
 
 gmx mdrun -deffnm npt -v
 ```
@@ -2652,7 +2795,13 @@ Con **dt = 0.002 ps** y **nsteps = 500000**, el tiempo es 1000 ps, equivalente a
 Genere el TPR sin las macros de restricciones, salvo que formen parte deliberada del experimento:
 
 ```bash
-gmx grompp     -f md.mdp     -c npt.gro     -t npt.cpt     -p topol.top     -n index.ndx     -o md.tpr
+gmx grompp \
+    -f md.mdp \
+    -c npt.gro \
+    -t npt.cpt \
+    -p topol.top \
+    -n index.ndx \
+    -o md.tpr
 
 gmx mdrun -deffnm md -v
 ```
@@ -2681,7 +2830,14 @@ Centre el complejo completo:
 
 ```bash
 (echo Protein_LIG; echo System) |
-gmx trjconv     -s md.tpr     -f md_whole.xtc     -o md_center.xtc     -center     -pbc mol     -ur compact     -n index.ndx
+gmx trjconv \
+    -s md.tpr \
+    -f md_whole.xtc \
+    -o md_center.xtc \
+    -center \
+    -pbc mol \
+    -ur compact \
+    -n index.ndx
 ```
 
 Ajuste rotación y traslación respecto del backbone de todas las cadenas:
@@ -2712,7 +2868,14 @@ El primer grupo selecciona los átomos usados para el ajuste; el segundo, los á
 Comando extra para medir la distancia mínima de cada ligando a la proteína:
 
 ```bash
-gmx pairdist     -s md.tpr     -f md_fit.xtc     -n index.ndx     -ref 'group "Protein"'     -sel 'group "BOG1"' 'group "BOG2"'     -type min     -o ligand_protein_mindist.xvg
+gmx pairdist \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -ref 'group "Protein"' \
+    -sel 'group "BOG1"' 'group "BOG2"' \
+    -type min \
+    -o ligand_protein_mindist.xvg
 ```
 
 ### RMSD de cadenas individuales
@@ -2735,13 +2898,23 @@ Después de corregir PBC y ajustar la trayectoria:
 
 ```bash
 (echo Backbone; echo Backbone) |
-gmx rms     -s md.tpr     -f md_fit.xtc     -n index.ndx     -o md_rmsd_protein_all_chains.xvg     -tu ns
+gmx rms \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -o md_rmsd_protein_all_chains.xvg \
+    -tu ns
 ```
 
 Este RMSD describe el cambio del backbone del conjunto de cadenas respecto de la referencia seleccionada. Puede aumentar por reorganización cuaternaria aunque cada cadena conserve su estructura interna. Por eso conviene compararlo con los RMSD por cadena y con distancias entre centros de masa:
 
 ```bash
-gmx distance     -s md.tpr     -f md_fit.xtc     -n index.ndx     -select 'com of group "Chain_A" plus com of group "Chain_B"'     -oall chain_A_chain_B_distance.xvg
+gmx distance \
+    -s md.tpr \
+    -f md_fit.xtc \
+    -n index.ndx \
+    -select 'com of group "Chain_A" plus com of group "Chain_B"' \
+    -oall chain_A_chain_B_distance.xvg
 ```
 
 ## Dinámica de una proteína en agua
@@ -2836,7 +3009,8 @@ Las conformaciones alternativas deben resolverse antes de **pdb2gmx**. No deben 
 Verificación inicial:
 
 ```bash
-grep '^ATOM\|^HETATM\|^TER\|^SSBOND' 00_entrada/protein_original.pdb     > 01_preparacion/structure_records.txt
+grep '^ATOM\|^HETATM\|^TER\|^SSBOND' 00_entrada/protein_original.pdb \
+    > 01_preparacion/structure_records.txt
 ```
 
 Este comando solo extrae registros para inspección; no genera por sí mismo un PDB listo para simular.
@@ -2848,13 +3022,23 @@ Ejemplo interactivo:
 ```bash
 cd 01_preparacion
 
-gmx pdb2gmx     -f ../00_entrada/protein_original.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp
+gmx pdb2gmx \
+    -f ../00_entrada/protein_original.pdb \
+    -o protein_processed.gro \
+    -p topol.top \
+    -i posre_protein.itp
 ```
 
 Ejemplo con campo de fuerza y agua indicados explícitamente:
 
 ```bash
-gmx pdb2gmx     -f ../00_entrada/protein_original.pdb     -o protein_processed.gro     -p topol.top     -i posre_protein.itp     -ff charmm36-jul2022     -water tip3p
+gmx pdb2gmx \
+    -f ../00_entrada/protein_original.pdb \
+    -o protein_processed.gro \
+    -p topol.top \
+    -i posre_protein.itp \
+    -ff charmm36-jul2022 \
+    -water tip3p
 ```
 
 El identificador **charmm36-jul2022** es un ejemplo. Debe coincidir con un campo instalado y con el protocolo elegido.
@@ -2937,7 +3121,12 @@ La inclusión debe permanecer dentro del ámbito del tipo molecular al que perte
 Para una proteína soluble aproximadamente globular:
 
 ```bash
-gmx editconf     -f protein_processed.gro     -o protein_box.gro     -c     -d 1.0     -bt dodecahedron
+gmx editconf \
+    -f protein_processed.gro \
+    -o protein_box.gro \
+    -c \
+    -d 1.0 \
+    -bt dodecahedron
 ```
 
 **-d 1.0** establece una distancia mínima de 1.0 nm, equivalente a 10 Å, entre el soluto y la caja. Debe ser compatible con los radios de corte y con el tamaño y movimiento esperados de la proteína.
@@ -2945,7 +3134,12 @@ gmx editconf     -f protein_processed.gro     -o protein_box.gro     -c     -d 1
 Una caja dodecaédrica suele contener menos agua que una cúbica. Una caja cúbica puede ser más simple de visualizar, pero normalmente aumenta el número de átomos:
 
 ```bash
-gmx editconf     -f protein_processed.gro     -o protein_box_cubic.gro     -c     -d 1.0     -bt cubic
+gmx editconf \
+    -f protein_processed.gro \
+    -o protein_box_cubic.gro \
+    -c \
+    -d 1.0 \
+    -bt cubic
 ```
 
 No use este protocolo de caja acuosa para una proteína transmembrana: necesita una bicapa, orientación y composición lipídica apropiadas.
@@ -2985,7 +3179,14 @@ gmx grompp     -f ions.mdp     -c protein_solv.gro     -p topol.top     -o ions.
 Neutralización con NaCl y concentración nominal de 0.15 mol L⁻¹:
 
 ```bash
-gmx genion     -s ions.tpr     -o protein_solv_ions.gro     -p topol.top     -pname NA     -nname CL     -neutral     -conc 0.15
+gmx genion \
+    -s ions.tpr \
+    -o protein_solv_ions.gro \
+    -p topol.top \
+    -pname NA \
+    -nname CL \
+    -neutral \
+    -conc 0.15
 ```
 
 Seleccione el grupo de agua, normalmente **SOL**. No memorice su número: depende del sistema.
@@ -2999,7 +3200,12 @@ Si el experimento requiere otra sal, deben existir parámetros compatibles para 
 Genere una topología expandida:
 
 ```bash
-gmx grompp     -f em.mdp     -c protein_solv_ions.gro     -p topol.top     -o em_test.tpr     -pp processed.top
+gmx grompp \
+    -f em.mdp \
+    -c protein_solv_ions.gro \
+    -p topol.top \
+    -o em_test.tpr \
+    -pp processed.top
 ```
 
 **processed.top** permite revisar las inclusiones y macros después del preprocesamiento.
@@ -3042,7 +3248,11 @@ Ejecución:
 mkdir -p ../02_em
 cd ../02_em
 
-gmx grompp     -f ../01_preparacion/em.mdp     -c ../01_preparacion/protein_solv_ions.gro     -p ../01_preparacion/topol.top     -o em.tpr
+gmx grompp \
+    -f ../01_preparacion/em.mdp \
+    -c ../01_preparacion/protein_solv_ions.gro \
+    -p ../01_preparacion/topol.top \
+    -o em.tpr
 
 gmx mdrun -deffnm em -v
 ```
@@ -3092,7 +3302,12 @@ Con **dt = 0.002 ps** y **nsteps = 50000**, la duración es 100 ps. El paso de 0
 mkdir -p ../03_nvt
 cd ../03_nvt
 
-gmx grompp     -f ../01_preparacion/nvt.mdp     -c ../02_em/em.gro     -r ../02_em/em.gro     -p ../01_preparacion/topol.top     -o nvt.tpr
+gmx grompp \
+    -f ../01_preparacion/nvt.mdp \
+    -c ../02_em/em.gro \
+    -r ../02_em/em.gro \
+    -p ../01_preparacion/topol.top \
+    -o nvt.tpr
 
 gmx mdrun -deffnm nvt -v
 ```
@@ -3140,7 +3355,13 @@ Aquí se simulan 500 ps. **ref-p** se expresa en bar y la compresibilidad en bar
 mkdir -p ../04_npt
 cd ../04_npt
 
-gmx grompp     -f ../01_preparacion/npt.mdp     -c ../03_nvt/nvt.gro     -r ../03_nvt/nvt.gro     -t ../03_nvt/nvt.cpt     -p ../01_preparacion/topol.top     -o npt.tpr
+gmx grompp \
+    -f ../01_preparacion/npt.mdp \
+    -c ../03_nvt/nvt.gro \
+    -r ../03_nvt/nvt.gro \
+    -t ../03_nvt/nvt.cpt \
+    -p ../01_preparacion/topol.top \
+    -o npt.tpr
 
 gmx mdrun -deffnm npt -v
 ```
@@ -3191,7 +3412,12 @@ Con 50000000 pasos de 0.002 ps se simulan 100 ns. Agregue los parámetros de PME
 mkdir -p ../05_md
 cd ../05_md
 
-gmx grompp     -f ../01_preparacion/md.mdp     -c ../04_npt/npt.gro     -t ../04_npt/npt.cpt     -p ../01_preparacion/topol.top     -o md.tpr
+gmx grompp \
+    -f ../01_preparacion/md.mdp \
+    -c ../04_npt/npt.gro \
+    -t ../04_npt/npt.cpt \
+    -p ../01_preparacion/topol.top \
+    -o md.tpr
 
 gmx mdrun -deffnm md -v
 ```
@@ -3210,14 +3436,26 @@ Corrija PBC antes de analizar:
 
 ```bash
 echo Protein |
-gmx trjconv     -s md.tpr     -f md.xtc     -o md_protein_center.gro     -center     -pbc mol     -ur compact
+gmx trjconv \
+    -s md.tpr \
+    -f md.xtc \
+    -o md_protein_center.gro \
+    -center \
+    -pbc mol \
+    -ur compact
 ```
 
 Para conservar una trayectoria XTC:
 
 ```bash
 (echo Protein; echo Protein) |
-gmx trjconv     -s md.tpr     -f md.xtc     -o md_protein_center.xtc     -center     -pbc mol     -ur compact
+gmx trjconv \
+    -s md.tpr \
+    -f md.xtc \
+    -o md_protein_center.xtc \
+    -center \
+    -pbc mol \
+    -ur compact
 ```
 
 Ajuste rotación y traslación:
@@ -3244,13 +3482,21 @@ gmx rmsf     -s md.tpr     -f md_protein_fit.xtc     -o ../06_analisis/rmsf_calp
 Radio de giro:
 
 ```bash
-gmx gyrate     -s md.tpr     -f md_protein_fit.xtc     -sel 'group "Protein"'     -o ../06_analisis/gyrate_protein.xvg
+gmx gyrate \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -sel 'group "Protein"' \
+    -o ../06_analisis/gyrate_protein.xvg
 ```
 
 Estructura secundaria:
 
 ```bash
-gmx dssp     -s md.tpr     -f md_protein_fit.xtc     -sel 'group "Protein"'     -o ../06_analisis/secondary_structure.dat
+gmx dssp \
+    -s md.tpr \
+    -f md_protein_fit.xtc \
+    -sel 'group "Protein"' \
+    -o ../06_analisis/secondary_structure.dat
 ```
 
 La disponibilidad y las opciones de **gmx dssp** deben comprobarse con:
