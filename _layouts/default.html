@@ -30,19 +30,23 @@
   <header class="site-header">
     <button id="menu-button" type="button" aria-controls="sidebar" aria-expanded="false">☰ Índice</button>
     <a class="brand" href="{{ '/' | relative_url }}">{{ site.title }}</a>
-    <a class="repository" href="https://github.com/juanjosecas/manual-gromacs">Repositorio</a>
+    <nav class="site-nav" aria-label="Navegación principal">
+      <a href="{{ '/' | relative_url }}">Manual completo</a>
+      <a href="{{ '/guia/' | relative_url }}">Guía tutorial</a>
+      <a class="repository" href="https://github.com/juanjosecas/manual-gromacs">Repositorio</a>
+    </nav>
   </header>
 
   <div class="page">
     <aside id="sidebar">
       <label for="toc-search">Buscar una sección</label>
       <input id="toc-search" type="search" placeholder="Membrana, FEP, PCA…">
-      <nav id="toc" aria-label="Índice del manual"></nav>
+      <nav id="toc" aria-label="Índice de esta página"></nav>
     </aside>
 
     <main id="contenido" tabindex="-1">
       <article>{{ content }}</article>
-      <footer>El sitio se reconstruye automáticamente desde <code>manual.md</code>.</footer>
+      <footer>El sitio se reconstruye automáticamente desde los archivos Markdown del repositorio.</footer>
     </main>
   </div>
   <div id="backdrop" hidden></div>
