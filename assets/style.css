@@ -36,7 +36,13 @@ a:hover { color: var(--accent); }
 }
 .site-header a { color: inherit; }
 .brand { font-weight: 750; text-decoration: none; }
-.repository { margin-left: auto; }
+.site-nav {
+  display: flex; align-items: center; gap: 1rem; margin-left: auto;
+  font-size: .92rem;
+}
+.site-nav a { text-decoration: none; }
+.site-nav a:hover, .site-nav a:focus { text-decoration: underline; }
+.repository { margin-left: .35rem; }
 #menu-button {
   display: inline-block; border: 1px solid #ffffff66; border-radius: .35rem;
   padding: .4rem .6rem; background: transparent; color: #fff; font: inherit;
@@ -122,7 +128,9 @@ footer { max-width: 96rem; margin: 1.5rem auto; color: var(--muted); font-size: 
 
 #backdrop { position: fixed; z-index: 25; inset: var(--header) 0 0; background: #0007; }
 @media (max-width: 900px) {
-  .repository { display: none; }
+  .brand { flex: 1; }
+  .site-nav { gap: .7rem; margin-left: 0; font-size: .82rem; }
+  .site-nav .repository { display: none; }
   .page { display: block; }
   body.sidebar-collapsed #sidebar { display: block; }
   #sidebar {
@@ -133,6 +141,10 @@ footer { max-width: 96rem; margin: 1.5rem auto; color: var(--muted); font-size: 
   #sidebar.open { transform: none; }
   main { padding: 1rem; }
   article { padding: 1rem; }
+}
+@media (max-width: 620px) {
+  .brand { display: none; }
+  .site-nav { margin-left: auto; }
 }
 @media (prefers-color-scheme: dark) {
   :root {
