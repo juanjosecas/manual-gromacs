@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import re
 import statistics as stats
 import sys
 from pathlib import Path
@@ -38,6 +39,28 @@ def read_xvg(path: Path) -> list[list[float]]:
         raise ValueError(f"Sin datos numéricos: {path}")
     return data
 
+
+
+def read_thermo(path: Path, ensemble: str) -> tuple[list[float], ...]:
+    """Match energy terms to XVG legend names, not column position."""
+    raw = path.read_text(encoding="utf-8")
+    legends = {
+        int(index) + 1: name.strip()
+        for index, name in re.findall(r'@\s*s(\d+)\s+legend\s+"([^"]+)"', raw)
+    }
+    if not legends:
+        raise ValueError(f"Faltan leyendas de series en {path}; generar XVG estándar con gmx energy.")
+    data = read_xvg(path)
+    by_name = {name.lower(): i for i, name in legends.items()}
+    last = "Enthalpy" if ensemble == "npt" else "Potential"
+    terms = ["Temperature", "Pressure", "Density", "Volume", last]
+    missing = [term for term in terms if term.lower() not in by_name]
+    if missing:
+        raise ValueError(f"No aparecen términos energéticos {missing} en {path}: {legends}")
+    indices = [by_name[term.lower()] for term in terms]
+    if max(indices) >= len(data[0]):
+        raise ValueError(f"Índice de leyenda inconsistente con columnas XVG: {legends}")
+    return tuple([row[i] for row in data] for i in [0, *indices])
 
 def linear_fit(x: list[float], y: list[float]) -> float:
     x_mean, y_mean = stats.mean(x), stats.mean(y)
@@ -93,11 +116,10 @@ def main(folder: Path) -> None:
         if "=" in line
     )
     n_water = int(metadata["Nwater"])
-    thermo = read_xvg(folder / "thermo.xvg")
-    if len(thermo[0]) != 6 or len(thermo) < 20:
-        raise ValueError("Se esperaban 6 columnas: tiempo, T, P, rho, V, H; y >=20 filas.")
-    # El orden de columnas corresponde al orden de selección enviado a gmx energy en run.py.
-    time, temperature, pressure, density, volume, enthalpy = map(list, zip(*thermo))
+    ensemble = metadata.get("ensemble", "npt")
+    time, temperature, pressure, density, volume, enthalpy = read_thermo(folder / "thermo.xvg", ensemble)
+    if len(time) < 20:
+        raise ValueError("Se necesitan al menos 20 muestras energéticas.")
     t = stats.mean(temperature)
     vol = stats.mean(volume)
     rho = stats.mean(density)
@@ -107,7 +129,7 @@ def main(folder: Path) -> None:
     var_h = stats.pvariance(enthalpy)
     cov_vh = stats.mean((v - vol) * (h - stats.mean(enthalpy))
                         for v, h in zip(volume, enthalpy))
-    if metadata.get("ensemble", "npt") == "npt":
+    if ensemble == "npt":
         kappa = var_vol / (KB_BAR_NM3_K * t * vol)  # bar^-1
         alpha = cov_vh / (R * t * t * vol)  # K^-1
         cp = (var_h / (R * t * t)) * 1000 / n_water  # J mol^-1_water K^-1
@@ -149,7 +171,7 @@ def main(folder: Path) -> None:
         "compressibility_fluct_bar_inv": kappa,
         "thermal_expansion_fluct_K_inv": alpha,
         "Cp_fluct_J_mol_K": cp,
-        "n_thermo_samples": len(thermo),
+        "n_thermo_samples": len(time),
         "caveat": "Estimadores de fluctuación no validados: requieren mayor muestreo, autocorrelación y réplicas.",
     }
     (folder / "summary.json").write_text(
