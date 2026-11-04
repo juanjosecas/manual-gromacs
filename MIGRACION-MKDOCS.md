@@ -1,6 +1,6 @@
 # Migración a MkDocs Material
 
-Este repositorio conserva **manual.md** y **guia.md** como fuentes originales. El script `scripts/build_docs.py` crea `docs/` y divide el manual en 10 capítulos a partir de encabezados existentes, sin modificar su contenido científico ni sus bloques de código.
+El contenido del manual está separado en **11 archivos editables** bajo `source/` (introducción y diez capítulos). `manual.md` permanece como copia histórica y **ya no se utiliza para generar la web**. `guia.md` sigue siendo la fuente de la guía práctica. `scripts/build_docs.py` construye `docs/` a partir de `source/` sin alterar el contenido científico ni los bloques de código.
 
 ## Previsualización
 
@@ -24,6 +24,6 @@ El workflow anterior de Jekyll se sustituye; los archivos `_config.yml`, `_layou
 
 La guía se convierte automáticamente de enlaces Liquid/Jekyll a rutas Markdown relativas a capítulos, manteniendo identificadores de secciones. **Los enlaces externos antiguos al manual raíz con fragmentos `/#...` pueden dejar de funcionar**, porque los capítulos ahora tienen rutas propias. Esta migración no incluye redirecciones para todos los fragmentos heredados.
 
-La división es por títulos de capítulos, no por números de línea. Si se renombra o elimina un título utilizado como punto de corte, el generador falla explícitamente en vez de publicar capítulos incompletos.
+Los archivos de `source/` se procesan en un orden explícito. Los límites de capítulo siguen identificándose por encabezados; si se renombra o elimina un encabezado utilizado como punto de corte, el generador falla en vez de publicar capítulos incompletos. Editar `source/<capitulo>.md` para cambiar el manual; **no editar `manual.md` esperando cambios en Pages**.
 
 La generación de documentación no ejecuta GROMACS ni verifica los resultados de los protocolos.
