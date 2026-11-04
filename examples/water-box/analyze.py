@@ -107,9 +107,13 @@ def main(folder: Path) -> None:
     var_h = stats.pvariance(enthalpy)
     cov_vh = stats.mean((v - vol) * (h - stats.mean(enthalpy))
                         for v, h in zip(volume, enthalpy))
-    kappa = var_vol / (KB_BAR_NM3_K * t * vol)  # bar^-1
-    alpha = cov_vh / (R * t * t * vol)  # K^-1, H en kJ/mol del sistema
-    cp = (var_h / (R * t * t)) * 1000 / n_water  # J mol^-1_water K^-1
+    if metadata.get("ensemble", "npt") == "npt":
+        kappa = var_vol / (KB_BAR_NM3_K * t * vol)  # bar^-1
+        alpha = cov_vh / (R * t * t * vol)  # K^-1
+        cp = (var_h / (R * t * t)) * 1000 / n_water  # J mol^-1_water K^-1
+    else:
+        # El volumen fijo invalida las fórmulas de fluctuación de volumen NPT.
+        kappa, alpha, cp = None, None, None
 
     rdf = read_xvg(folder / "rdf_oo.xvg")
     msd = read_xvg(folder / "msd_ow.xvg")
@@ -130,6 +134,7 @@ def main(folder: Path) -> None:
 
     result = {
         "model": metadata["model"],
+        "ensemble": metadata.get("ensemble", "npt"),
         "temperature_target_K": float(metadata["T_K"]),
         "pressure_target_bar": float(metadata["P_bar"]),
         "Nwater": n_water,
