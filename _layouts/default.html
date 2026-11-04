@@ -33,6 +33,7 @@
     <nav class="site-nav" aria-label="Navegación principal">
       <a href="{{ '/' | relative_url }}">Manual completo</a>
       <a href="{{ '/guia/' | relative_url }}">Guía tutorial</a>
+      <a href="{{ '/temas/' | relative_url }}">Explorar temas</a>
       <a class="repository" href="https://github.com/juanjosecas/manual-gromacs">Repositorio</a>
     </nav>
   </header>
@@ -40,6 +41,7 @@
   <div class="page">
     <aside id="sidebar">
       <label for="toc-search">Buscar una sección</label>
+      <a class="topics-link" href="{{ '/temas/' | relative_url }}">Ver todos los temas</a>
       <input id="toc-search" type="search" placeholder="Membrana, FEP, PCA…">
       <nav id="toc" aria-label="Índice de esta página"></nav>
     </aside>
