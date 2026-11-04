@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - "source/**"
+      - "examples/water-box/**"
+      - "tests/test_water_box.py"
       - "guia.md"
       - "scripts/build_docs.py"
       - "mkdocs.yml"
@@ -29,6 +31,10 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-docs.txt
       - run: pip install -r requirements-docs.txt
+      - name: Comprobar scripts y cálculos de agua (sin ejecutar GROMACS)
+        run: |
+          python -m compileall -q examples/water-box
+          python -m unittest discover -s tests -p "test_water_box.py" -v
       - name: Generar capítulos
         run: python scripts/build_docs.py
       - name: Construir MkDocs

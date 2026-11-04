@@ -950,3 +950,166 @@ Para una proteína monomérica formada exclusivamente por aminoácidos estándar
 9. [Tutorial introductorio de simulación de proteínas con GROMACS, J. Phys. Chem. B](https://pubs.acs.org/doi/10.1021/acs.jpcb.4c04050)
 10. [Revisión sobre aprendizaje automático en el análisis de simulaciones biomoleculares](https://www.tandfonline.com/doi/full/10.1080/23746149.2021.2006080)
 11. [Guía práctica complementaria de dinámica esencial con GROMACS](https://stemskillslab.com/how-to-do-pca-gromacs-trajectory-essential-dynamics/)
+
+## Laboratorio de agua pura: condiciones y propiedades físicas
+
+Este laboratorio es **independiente del protocolo de proteína monomérica** desarrollado arriba. Su objetivo es trabajar con una caja de agua sin solutos para aislar el efecto de temperatura, presión, tamaño de la caja, ensamble y modelo molecular sobre las propiedades del líquido. Los archivos ejecutables están en [`examples/water-box/`](https://github.com/juanjosecas/manual-gromacs/tree/main/examples/water-box).
+
+Los tutoriales de [Barnett y Miletić (GASERI)](https://gaseri.org/en/tutorials/gromacs/1-tip4pew-water/) y [Yoo Lab](https://sites.google.com/view/yoo-lab/lectures/biomodeling/biomodeling-water-box) proporcionan los dos puntos de partida. El primero utiliza TIP4P-Ew para reproducir la densidad del agua cerca de 298 K y 1 bar; el segundo introduce las distribuciones radiales, difusión y energía libre derivada de `g(r)`. Aquí se agrega una exploración sistemática de variables, con archivos MDP completos generados por un script y análisis reproducible. Se utiliza GROMACS **2026.x**, con las opciones descritas en su [manual de parámetros](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html).
+
+### Hipótesis y condiciones de control
+
+Para comparar una propiedad, cambiar **una variable cada vez** y mantener fijos modelo, método de integración, electrostática, longitud de producción y tamaño de caja, salvo en experimentos diseñados para evaluar estos factores. Comparar propiedades de TIP4P-Ew y SPC/E *es comparar modelos*, no dos estados termodinámicos de una misma representación molecular.
+
+| Experimento | Condiciones de ejemplo | Magnitudes a seguir | Interpretación |
+| --- | --- | --- | --- |
+| Temperatura | 280, 298.15, 310, 330 K a 1 bar | Densidad, difusión, `gOO(r)`, `Cp` | Expansión y reorganización del líquido; no extrapolar a cambio de fase |
+| Presión | 1, 100, 500 bar a 298.15 K | Densidad, volumen, `gOO(r)` | Respuesta del volumen a presión; comprobar convergencia NPT |
+| Modelo de agua | TIP4P-Ew frente a SPC/E a la misma T, P y caja | Densidad, `D`, estructura y `Cp` | Sensibilidad a parametrización; comparar con datos experimentales por propiedad |
+| Tamaño de caja | 3, 4, 6 nm | Difusión, fluctuaciones, `gOO(r)` | Efectos de tamaño finito; el coeficiente de difusión tiene correcciones hidrodinámicas |
+| Ensamble | Producción NPT frente a NVT tras igual equilibración | Energía, densidad, difusión | NVT fija el volumen; no permite estimar compresibilidad por fluctuaciones de volumen |
+
+**Advertencia física:** a 1 bar, el calentamiento hasta 450 K o enfriamiento pronunciado pueden llevar al sistema real fuera de la región de líquido estable. Una caja periódica homogénea puede permanecer metaestable o impedir la nucleación de otra fase. El rango numérico aceptado por el script sirve para explorar, no garantiza que represente agua líquida en equilibrio para toda combinación. Para estudiar ebullición, congelación, interfaces o coexistencia hace falta un diseño distinto.
+
+### Elegir el modelo molecular
+
+El ejemplo usa únicamente modelos disponibles en distribuciones habituales de GROMACS, combinados con la familia OPLS-AA:
+
+| Modelo | Topología | Coordenadas iniciales | Observación |
+| --- | --- | --- | --- |
+| TIP4P-Ew | `oplsaa.ff/tip4pew.itp` | `tip4p.gro` | Cuatro sitios, uno virtual; orientado a propiedades del agua líquida |
+| SPC/E | `oplsaa.ff/spce.itp` | `spc216.gro` | Tres sitios rígidos; simple y económico |
+
+Un archivo `.gro` suministra geometría inicial: **no define por sí solo el campo de fuerza**. El modelo efectivo queda fijado por el `.itp`. No usar una geometría de tres sitios con una topología de cuatro sitios ni mezclar parámetros de distintas familias sin comprobar compatibilidad. Para introducir OPC o TIP4P/2005 hay que incorporar y validar sus topologías; el ejecutor no los ofrece como opciones automáticas.
+
+### Ejecutar un primer experimento
+
+Se necesita GROMACS instalado y `gmx` accesible en `PATH` (o cargar `GMXRC`), junto con Python 3. No hace falta `numpy` para el procesamiento tabular; `matplotlib` es opcional para generar PNG.
+
+```bash
+git clone https://github.com/juanjosecas/manual-gromacs.git
+cd manual-gromacs/examples/water-box
+
+python3 run.py --model tip4pew \
+    --temperature 298.15 \
+    --pressure 1 \
+    --box 3 \
+    --ensemble npt \
+    --npt-ns 1 \
+    --prod-ns 10 \
+    --seed 42
+```
+
+Los parámetros se expresan en **K, bar, nm y ns**. La caja inicial tiene aproximadamente 3 nm por lado. `--npt-ns 1` y `--prod-ns 10` son tiempos de *ejemplo*, no de convergencia garantizada. Cada experimento crea su propio directorio `runs/` y aborta si éste ya existe; no sobrescribe datos.
+
+El script genera, dentro de ese directorio:
+
+- `topol.top` y `water.gro`: topología y estructura, con número de moléculas `SOL` actualizado automáticamente por `gmx solvate`.
+- `em.mdp`, `nvt.mdp`, `npt.mdp`, `md.mdp`: protocolos íntegros, editables, con `dt = 0.002 ps`, PME, cortes de 1 nm, corrección de dispersión `EnerPres`, termostato V-rescale y barostato C-rescale en NPT.
+- `em.*`, `nvt.*`, `npt.*`, `md.*`: topologías compiladas, checkpoints, energías y trayectorias.
+- `thermo.xvg`, `rdf_oo.xvg`, `coordination_oo.xvg`, `msd_ow.xvg`: termodinámica, estructura y movilidad.
+- `summary.json`, `summary.csv`, `pmf_oo.csv` y gráficos PNG, si `matplotlib` está instalado.
+
+La secuencia es **solvatar → minimizar → NVT (100 ps) → NPT → producción → análisis**. Las etapas NPT y producción se continúan usando checkpoints, sin regenerar velocidades. La presión instantánea fluctúa intensamente en cajas pequeñas: evaluar el promedio y su incertidumbre, no un fotograma.
+
+### Probar distintas condiciones
+
+Una matriz temperatura–presión pequeña permite ver tendencias antes de invertir tiempo en cálculos largos:
+
+```bash
+for T in 280 298.15 310 330; do
+    for P in 1 100 500; do
+        python3 run.py --model tip4pew --temperature "$T" \
+            --pressure "$P" --box 3 --npt-ns 2 --prod-ns 10 --seed 42
+    done
+done
+```
+
+Cada combinación tiene una equilibración independiente. No corresponde iniciar las doce producciones desde el mismo checkpoint de NPT de 298 K si cambian sus condiciones termodinámicas.
+
+Comparación entre representaciones:
+
+```bash
+for MODEL in tip4pew spce; do
+    python3 run.py --model "$MODEL" --temperature 298.15 \
+        --pressure 1 --box 4 --npt-ns 2 --prod-ns 20 --seed 42
+done
+```
+
+Para estudiar el efecto del volumen fijo, `--ensemble nvt` mantiene en producción el volumen obtenido tras equilibrar previamente a la presión indicada. **La presión de producción pasa a ser un observable**, no una variable fijada por barostato:
+
+```bash
+python3 run.py --model tip4pew --temperature 298.15 \
+    --pressure 1 --ensemble nvt --npt-ns 2 --prod-ns 10
+```
+
+Las réplicas requieren semillas distintas (`--seed 42`, `43`, `44`, etc.). La duración debería aumentarse hasta estabilizar los promedios por bloques. Este experimento no usa calentamiento por etapas ni un protocolo de coexistencia de fases.
+
+### Propiedades macroscópicas y relación con observables microscópicos
+
+| Propiedad | Estimador | Fuente | Condición |
+| --- | --- | --- | --- |
+| Temperatura, presión, volumen | Promedios temporales | `gmx energy`, archivo `md.edr` | Verificar estacionariedad y unidades |
+| Densidad `ρ` | Masa total dividida por volumen; media temporal | `Density` en `md.edr` | NPT para comparar estados a presión impuesta |
+| Difusión `D` | `MSD(t) ≈ 6Dt` a tiempos largos | `gmx msd` sobre oxígenos de agua | Intervalo lineal, PBC y tamaño finito |
+| Estructura `gOO(r)` | Distribución radial O–O | `gmx rdf` | Normalización y convergencia hacia 1 a distancias grandes |
+| Coordinación | Integral de `g(r)` hasta el primer mínimo | `gmx rdf -cn` | Elegir el primer mínimo explícitamente |
+| Potencial de fuerza media estructural | `W(r) = -RT ln gOO(r) + C` | `rdf_oo.xvg` → `pmf_oo.csv` | Solo donde `g(r)>0`; constante de referencia arbitraria |
+| Compresibilidad isotérmica `κT` | Fluctuaciones de volumen | `md.edr` y `summary.json` | Solo NPT; alta sensibilidad a muestreo |
+| Dilatación térmica `αP` | Covarianza volumen–entalpía | `md.edr` y `summary.json` | Solo NPT; sensible a fluctuaciones |
+| Capacidad calorífica `Cp` | Fluctuaciones de entalpía | `md.edr` y `summary.json` | Solo NPT; modelo clásico y correcciones cuánticas |
+| Viscosidad `η` | Green–Kubo o fórmula de Einstein del tensor de presión | `gmx energy -evisco`, estudio separado | Alta frecuencia de muestreo, simulaciones largas y réplicas |
+
+Para líquidos isotrópicos homogéneos:
+
+$$
+\kappa_T = \frac{\langle V^2\rangle-\langle V\rangle^2}
+{k_{\mathrm B}T\langle V\rangle},
+\qquad
+\alpha_P = \frac{\langle VH\rangle-\langle V\rangle\langle H\rangle}
+{k_{\mathrm B}T^2\langle V\rangle}.
+$$
+
+La capacidad calorífica isobárica total está relacionada con las fluctuaciones de entalpía:
+
+$$
+C_P = \frac{\langle H^2\rangle-\langle H\rangle^2}{k_{\mathrm B}T^2}.
+$$
+
+El script realiza las conversiones pertinentes a **bar⁻¹**, **K⁻¹** y **J mol⁻¹ de agua K⁻¹**. Para estos estimadores la caja es el sistema estadístico; debe normalizarse el resultado de `Cp` por número de moléculas. Son estimaciones preliminares, sin corrección por autocorrelación ni error de tamaño finito. **El valor de `compressibility` del archivo MDP es un parámetro de acoplamiento de presión, no la compresibilidad que mide el análisis**.
+
+Para obtener la difusión de forma independiente:
+
+```bash
+cd runs/tip4pew_npt_T298.15_P1_L3_seed42
+gmx msd -s md.tpr -f md.xtc -sel 'name OW' \
+    -maxtau 100 -beginfit 20 -endfit 80 -o msd_check.xvg
+```
+
+El coeficiente `D` del script se ajusta entre 20–80 ps usando la relación de Einstein, y se expresa en m²/s. En sistemas pequeños, la dependencia de `D` con el tamaño de caja puede ser significativa. La viscosidad y el coeficiente dieléctrico **no se reportan automáticamente**: requieren protocolos específicos, muestreo más prolongado y validación independiente.
+
+Para explorar `g(r)` y el número de coordinación:
+
+```bash
+gmx rdf -s md.tpr -f md.xtc -ref 'name OW' -sel 'name OW' \
+    -o rdf_oo_check.xvg -cn coordination_oo_check.xvg
+```
+
+La posición e intensidad del primer pico informan sobre la organización local del líquido. La expresión `-RT ln g(r)` describe un **potencial de fuerza media estructural**, que incorpora efectos del entorno; no es el potencial de interacción aislado de dos moléculas ni una energía de unión estándar.
+
+### Interpretación, convergencia y límites
+
+1. **Densidad:** verificar un tramo estacionario y comparar el resultado del modelo con datos experimentales a la misma temperatura y presión. El agua real cerca de 298.15 K y 1 bar tiene densidad próxima a 997 kg/m³; el resultado depende del modelo.
+2. **Difusión:** inspeccionar el MSD completo y ajustar una región lineal; una curva que se satura o presenta saltos indica problemas de muestreo o PBC. Repetir en cajas mayores.
+3. **Fluctuaciones:** `κT`, `αP` y `Cp` convergen más lentamente que la densidad. El error por bloques reportado para densidad es una aproximación, **no un intervalo de confianza validado**.
+4. **Comparación de estados:** al variar presión o temperatura, reevaluar la equilibración, volumen, parámetros de acoplamiento y región de estabilidad del modelo. Si se busca cuantificar el error, utilizar varias réplicas.
+5. **Viscosidad y transiciones de fase:** reservar para protocolos independientes; no inferir viscosidad a partir de 10 ns ni considerar una caja homogénea como demostración de coexistencia líquido–vapor.
+
+Referencias específicas:
+
+- [GASERI — GROMACS tutorial 1: Water](https://gaseri.org/en/tutorials/gromacs/1-tip4pew-water/).
+- [Yoo Lab — Biomodeling: water box](https://sites.google.com/view/yoo-lab/lectures/biomodeling/biomodeling-water-box).
+- [GROMACS — gmx energy y propiedades de fluctuación](https://manual.gromacs.org/2026.3/onlinehelp/gmx-energy.html).
+- [GROMACS — gmx msd](https://manual.gromacs.org/2026.3/onlinehelp/gmx-msd.html).
+- [GROMACS — gmx rdf](https://manual.gromacs.org/2026.3/onlinehelp/gmx-rdf.html).
+- [GROMACS — cálculo de viscosidad](https://manual.gromacs.org/2024.2/reference-manual/special/viscosity-calculation.html).
