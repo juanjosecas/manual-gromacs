@@ -22,10 +22,10 @@ SECTIONS = [
 ]
 
 def slugify(title):
-    title = re.sub(r"[\x60*_]", "", title).lower()
+    title = re.sub(r"[\x60*]", "", title).lower()
     title = "".join(c for c in unicodedata.normalize("NFKD", title)
                     if not unicodedata.combining(c))
-    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9 -]", "", title).strip().replace(" ", "-"))
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9_ -]", "", title).strip().replace(" ", "-"))
 
 def headings(lines):
     result = []
