@@ -151,9 +151,12 @@ def main() -> int:
         ], directory, f"grompp_{stage}.log")
         run(["gmx", "mdrun", "-deffnm", stage], directory, f"mdrun_{stage}.log")
 
+    last_energy_term = "Enthalpy" if opts.ensemble == "npt" else "Potential"
+    # Se conservan las leyendas XVG para identificar columnas sin asumir su orden.
     run([
-        "gmx", "energy", "-f", "md.edr", "-xvg", "none", "-o", "thermo.xvg",
-    ], directory, "energy.log", "Temperature\nPressure\nDensity\nVolume\nEnthalpy\n0\n")
+        "gmx", "energy", "-f", "md.edr", "-o", "thermo.xvg",
+    ], directory, "energy.log",
+        f"Temperature\nPressure\nDensity\nVolume\n{last_energy_term}\n0\n")
     run([
         "gmx", "rdf", "-s", "md.tpr", "-f", "md.xtc",
         "-ref", "name OW", "-sel", "name OW",
