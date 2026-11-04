@@ -161,3 +161,36 @@ footer { max-width: 96rem; margin: 1.5rem auto; color: var(--muted); font-size: 
   .site-header, #sidebar, #backdrop, .copy, footer { display: none !important; }
   .page, main, article { display: block; max-width: none; margin: 0; border: 0; padding: 0; box-shadow: none; }
 }
+
+/* Tarjetas de navegación temática: enlaces accesibles, sin dependencias JS. */
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+.topic-card {
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  min-height: 8rem;
+  padding: 1.25rem;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: .7rem;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color .15s, transform .15s;
+}
+.topic-card strong { color: var(--dark); font-size: 1.07rem; }
+.topic-card span { font-size: .92rem; line-height: 1.5; color: var(--muted); }
+.topic-card:hover, .topic-card:focus-visible {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+.topics-link {
+  display: block;
+  margin: .15rem 0 .7rem;
+  font-size: .88rem;
+  font-weight: 650;
+}
