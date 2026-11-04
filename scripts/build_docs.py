@@ -49,7 +49,16 @@ def headings(lines):
     return result
 
 def main():
-    lines = (ROOT / "manual.md").read_text(encoding="utf-8").splitlines()
+    # Los archivos fuente se editan por separado; manual.md queda como respaldo histórico.
+    source_order = ["introduccion", "instalacion", "proteina-ligando", "sistemas",
+                    "multimoleculares", "proteina-agua", "sistema-bifasico",
+                    "membranas", "fep", "mmpbsa", "lie"]
+    lines = []
+    for name in source_order:
+        path = ROOT / "source" / f"{name}.md"
+        if not path.is_file():
+            raise FileNotFoundError(f"Falta capítulo fuente: {path}")
+        lines.extend(path.read_text(encoding="utf-8").splitlines())
     hs = headings(lines)
     starts = []
     for title, name, label in SECTIONS:
