@@ -1,0 +1,56 @@
+site_name: Manual de referencia de GROMACS
+site_description: Protocolos de simulación y análisis de dinámica molecular
+site_url: https://juanjosecas.github.io/manual-gromacs/
+repo_url: https://github.com/juanjosecas/manual-gromacs
+repo_name: juanjosecas/manual-gromacs
+docs_dir: docs
+site_dir: site
+theme:
+  name: material
+  language: es
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Modo oscuro
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Modo claro
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.arithmatex:
+      generic: true
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+nav:
+  - Inicio: index.md
+  - Guía práctica: guia.md
+  - Introducción: introduccion.md
+  - Protocolos:
+      - Instalación y Docker: capitulos/instalacion.md
+      - Proteína y ligando: capitulos/proteina-ligando.md
+      - Sistemas y simulaciones: capitulos/sistemas.md
+      - Sistemas multimoleculares: capitulos/multimoleculares.md
+      - Proteína en agua: capitulos/proteina-agua.md
+      - Sistema bifásico: capitulos/sistema-bifasico.md
+      - Membranas y acuaporinas: capitulos/membranas.md
+      - FEP y solvatación: capitulos/fep.md
+      - MM/PBSA: capitulos/mmpbsa.md
+      - LIE: capitulos/lie.md
