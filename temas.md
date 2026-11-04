@@ -13,7 +13,7 @@ La [guía práctica]({{ '/guia/' | relative_url }}) organiza los protocolos como
 
 <div class="topic-grid">
   <a class="topic-card" href="{{ '/' | relative_url }}#instalacion-de-gromacs"><strong>Instalación y entorno</strong><span>Linux, GPU, MPI, Docker, gmxapi y verificación.</span></a>
-  <a class="topic-card" href="{{ '/' | relative_url }}#caso-1-proteina-1-ligando"><strong>Proteína–ligando</strong><span>Parámetros, topologías, minimización, NVT, NPT y producción.</span></a>
+  <a class="topic-card" href="{{ '/' | relative_url }}#caso-1-proteina---1-ligando"><strong>Proteína–ligando</strong><span>Parámetros, topologías, minimización, NVT, NPT y producción.</span></a>
   <a class="topic-card" href="{{ '/' | relative_url }}#dinamica-de-una-proteina-en-agua"><strong>Proteína en solución</strong><span>Preparación del sistema, trayectoria, calidad y PCA.</span></a>
   <a class="topic-card" href="{{ '/' | relative_url }}#multiples-moleculas-de-ligandos-y-de-proteinas"><strong>Sistemas multimoleculares</strong><span>Varias cadenas, múltiples ligandos e índices.</span></a>
   <a class="topic-card" href="{{ '/' | relative_url }}#sistema-bifasico"><strong>Interfaz octanol–agua</strong><span>Dos fases, equilibración y propiedades.</span></a>
