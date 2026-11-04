@@ -66,8 +66,10 @@ def mdp(temperature: float, pressure: float, nsteps: int, *, mode: str, seed: in
         "nstlog                 = 5000",
         "nstxout-compressed     = 1000",
     ]
-    if mode == "nvt":
-        lines += [f"gen-temp               = {temperature}", f"gen-seed               = {seed}", "pcoupl                 = no"]
+    if mode in {"nvt", "nvt-production"}:
+        if mode == "nvt":
+            lines += [f"gen-temp               = {temperature}", f"gen-seed               = {seed}"]
+        lines += ["pcoupl                 = no"]
     else:
         lines += [
             "pcoupl                 = C-rescale",
@@ -82,6 +84,8 @@ def mdp(temperature: float, pressure: float, nsteps: int, *, mode: str, seed: in
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", choices=MODELS, default="tip4pew")
+    parser.add_argument("--ensemble", choices=("npt", "nvt"), default="npt",
+                        help="Ensamble de producción; siempre equilibra primero en NPT")
     parser.add_argument("--temperature", type=float, default=298.15, help="Kelvin")
     parser.add_argument("--pressure", type=float, default=1.0, help="bar")
     parser.add_argument("--box", type=float, default=3.0, help="Longitud cúbica inicial (nm)")
@@ -100,7 +104,7 @@ def main() -> int:
     if not shutil.which("gmx"):
         parser.error("No se encontró gmx en PATH; cargar GMXRC antes de ejecutar.")
 
-    name = f"{opts.model}_T{t:g}_P{p:g}_L{box:g}_seed{opts.seed}"
+    name = f"{opts.model}_{opts.ensemble}_T{t:g}_P{p:g}_L{box:g}_seed{opts.seed}"
     directory = (opts.out or (Path.cwd() / "runs" / name)).resolve()
     if directory.exists():
         parser.error(f"Ya existe {directory}; no se sobreescriben resultados.")
@@ -129,7 +133,10 @@ def main() -> int:
     )
     (directory / "nvt.mdp").write_text(mdp(t, p, 50_000, mode="nvt", seed=opts.seed), encoding="utf-8")
     (directory / "npt.mdp").write_text(mdp(t, p, steps(npt), mode="npt"), encoding="utf-8")
-    (directory / "md.mdp").write_text(mdp(t, p, steps(prod), mode="md"), encoding="utf-8")
+    (directory / "md.mdp").write_text(
+        mdp(t, p, steps(prod), mode="md" if opts.ensemble == "npt" else "nvt-production"),
+        encoding="utf-8",
+    )
 
     stages = [
         ("em", ["-c", "water.gro"]),
@@ -158,7 +165,7 @@ def main() -> int:
         "-endfit", "80", "-o", "msd_ow.xvg", "-xvg", "none",
     ], directory, "msd.log")
     (directory / "metadata.txt").write_text(
-        f"model={opts.model}\nT_K={t}\nP_bar={p}\nL_nm={box}\n"
+        f"model={opts.model}\nensemble={opts.ensemble}\nT_K={t}\nP_bar={p}\nL_nm={box}\n"
         f"Nwater={number_water}\nNPT_ns={npt}\nproduction_ns={prod}\n"
         f"seed={opts.seed}\n",
         encoding="utf-8",
