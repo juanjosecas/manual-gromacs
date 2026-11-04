@@ -28,13 +28,11 @@
   // Las secciones grandes de este manual también usan h1.
   // Conservar los IDs generados por Jekyll evita romper enlaces externos.
   const headings = [...article.querySelectorAll("h1, h2, h3")];
+  // Registrar IDs existentes antes de crear nuevos para evitar colisiones.
+  headings.forEach((heading) => { if (heading.id) used.add(heading.id); });
   const list = document.createElement("ul");
   headings.forEach((heading) => {
-    if (heading.id) {
-      used.add(heading.id);
-    } else {
-      heading.id = slug(heading.textContent);
-    }
+    if (!heading.id) heading.id = slug(heading.textContent);
     const item = document.createElement("li");
     item.className = heading.tagName.toLowerCase();
     const link = document.createElement("a");
