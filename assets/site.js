@@ -25,10 +25,16 @@
     return id;
   };
 
-  const headings = [...article.querySelectorAll("h2, h3")];
+  // Las secciones grandes de este manual también usan h1.
+  // Conservar los IDs generados por Jekyll evita romper enlaces externos.
+  const headings = [...article.querySelectorAll("h1, h2, h3")];
   const list = document.createElement("ul");
   headings.forEach((heading) => {
-    heading.id = slug(heading.textContent);
+    if (heading.id) {
+      used.add(heading.id);
+    } else {
+      heading.id = slug(heading.textContent);
+    }
     const item = document.createElement("li");
     item.className = heading.tagName.toLowerCase();
     const link = document.createElement("a");
