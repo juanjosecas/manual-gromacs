@@ -194,3 +194,7 @@ footer { max-width: 96rem; margin: 1.5rem auto; color: var(--muted); font-size: 
   font-size: .88rem;
   font-weight: 650;
 }
+
+/* Diferenciar los capítulos principales (h1) en el índice largo. */
+#toc .h1 a { font-weight: 700; color: var(--dark); background: #ffffff55; border-top: 1px solid var(--border); padding-top: .75rem; margin-top: .5rem; }
+#toc .h2 a { padding-left: .65rem; }
